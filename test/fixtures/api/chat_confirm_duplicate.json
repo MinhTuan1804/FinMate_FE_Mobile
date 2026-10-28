@@ -1,0 +1,27 @@
+{
+  "success": true,
+  "data": {
+    "action": "confirm",
+    "intent": "add_expense",
+    "replyText": null,
+    "transaction": null,
+    "draft": {
+      "kind": "expense",
+      "amountCents": 200000,
+      "transactionType": "debit",
+      "merchantName": null,
+      "description": "ăn tối",
+      "categorySlug": "food",
+      "incomeType": null,
+      "toOthers": false,
+      "suggestedFinancialAccountId": "ae158b32-0961-4df6-8c21-811728d4db4f",
+      "missingFields": [],
+      "occurredAt": null,
+      "possibleDuplicateTransactionId": "6234ef1d-5564-4f01-b6d2-808f0fcb0b00"
+    },
+    "summary": null,
+    "drafts": null
+  },
+  "error": null,
+  "meta": null
+}

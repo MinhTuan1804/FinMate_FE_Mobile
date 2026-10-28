@@ -1,0 +1,29 @@
+{
+  "success": true,
+  "data": {
+    "action": "confirm",
+    "intent": "add_expense",
+    "replyText": null,
+    "transaction": null,
+    "draft": {
+      "kind": "expense",
+      "amountCents": 20000,
+      "transactionType": "debit",
+      "merchantName": null,
+      "description": "mua nước",
+      "categorySlug": null,
+      "incomeType": null,
+      "toOthers": false,
+      "suggestedFinancialAccountId": "ae158b32-0961-4df6-8c21-811728d4db4f",
+      "missingFields": [
+        "category"
+      ],
+      "occurredAt": "2026-10-11T12:00:00+07:00",
+      "possibleDuplicateTransactionId": null
+    },
+    "summary": null,
+    "drafts": null
+  },
+  "error": null,
+  "meta": null
+}

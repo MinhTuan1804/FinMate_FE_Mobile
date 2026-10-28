@@ -1,0 +1,39 @@
+{
+  "success": true,
+  "data": {
+    "ocrResult": "success",
+    "amountCents": 78742,
+    "transactionType": "debit",
+    "merchantName": "nlp shop LIv B",
+    "transactedAt": null,
+    "categorySlug": "shopping",
+    "confidence": 0.5,
+    "scanId": "96885225-7911-459b-8501-6d1d82fb1ec3",
+    "groups": null,
+    "possibleDuplicateTransactionId": null,
+    "needsReview": true,
+    "orders": [
+      {
+        "merchantName": "nlp shop LIv B",
+        "amountCents": 78742,
+        "description": "Siéu ré Móc khoá li nhán nhú yéu thuong tr...",
+        "categorySlug": "shopping"
+      },
+      {
+        "merchantName": "Cow&Kitty",
+        "amountCents": 224400,
+        "description": "Tui Deo Chéo Nu Cow & Kitty Mau Hong Dé.",
+        "categorySlug": "shopping"
+      },
+      {
+        "merchantName": "Mommy's Joy",
+        "amountCents": 247253,
+        "description": "Máy Bay Diéu Khién Tu Xa 4 Canh Do Cho...",
+        "categorySlug": "shopping"
+      }
+    ],
+    "incompleteOrders": 0
+  },
+  "error": null,
+  "meta": null
+}

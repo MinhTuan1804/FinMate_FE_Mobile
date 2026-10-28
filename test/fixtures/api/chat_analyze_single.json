@@ -1,0 +1,40 @@
+{
+  "success": true,
+  "data": {
+    "intent": "add_expense",
+    "replyText": null,
+    "entry": {
+      "kind": "expense",
+      "amountCents": 45000,
+      "description": "ăn phở",
+      "merchantName": null,
+      "categorySlug": "food",
+      "incomeType": null,
+      "autoSaveOk": true,
+      "toOthers": false,
+      "occurredAt": null,
+      "categorySource": "rule"
+    },
+    "query": null,
+    "processingMs": 1143,
+    "entries": [
+      {
+        "kind": "expense",
+        "amountCents": 45000,
+        "description": "ăn phở",
+        "merchantName": null,
+        "categorySlug": "food",
+        "incomeType": null,
+        "autoSaveOk": true,
+        "toOthers": false,
+        "occurredAt": null,
+        "categorySource": "rule"
+      }
+    ],
+    "totalAmount": null,
+    "totalMismatch": false,
+    "skipped": []
+  },
+  "error": null,
+  "meta": null
+}

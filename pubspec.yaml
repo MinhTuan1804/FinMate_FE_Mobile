@@ -1,0 +1,47 @@
+name: finmate
+description: "FinMate - Smart Personal Financial Companion"
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State Management & Routing
+  flutter_riverpod: ^2.6.1
+  go_router: ^14.6.2
+
+  # Networking & Security
+  dio: ^5.7.0
+  flutter_secure_storage: ^9.2.2
+
+  # Offline-First Database
+  drift: ^2.24.2
+  sqlite3_flutter_libs: ^0.5.24
+  path_provider: ^2.1.5
+
+  # Design System & UI
+  google_fonts: ^6.2.1
+  fl_chart: ^0.70.0
+  intl: ^0.20.1
+  uuid: ^4.5.1
+  lucide_icons_flutter: ^3.1.20
+  path: ^1.9.1
+  image_picker: ^1.2.4
+  google_mlkit_document_scanner: ^0.6.1
+  speech_to_text: ^7.5.0
+  record: ^7.1.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  drift_dev: ^2.24.2
+  build_runner: ^2.4.13
+
+flutter:
+  uses-material-design: true

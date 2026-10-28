@@ -1,0 +1,49 @@
+{
+  "success": true,
+  "data": {
+    "ocrResult": "success",
+    "amountCents": 670000,
+    "transactionType": "debit",
+    "merchantName": "Cửa Hàng Tiện Lợi Minh An",
+    "transactedAt": null,
+    "categorySlug": "shopping",
+    "confidence": 0.5,
+    "scanId": "2c6cd532-5c69-43e8-90b4-7b2cdb67a7e4",
+    "groups": [
+      {
+        "categorySlug": "shopping",
+        "amountCents": 570000,
+        "items": [
+          {
+            "name": "Kệ để giày 3 tầng",
+            "amountCents": 450000
+          },
+          {
+            "name": "Đèn ngủ hình mèo",
+            "amountCents": 120000
+          }
+        ],
+        "possibleDuplicateTransactionId": null
+      },
+      {
+        "categorySlug": "food",
+        "amountCents": 100000,
+        "items": [
+          {
+            "name": "Banh tét nhan chui",
+            "amountCents": 70000
+          },
+          {
+            "name": "Chui tieu 1kg",
+            "amountCents": 30000
+          }
+        ],
+        "possibleDuplicateTransactionId": null
+      }
+    ],
+    "possibleDuplicateTransactionId": null,
+    "needsReview": true
+  },
+  "error": null,
+  "meta": null
+}

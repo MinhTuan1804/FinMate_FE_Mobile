@@ -1,0 +1,70 @@
+{
+  "success": true,
+  "data": {
+    "action": "confirm",
+    "intent": "add_expense",
+    "replyText": "Mình thấy 3 khoản trong câu này. Bạn kiểm tra và xác nhận từng khoản nhé.",
+    "transaction": null,
+    "draft": {
+      "kind": "expense",
+      "amountCents": 20000,
+      "transactionType": "debit",
+      "merchantName": null,
+      "description": "ăn cơm",
+      "categorySlug": "food",
+      "incomeType": null,
+      "toOthers": false,
+      "suggestedFinancialAccountId": "ae158b32-0961-4df6-8c21-811728d4db4f",
+      "missingFields": [],
+      "occurredAt": null,
+      "possibleDuplicateTransactionId": null
+    },
+    "summary": null,
+    "drafts": [
+      {
+        "kind": "expense",
+        "amountCents": 20000,
+        "transactionType": "debit",
+        "merchantName": null,
+        "description": "ăn cơm",
+        "categorySlug": "food",
+        "incomeType": null,
+        "toOthers": false,
+        "suggestedFinancialAccountId": "ae158b32-0961-4df6-8c21-811728d4db4f",
+        "missingFields": [],
+        "occurredAt": null,
+        "possibleDuplicateTransactionId": null
+      },
+      {
+        "kind": "expense",
+        "amountCents": 10000,
+        "transactionType": "debit",
+        "merchantName": null,
+        "description": "uống nước",
+        "categorySlug": "food",
+        "incomeType": null,
+        "toOthers": false,
+        "suggestedFinancialAccountId": "ae158b32-0961-4df6-8c21-811728d4db4f",
+        "missingFields": [],
+        "occurredAt": null,
+        "possibleDuplicateTransactionId": null
+      },
+      {
+        "kind": "expense",
+        "amountCents": 50000,
+        "transactionType": "debit",
+        "merchantName": null,
+        "description": "đổ xăng",
+        "categorySlug": "transport",
+        "incomeType": null,
+        "toOthers": false,
+        "suggestedFinancialAccountId": "ae158b32-0961-4df6-8c21-811728d4db4f",
+        "missingFields": [],
+        "occurredAt": null,
+        "possibleDuplicateTransactionId": null
+      }
+    ]
+  },
+  "error": null,
+  "meta": null
+}

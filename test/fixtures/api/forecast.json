@@ -1,0 +1,1 @@
+{"success":true,"data":{"periodStart":"2026-09-01T00:00:00+07:00","periodEnd":"2026-10-01T00:00:00+07:00","spentSoFarCents":45000,"projectedSpendCents":45000,"daysElapsed":30,"daysInMonth":30,"basedOnDays":30,"confidence":"medium","advice":{"monthlyIncomeCents":15000000,"projectedBalanceCents":14955000,"suggestedDailyCutCents":null}},"error":null,"meta":null}
