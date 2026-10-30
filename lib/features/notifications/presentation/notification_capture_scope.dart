@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:finmate/core/native/notification_bridge.dart';
@@ -78,7 +79,11 @@ class _NotificationCaptureScopeState extends ConsumerState<NotificationCaptureSc
 
   Future<void> _pushPackages(List<FinancialAccount> accounts) async {
     try {
-      await ref.read(notificationBridgeProvider).setMonitoredPackages(monitoredPackagesOf(accounts));
+      await ref.read(notificationBridgeProvider).setMonitoredPackages([
+        ...monitoredPackagesOf(accounts),
+        // Chỉ bản debug: cho phép thông báo giả từ `adb shell cmd notification post` (package com.android.shell).
+        if (kDebugMode) 'com.android.shell',
+      ]);
     } catch (_) {
       // Giữ danh sách cũ ở native; lần tải tài khoản sau sẽ đẩy lại.
     }

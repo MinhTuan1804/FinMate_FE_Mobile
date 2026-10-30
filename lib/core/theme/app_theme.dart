@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:finmate/core/config/app_config.dart';
 import 'package:finmate/core/theme/app_colors.dart';
 import 'package:finmate/core/theme/app_spacing.dart';
 import 'package:finmate/core/theme/app_typography.dart';
@@ -150,4 +152,37 @@ class AppTheme {
       ),
     );
   }
+
+  /// Áp cấu hình giao diện do admin đặt lên một theme có sẵn. Trường `null` giữ nguyên mặc định. Phạm vi: màu chủ đạo, nền, thanh điều hướng và font của THEME;
+  /// widget nào dùng thẳng hằng `AppColors.*` (khoảng 100 chỗ trong app) vẫn giữ màu thương hiệu mặc định cho tới khi được chuyển sang đọc từ theme.
+  static ThemeData applyConfig(ThemeData base, ThemeConfig config) {
+    var theme = base;
+    final primary = config.primaryColor;
+    if (primary != null) {
+      theme = theme.copyWith(
+        colorScheme: theme.colorScheme.copyWith(primary: primary, onPrimary: _onColor(primary)),
+        bottomNavigationBarTheme: theme.bottomNavigationBarTheme.copyWith(selectedItemColor: primary),
+      );
+    }
+    final background = config.backgroundColor;
+    if (background != null) {
+      theme = theme.copyWith(scaffoldBackgroundColor: background, appBarTheme: theme.appBarTheme.copyWith(backgroundColor: background));
+    }
+    final navBar = config.navBarColor;
+    if (navBar != null) {
+      theme = theme.copyWith(bottomNavigationBarTheme: theme.bottomNavigationBarTheme.copyWith(backgroundColor: navBar));
+    }
+    final font = config.fontFamily;
+    if (font != null) {
+      try {
+        theme = theme.copyWith(textTheme: GoogleFonts.getTextTheme(font, theme.textTheme));
+      } on Object {
+        // tên không phải font Google hoặc không tải được: giữ font hiện tại thay vì làm hỏng cả theme
+      }
+    }
+    return theme;
+  }
+
+  /// Chữ trên nền [color]: trắng trên nền tối, đen trên nền sáng, để màu admin chọn luôn đọc được.
+  static Color _onColor(Color color) => ThemeData.estimateBrightnessForColor(color) == Brightness.dark ? Colors.white : Colors.black;
 }

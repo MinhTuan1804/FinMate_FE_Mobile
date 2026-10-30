@@ -6,6 +6,7 @@ import 'package:finmate/core/theme/app_colors.dart';
 class AppTypography {
   AppTypography._();
 
+  /// Tên font mặc định cho ThemeData. Các kiểu chữ bên dưới KHÔNG ghi đè font: chúng thừa hưởng font của theme, nên font admin đặt (AppTheme.applyConfig) áp dụng cho mọi chữ.
   static const String fontFamily = 'PlusJakartaSans';
   static const List<FontFeature> tabularFigures = [FontFeature.tabularFigures()];
 
@@ -13,7 +14,6 @@ class AppTypography {
 
   // Headings
   static TextStyle h1(BuildContext context) => TextStyle(
-        fontFamily: fontFamily,
         fontSize: 28,
         fontWeight: FontWeight.w700,
         letterSpacing: -0.5,
@@ -21,7 +21,6 @@ class AppTypography {
       );
 
   static TextStyle h2(BuildContext context) => TextStyle(
-        fontFamily: fontFamily,
         fontSize: 22,
         fontWeight: FontWeight.w600,
         letterSpacing: -0.3,
@@ -29,7 +28,6 @@ class AppTypography {
       );
 
   static TextStyle h3(BuildContext context) => TextStyle(
-        fontFamily: fontFamily,
         fontSize: 18,
         fontWeight: FontWeight.w600,
         color: Theme.of(context).colorScheme.onSurface,
@@ -37,28 +35,24 @@ class AppTypography {
 
   // Body
   static TextStyle bodyLarge(BuildContext context) => TextStyle(
-        fontFamily: fontFamily,
         fontSize: 16,
         fontWeight: FontWeight.w500,
         color: Theme.of(context).colorScheme.onSurface,
       );
 
   static TextStyle body(BuildContext context) => TextStyle(
-        fontFamily: fontFamily,
         fontSize: 14,
         fontWeight: FontWeight.w400,
         color: Theme.of(context).colorScheme.onSurface,
       );
 
   static TextStyle bodyMedium(BuildContext context) => TextStyle(
-        fontFamily: fontFamily,
         fontSize: 14,
         fontWeight: FontWeight.w500,
         color: Theme.of(context).colorScheme.onSurface,
       );
 
   static TextStyle caption(BuildContext context) => TextStyle(
-        fontFamily: fontFamily,
         fontSize: 12,
         fontWeight: FontWeight.w400,
         color: Theme.of(context).brightness == Brightness.dark
@@ -68,7 +62,6 @@ class AppTypography {
 
   // Money Typography (Tabular figures enabled - không nhảy giật hàng)
   static TextStyle get moneyLarge => const TextStyle(
-        fontFamily: fontFamily,
         fontSize: 32,
         fontWeight: FontWeight.w700,
         letterSpacing: -0.5,
@@ -76,14 +69,12 @@ class AppTypography {
       );
 
   static TextStyle get moneyMedium => const TextStyle(
-        fontFamily: fontFamily,
         fontSize: 20,
         fontWeight: FontWeight.w600,
         fontFeatures: tabularFigures,
       );
 
   static TextStyle get moneySmall => const TextStyle(
-        fontFamily: fontFamily,
         fontSize: 15,
         fontWeight: FontWeight.w600,
         fontFeatures: tabularFigures,

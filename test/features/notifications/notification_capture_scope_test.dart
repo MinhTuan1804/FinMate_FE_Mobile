@@ -109,7 +109,7 @@ void main() {
       await tester.pump();
 
       expect(bridge.pushed, [
-        ['com.VCB']
+        ['com.VCB', 'com.android.shell'] // test chạy ở chế độ debug nên có thêm gói adb
       ]);
     });
 
@@ -140,7 +140,9 @@ void main() {
       accounts.emit([_acc('a', pkg: 'com.x', monitored: false)]);
       await tester.pump();
 
-      expect(bridge.pushed, [<String>[]]);
+      expect(bridge.pushed, [
+        ['com.android.shell']
+      ]);
     });
 
     testWidgets('flushes_queue_on_start_and_on_resume', (tester) async {

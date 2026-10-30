@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:finmate/core/config/brand_logo.dart';
 import 'package:finmate/core/theme/app_colors.dart';
 import 'package:finmate/core/theme/app_spacing.dart';
 import 'package:finmate/core/theme/app_typography.dart';
@@ -23,24 +24,7 @@ class WelcomeScreen extends StatelessWidget {
               const Spacer(flex: 2),
 
               // Logo & App Name
-              Center(
-                child: Container(
-                  width: 72,
-                  height: 72,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.15),
-                    borderRadius: AppSpacing.roundedLarge,
-                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
-                  ),
-                  child: const Center(
-                    child: Icon(
-                      LucideIcons.wallet,
-                      size: 36,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ),
-              ),
+              const Center(child: BrandLogo()),
               const SizedBox(height: 24),
               Text(
                 'FinMate',
