@@ -16,6 +16,10 @@ import 'package:finmate/features/transactions/presentation/screens/transactions_
 import 'package:finmate/features/planning/presentation/screens/planning_screen.dart';
 import 'package:finmate/features/analytics/presentation/screens/analytics_screen.dart';
 import 'package:finmate/features/profile/presentation/screens/profile_screen.dart';
+import 'package:finmate/features/qr_transfer/domain/vietqr_parser.dart';
+import 'package:finmate/features/qr_transfer/presentation/screens/qr_history_screen.dart';
+import 'package:finmate/features/qr_transfer/presentation/screens/qr_scan_screen.dart';
+import 'package:finmate/features/qr_transfer/presentation/screens/qr_transfer_screen.dart';
 
 const _splashPath = '/splash';
 const _termsPath = '/terms';
@@ -127,6 +131,19 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/profile',
         builder: (context, state) => const ProfileScreen(),
+      ),
+      GoRoute(
+        path: '/qr-scan',
+        builder: (context, state) => const QrScanScreen(),
+      ),
+      GoRoute(
+        path: '/qr-transfer',
+        // extra chỉ mang dữ liệu trong bộ nhớ (số tài khoản không đưa lên URL). Null = nhập tay.
+        builder: (context, state) => QrTransferScreen(scanned: state.extra is VietQrData ? state.extra as VietQrData : null),
+      ),
+      GoRoute(
+        path: '/qr-history',
+        builder: (context, state) => const QrHistoryScreen(),
       ),
     ],
   );

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:finmate/features/dashboard/presentation/widgets/app_bottom_nav.dart';
 import 'package:finmate/core/format/money.dart';
 import 'package:finmate/core/theme/app_colors.dart';
 import 'package:finmate/core/theme/app_spacing.dart';
@@ -134,7 +135,7 @@ class HomeScreen extends ConsumerWidget {
           ),
         ),
       ),
-      bottomNavigationBar: _buildBottomNav(context, 0),
+      bottomNavigationBar: const AppBottomNav(currentIndex: 0),
     );
   }
 
@@ -423,26 +424,6 @@ class HomeScreen extends ConsumerWidget {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildBottomNav(BuildContext context, int currentIndex) {
-    return NavigationBar(
-      selectedIndex: currentIndex,
-      onDestinationSelected: (idx) {
-        if (idx == 0) context.go('/home');
-        if (idx == 1) context.push('/transactions');
-        if (idx == 2) context.push('/planning');
-        if (idx == 3) context.push('/analytics');
-        if (idx == 4) context.push('/profile');
-      },
-      destinations: const [
-        NavigationDestination(icon: Icon(LucideIcons.house, size: 20), label: 'Trang chủ'),
-        NavigationDestination(icon: Icon(LucideIcons.receipt, size: 20), label: 'Sổ thu chi'),
-        NavigationDestination(icon: Icon(LucideIcons.target, size: 20), label: 'Kế hoạch'),
-        NavigationDestination(icon: Icon(LucideIcons.chartPie, size: 20), label: 'Phân tích'),
-        NavigationDestination(icon: Icon(LucideIcons.user, size: 20), label: 'Cá nhân'),
-      ],
     );
   }
 }

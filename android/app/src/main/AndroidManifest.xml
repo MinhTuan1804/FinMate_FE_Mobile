@@ -58,5 +58,10 @@
         <intent>
             <action android:name="android.speech.RecognitionService"/>
         </intent>
+        <!-- Mở app ngân hàng qua liên kết https dl.vietqr.io (url_launcher): từ Android 11 phải khai báo mới thấy app xử lý liên kết -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="https"/>
+        </intent>
     </queries>
 </manifest>
