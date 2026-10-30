@@ -30,6 +30,14 @@ class AppColors {
   static const Color expense = danger;
   static const Color income = safe;
 
+  // Lớp phủ trên khung hình camera: luôn tối bất kể giao diện sáng hay tối (nền là hình ảnh camera, không phải bề mặt của app).
+  static const Color cameraBackdrop = Color(0xFF000000);
+  static const Color onCamera = Color(0xFFFFFFFF);
+  static const Color onCameraMuted = Color(0xB3FFFFFF); // 70%
+  static const Color onCameraDisabled = Color(0x62FFFFFF); // 38%
+  static const Color cameraScrim = Color(0xA6000000); // 65%: chữ hướng dẫn nổi trên hình
+  static const Color cameraControl = Color(0x8C000000); // 55%: nút tròn trên hình
+
   // Text Neutral Tokens
   static const Color textPrimaryDark = Color(0xFFF8FAFC);
   static const Color textSecondaryDark = Color(0xFF94A3B8);

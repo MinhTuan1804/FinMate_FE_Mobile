@@ -93,6 +93,45 @@ void main() {
     });
   });
 
+  group('QrTransferConfig.fromJson', () {
+    test('đọc giá trị admin đặt', () {
+      final qr = QrTransferConfig.fromJson({
+        'maxAmount': 5000000,
+        'maxMessageLength': 50,
+        'defaultMessage': 'Chuyen khoan',
+        'deeplinkHost': 'pay.example.com',
+        'deeplinkReturnUrl': 'https://example.com/back',
+      });
+
+      expect((qr.maxAmount, qr.maxMessageLength, qr.defaultMessage), (5000000, 50, 'Chuyen khoan'));
+      expect((qr.deeplinkHost, qr.deeplinkReturnUrl), ('pay.example.com', 'https://example.com/back'));
+    });
+
+    test('thiếu hoặc sai thì dùng mặc định; máy chủ lạ và liên kết không https bị bỏ', () {
+      const defaults = QrTransferConfig();
+      for (final broken in <Map<String, dynamic>>[
+        {},
+        {'deeplinkHost': 'https://evil.example.com', 'deeplinkReturnUrl': 'http://x.test', 'maxAmount': -1, 'maxMessageLength': 5000},
+        {'deeplinkHost': '192.168.1.10'},
+        {'deeplinkHost': 'dl.vietqr.io/pay'},
+        {'deeplinkHost': 'host:8443'},
+      ]) {
+        final qr = QrTransferConfig.fromJson(broken);
+
+        expect(qr.deeplinkHost, defaults.deeplinkHost);
+        expect(qr.deeplinkReturnUrl, defaults.deeplinkReturnUrl);
+        expect(qr.maxAmount, defaults.maxAmount);
+        expect(qr.maxMessageLength, defaults.maxMessageLength);
+      }
+    });
+
+    test('AppConfig.fromJson mang theo nhóm qrTransfer', () {
+      final config = AppConfig.fromJson({'version': 3, 'config': {'qrTransfer': {'defaultMessage': 'Chuyen khoan'}}});
+
+      expect(config.qrTransfer.defaultMessage, 'Chuyen khoan');
+    });
+  });
+
   group('isOlderVersion', () {
     test('so từng số theo thứ tự, không so theo chữ', () {
       expect(isOlderVersion('1.9.0', '1.10.0'), isTrue);

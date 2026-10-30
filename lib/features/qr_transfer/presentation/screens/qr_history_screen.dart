@@ -86,12 +86,12 @@ class _TransferTile extends StatelessWidget {
   final QrTransfer item;
   final VoidCallback onCancel;
 
-  ({IconData icon, Color color, String label}) get _status {
+  ({IconData icon, Color color, String label}) _status(BuildContext context) {
     switch (item.status) {
       case QrTransferStatus.matched:
         return (icon: LucideIcons.check, color: AppColors.safe, label: 'Đã khớp giao dịch');
       case QrTransferStatus.cancelled:
-        return (icon: LucideIcons.x, color: AppColors.textMutedDark, label: 'Đã hủy');
+        return (icon: LucideIcons.x, color: Theme.of(context).colorScheme.onSurfaceVariant, label: 'Đã hủy');
       case QrTransferStatus.pending:
         return item.isExpired
             ? (icon: LucideIcons.clock, color: AppColors.warning, label: 'Hết hạn, chưa thấy thông báo')
@@ -101,7 +101,7 @@ class _TransferTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final status = _status;
+    final status = _status(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final when = DateFormat('dd/MM/yyyy HH:mm').format(item.scannedAt.toLocal());
     final title = '${item.senderBankName} → ${item.receiverBankName} • ${item.receiverAccountNumber}';

@@ -92,6 +92,42 @@ class ThemeConfig {
   }
 }
 
+/// Quét QR chuyển khoản. Cùng giá trị admin đặt ở trang cấu hình hệ thống; thiếu hoặc sai thì dùng mặc định để app vẫn quét được khi cấu hình hỏng.
+class QrTransferConfig {
+  const QrTransferConfig({
+    this.maxAmount = 100000000000,
+    this.maxMessageLength = 100,
+    this.defaultMessage = 'Chuyen tien qua FinMate',
+    this.deeplinkHost = 'dl.vietqr.io',
+    this.deeplinkReturnUrl = 'https://www.vietqr.io/deeplink',
+  });
+
+  final int maxAmount;
+  final int maxMessageLength;
+  final String defaultMessage;
+
+  /// Máy chủ chuyển tiếp mở app ngân hàng. Chỉ nhận tên miền trần: giá trị lạ bị bỏ để số tài khoản của người dùng không bao giờ bị gửi tới một địa chỉ bất thường.
+  final String deeplinkHost;
+  final String deeplinkReturnUrl;
+
+  static final RegExp _bareDomain = RegExp(r'^(?=.{4,100}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,24}$');
+
+  factory QrTransferConfig.fromJson(Map<String, dynamic> json) {
+    const fallback = QrTransferConfig();
+    final host = _text(json['deeplinkHost']);
+    final returnUrl = _text(json['deeplinkReturnUrl']);
+    final amount = json['maxAmount'];
+    final length = json['maxMessageLength'];
+    return QrTransferConfig(
+      maxAmount: amount is int && amount > 0 ? amount : fallback.maxAmount,
+      maxMessageLength: length is int && length >= 20 && length <= 100 ? length : fallback.maxMessageLength,
+      defaultMessage: _text(json['defaultMessage']) ?? fallback.defaultMessage,
+      deeplinkHost: host != null && _bareDomain.hasMatch(host) ? host : fallback.deeplinkHost,
+      deeplinkReturnUrl: returnUrl != null && returnUrl.startsWith('https://') ? returnUrl : fallback.deeplinkReturnUrl,
+    );
+  }
+}
+
 class AppConfig {
   const AppConfig({
     this.version = 0,
@@ -99,6 +135,7 @@ class AppConfig {
     this.appVersion = const AppVersionConfig(),
     this.features = const FeatureConfig(),
     this.theme = const ThemeConfig(),
+    this.qrTransfer = const QrTransferConfig(),
   });
 
   /// Cấu hình khi chưa tải được gì (mới cài, mất mạng): không bảo trì, không buộc cập nhật, giao diện mặc định.
@@ -110,6 +147,7 @@ class AppConfig {
   final AppVersionConfig appVersion;
   final FeatureConfig features;
   final ThemeConfig theme;
+  final QrTransferConfig qrTransfer;
 
   /// [data] là phần `data` của phản hồi: `{version, serverTime, config: {...}}`.
   factory AppConfig.fromJson(Map<String, dynamic> data) {
@@ -121,6 +159,7 @@ class AppConfig {
       appVersion: AppVersionConfig.fromJson(section('appVersion')),
       features: FeatureConfig.fromJson(section('features')),
       theme: ThemeConfig.fromJson(section('theme')),
+      qrTransfer: QrTransferConfig.fromJson(section('qrTransfer')),
     );
   }
 }

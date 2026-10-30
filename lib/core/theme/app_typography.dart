@@ -12,6 +12,10 @@ class AppTypography {
 
   static TextStyle tabular(TextStyle base) => base.copyWith(fontFeatures: tabularFigures);
 
+  /// Nhãn dưới icon của thanh điều hướng dưới: nhỏ nhưng luôn kèm icon, đậm hơn khi đang chọn.
+  static TextStyle navLabel({required bool selected, required Color color}) =>
+      TextStyle(fontSize: 11, fontWeight: selected ? FontWeight.w700 : FontWeight.w500, color: color);
+
   // Headings
   static TextStyle h1(BuildContext context) => TextStyle(
         fontSize: 28,

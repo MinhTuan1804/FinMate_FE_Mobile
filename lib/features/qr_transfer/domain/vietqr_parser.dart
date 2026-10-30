@@ -49,14 +49,8 @@ int crc16(String text) {
   return crc;
 }
 
-/// Một cấp TLV (2 chữ số ID + 2 chữ số độ dài + giá trị) thành `{tag: value}`. Độ dài thường tính theo KÝ TỰ; nếu cách đó không khớp thì thử lại theo BYTE UTF-8 (một số bên sinh mã đếm byte).
-Map<String, String> _parseTlv(String data) {
-  try {
-    return _parseTlvChars(data);
-  } on VietQrParseException {
-    return _parseTlvBytes(data);
-  }
-}
+/// Một cấp TLV (2 chữ số ID + 2 chữ số độ dài + giá trị) thành `{tag: value}`. Độ dài tính theo KÝ TỰ hoặc theo BYTE UTF-8 tùy nơi sinh mã (chuẩn công khai không nói rõ), nên cả hai cách đều được thử.
+typedef _TlvParser = Map<String, String> Function(String data);
 
 Map<String, String> _parseTlvChars(String data) {
   final result = <String, String>{};
@@ -95,22 +89,43 @@ Map<String, String> _parseTlvBytes(String data) {
 const _cardServiceCode = 'QRIBFTTC';
 
 /// Parse nội dung đã quét. Ném [VietQrParseException] (thông điệp tiếng Việt dùng thẳng được cho người dùng) nếu không phải mã VietQR chuyển khoản hợp lệ.
+///
+/// Cách đếm độ dài được chọn theo KẾT QUẢ CẤU TRÚC chứ không theo "lỗi độ dài": thử đếm theo ký tự và chỉ nhận khi cả mã (kể cả các tầng lồng nhau) đọc ra đủ thông tin thụ hưởng; nếu không thì thử đếm theo
+/// byte; cả hai đều hỏng thì báo lỗi của cách đầu. Một cách đếm sai gần như không bao giờ cho ra mã hợp lệ vì độ dài lệch làm các tag phía sau vỡ.
 VietQrData parseVietQr(String raw) {
   final text = raw.trim();
   if (!text.startsWith('0002')) throw VietQrParseException('Đây không phải mã VietQR chuyển khoản.');
 
   final crcAt = text.lastIndexOf('6304');
+  String? crc;
   if (crcAt >= 0 && text.length == crcAt + 8) {
     final expected = text.substring(crcAt + 4).toUpperCase();
+    crc = expected;
     final actual = crc16(text.substring(0, crcAt + 4)).toRadixString(16).toUpperCase().padLeft(4, '0');
     if (expected != actual) throw VietQrParseException('Mã QR bị lỗi hoặc đã bị chỉnh sửa (sai mã kiểm tra). Hãy quét lại.');
   }
 
-  final top = _parseTlv(text);
+  try {
+    return _extract(text, _parseTlvChars, crc);
+  } on VietQrParseException catch (first) {
+    try {
+      return _extract(text, _parseTlvBytes, crc);
+    } on VietQrParseException {
+      throw first;
+    }
+  }
+}
+
+VietQrData _extract(String text, _TlvParser parse, String? crc) {
+  final top = parse(text);
+
+  // Mã có CRC thì tag 63 phải đọc ra đúng giá trị đó: nếu không thì cách đếm độ dài đã lệch (các tag sau tên/nội dung có dấu bị đọc sai) và phải thử cách còn lại.
+  if (crc != null && top['63']?.toUpperCase() != crc) throw VietQrParseException('Mã QR sai định dạng (không đọc được mã kiểm tra).');
+
   final merchantRaw = top['38'];
   if (merchantRaw == null) throw VietQrParseException('Không tìm thấy thông tin thụ hưởng trong mã. Có thể đây không phải mã VietQR.');
 
-  final merchant = _parseTlv(merchantRaw);
+  final merchant = parse(merchantRaw);
   final beneficiaryRaw = merchant['01'];
   if (beneficiaryRaw == null) throw VietQrParseException('Mã QR thiếu thông tin ngân hàng hoặc tài khoản thụ hưởng.');
 
@@ -118,7 +133,7 @@ VietQrData parseVietQr(String raw) {
     throw VietQrParseException('Mã này chuyển vào số THẺ chứ không phải số tài khoản, FinMate chưa hỗ trợ. Hãy dùng mã chuyển vào tài khoản.');
   }
 
-  final beneficiary = _parseTlv(beneficiaryRaw);
+  final beneficiary = parse(beneficiaryRaw);
   final bankBin = beneficiary['00'];
   final account = beneficiary['01'];
   if (bankBin == null || !RegExp(r'^\d{6}$').hasMatch(bankBin) || account == null || account.isEmpty) {
@@ -132,7 +147,7 @@ VietQrData parseVietQr(String raw) {
   String? message;
   final additionalRaw = top['62'];
   if (additionalRaw != null) {
-    final purpose = _parseTlv(additionalRaw)['08'];
+    final purpose = parse(additionalRaw)['08'];
     if (purpose != null && purpose.isNotEmpty) message = purpose;
   }
 
@@ -149,8 +164,12 @@ VietQrData parseVietQr(String raw) {
 /// Liên kết mở app ngân hàng của NGƯỜI GỬI với màn chuyển tiền đã điền sẵn, qua dịch vụ chuyển tiếp `dl.vietqr.io`. `app` là app người dùng sẽ mở trên máy họ, `ba` là tài khoản VÀ ngân hàng của người
 /// NHẬN: hai thứ độc lập nhau (chuyển khác ngân hàng là chuyện bình thường). Đã thử thật trên MB Bank và VietinBank; thiếu `url` thì app ngân hàng chỉ mở màn hình chủ nên KHÔNG bỏ tham số nào ở đây.
 ///
-/// Lưu ý riêng tư: số tài khoản, số tiền, nội dung đi qua máy chủ của `dl.vietqr.io` (bên thứ ba) để chuyển tiếp.
+/// [host] và [returnUrl] lấy từ cấu hình hệ thống (admin đặt), không viết cứng trong app.
+///
+/// Lưu ý riêng tư: số tài khoản, số tiền, nội dung đi qua máy chủ [host] (bên thứ ba) để chuyển tiếp.
 Uri buildVietQrDeeplink({
+  required String host,
+  required String returnUrl,
   required String senderAppCode,
   required String receiverAppCode,
   required String accountNumber,
@@ -162,9 +181,9 @@ Uri buildVietQrDeeplink({
     'app': senderAppCode,
     'ba': '$accountNumber@$receiverAppCode',
     'tn': message,
-    'url': 'https://www.vietqr.io/deeplink',
+    'url': returnUrl,
     if (amount > 0) 'am': amount.toString(),
     if (beneficiaryName != null && beneficiaryName.isNotEmpty) 'bn': beneficiaryName,
   };
-  return Uri.https('dl.vietqr.io', '/pay', params);
+  return Uri.https(host, '/pay', params);
 }

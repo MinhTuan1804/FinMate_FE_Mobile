@@ -20,7 +20,7 @@ String _qr({String bin = '970422', String account = '0123456789', String service
     if (amount != null) _tlv('54', amount),
     _tlv('58', 'VN'),
     if (name != null) tlv('59', name),
-    if (purpose != null) _tlv('62', tlv('08', purpose)),
+    if (purpose != null) tlv('62', tlv('08', purpose)),
     '6304',
   ].join();
   return '$body${crc16(body).toRadixString(16).toUpperCase().padLeft(4, '0')}';
@@ -72,6 +72,17 @@ void main() {
       expect(data.beneficiaryName, 'NGUYỄN VĂN A');
     });
 
+    test('tên có dấu đếm theo KÝ TỰ cũng đọc đúng, và cả hai cách đếm cho cùng kết quả với mã không dấu', () {
+      final chars = parseVietQr(_qr(name: 'NGUYỄN VĂN A', purpose: 'tiền ăn'));
+      final bytes = parseVietQr(_qr(name: 'NGUYỄN VĂN A', purpose: 'tiền ăn', byteLengths: true));
+
+      expect(chars.beneficiaryName, 'NGUYỄN VĂN A');
+      expect(bytes.beneficiaryName, 'NGUYỄN VĂN A');
+      expect(chars.message, 'tiền ăn');
+      expect(bytes.message, 'tiền ăn');
+      expect(parseVietQr(_qr(name: 'NGUYEN VAN A')).accountNumber, '0123456789');
+    });
+
     test('BIN không đủ 6 chữ số bị từ chối', () {
       expect(() => parseVietQr(_qr(bin: '9704')), throwsA(isA<VietQrParseException>()));
     });
@@ -80,6 +91,8 @@ void main() {
   group('buildVietQrDeeplink', () {
     test('app là ngân hàng GỬI, ba là tài khoản và ngân hàng NHẬN: hai thứ độc lập', () {
       final uri = buildVietQrDeeplink(
+        host: 'dl.vietqr.io',
+        returnUrl: 'https://www.vietqr.io/deeplink',
         senderAppCode: 'mb',
         receiverAppCode: 'icb',
         accountNumber: '0123456789',
@@ -100,8 +113,15 @@ void main() {
       });
     });
 
+    test('máy chủ và liên kết quay về lấy từ cấu hình, không viết cứng', () {
+      final uri = buildVietQrDeeplink(host: 'pay.example.com', returnUrl: 'https://example.com/back', senderAppCode: 'mb', receiverAppCode: 'icb', accountNumber: '1234', amount: 5, message: 'x');
+
+      expect(uri.host, 'pay.example.com');
+      expect(uri.queryParameters['url'], 'https://example.com/back');
+    });
+
     test('luôn có tham số url (thiếu nó app ngân hàng chỉ mở màn hình chủ)', () {
-      final uri = buildVietQrDeeplink(senderAppCode: 'mb', receiverAppCode: 'mb', accountNumber: '1234', amount: 1, message: 'x');
+      final uri = buildVietQrDeeplink(host: 'dl.vietqr.io', returnUrl: 'https://www.vietqr.io/deeplink', senderAppCode: 'mb', receiverAppCode: 'mb', accountNumber: '1234', amount: 1, message: 'x');
 
       expect(uri.queryParameters.containsKey('url'), isTrue);
       expect(uri.queryParameters.containsKey('bn'), isFalse);

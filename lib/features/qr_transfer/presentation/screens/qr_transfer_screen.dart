@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:finmate/core/config/app_config.dart';
+import 'package:finmate/core/config/app_config_controller.dart';
 import 'package:finmate/core/format/money.dart';
 import 'package:finmate/core/network/api_exceptions.dart';
 import 'package:finmate/core/theme/app_colors.dart';
@@ -32,8 +34,7 @@ class QrTransferScreen extends ConsumerStatefulWidget {
 }
 
 class _QrTransferScreenState extends ConsumerState<QrTransferScreen> {
-  static const _defaultMessage = 'Chuyen tien qua FinMate';
-  static const _maxAmount = 100000000000;
+  static const _lookupDebounce = Duration(milliseconds: 600);
 
   final _accountCtrl = TextEditingController();
   final _amountCtrl = TextEditingController();
@@ -47,6 +48,9 @@ class _QrTransferScreenState extends ConsumerState<QrTransferScreen> {
   bool _busy = false;
   String? _error;
 
+  /// Cấu hình quét QR do admin đặt (trần số tiền, nội dung mặc định, máy chủ chuyển tiếp).
+  QrTransferConfig get _qr => ref.read(appConfigProvider).qrTransfer;
+
   @override
   void initState() {
     super.initState();
@@ -54,7 +58,7 @@ class _QrTransferScreenState extends ConsumerState<QrTransferScreen> {
     _receiverBin = scanned?.bankBin;
     _accountCtrl.text = scanned?.accountNumber ?? '';
     _amountCtrl.text = scanned?.amount?.toString() ?? '';
-    _messageCtrl.text = scanned?.message ?? _defaultMessage;
+    _messageCtrl.text = scanned?.message ?? _qr.defaultMessage;
     _senderBin = ref.read(lastSenderBankBinProvider);
     if (scanned != null) WidgetsBinding.instance.addPostFrameCallback((_) => _lookupRemembered());
   }
@@ -87,22 +91,24 @@ class _QrTransferScreenState extends ConsumerState<QrTransferScreen> {
 
   void _onAccountChanged(String _) {
     _lookupTimer?.cancel();
-    _lookupTimer = Timer(const Duration(milliseconds: 600), _lookupRemembered);
+    _lookupTimer = Timer(_lookupDebounce, _lookupRemembered);
     setState(() => _remembered = null);
   }
 
   int? get _amount {
     final value = int.tryParse(_amountCtrl.text.trim());
-    return (value != null && value > 0 && value <= _maxAmount) ? value : null;
+    return (value != null && value > 0 && value <= _qr.maxAmount) ? value : null;
   }
 
   Future<bool> _openBankApp(QrBank sender, QrBank receiver, int amount) async {
     final uri = buildVietQrDeeplink(
+      host: _qr.deeplinkHost,
+      returnUrl: _qr.deeplinkReturnUrl,
       senderAppCode: sender.appCode,
       receiverAppCode: receiver.appCode,
       accountNumber: _accountCtrl.text.trim(),
       amount: amount,
-      message: _messageCtrl.text.trim().isEmpty ? _defaultMessage : _messageCtrl.text.trim(),
+      message: _messageCtrl.text.trim().isEmpty ? _qr.defaultMessage : _messageCtrl.text.trim(),
       beneficiaryName: widget.scanned?.beneficiaryName,
     );
     try {
@@ -132,7 +138,7 @@ class _QrTransferScreenState extends ConsumerState<QrTransferScreen> {
               receiverName: widget.scanned?.beneficiaryName,
               senderBankBin: sender.bin,
               amount: amount,
-              message: _messageCtrl.text.trim().isEmpty ? _defaultMessage : _messageCtrl.text.trim(),
+              message: _messageCtrl.text.trim().isEmpty ? _qr.defaultMessage : _messageCtrl.text.trim(),
               categoryId: _categoryId,
             );
       } on ApiException catch (e) {
@@ -262,7 +268,7 @@ class _QrTransferScreenState extends ConsumerState<QrTransferScreen> {
           const SizedBox(height: AppSpacing.md),
           TextField(
             controller: _messageCtrl,
-            maxLength: 100,
+            maxLength: _qr.maxMessageLength,
             decoration: const InputDecoration(labelText: 'Nội dung chuyển khoản', helperText: 'Nên viết không dấu: nhiều ngân hàng không nhận dấu tiếng Việt.'),
           ),
           const SizedBox(height: AppSpacing.lg),
@@ -329,7 +335,7 @@ class _QrTransferScreenState extends ConsumerState<QrTransferScreen> {
           ),
           const SizedBox(height: AppSpacing.md),
           Text(
-            'Số tài khoản, số tiền và nội dung được chuyển tiếp qua dịch vụ dl.vietqr.io để mở đúng app ngân hàng. FinMate không chuyển tiền thay bạn.',
+            'Số tài khoản, số tiền và nội dung được chuyển tiếp qua dịch vụ ${_qr.deeplinkHost} để mở đúng app ngân hàng. FinMate không chuyển tiền thay bạn.',
             style: AppTypography.caption(context).copyWith(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
           ),
         ],

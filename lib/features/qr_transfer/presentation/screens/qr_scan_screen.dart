@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:finmate/core/theme/app_colors.dart';
 import 'package:finmate/core/theme/app_spacing.dart';
 import 'package:finmate/features/qr_transfer/domain/vietqr_parser.dart';
 
@@ -66,7 +67,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: AppColors.cameraBackdrop,
       body: Stack(
         fit: StackFit.expand,
         children: [
@@ -117,7 +118,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
                       onPressed: () => _openTransfer(null),
                       icon: const Icon(LucideIcons.keyboard, size: 18),
                       label: const Text('Nhập số tài khoản'),
-                      style: OutlinedButton.styleFrom(foregroundColor: Colors.white, side: const BorderSide(color: Colors.white70), minimumSize: const Size(0, 48)),
+                      style: OutlinedButton.styleFrom(foregroundColor: AppColors.onCamera, side: const BorderSide(color: AppColors.onCameraMuted), minimumSize: const Size(0, 48)),
                     ),
                   ],
                 ),
@@ -140,7 +141,7 @@ class _ScanFrame extends StatelessWidget {
       child: Container(
         width: 260,
         height: 260,
-        decoration: BoxDecoration(border: Border.all(color: Colors.white, width: 3), borderRadius: AppSpacing.roundedLarge),
+        decoration: BoxDecoration(border: Border.all(color: AppColors.onCamera, width: 3), borderRadius: AppSpacing.roundedLarge),
       ),
     );
   }
@@ -155,8 +156,8 @@ class _HintPill extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
-      decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.65), borderRadius: AppSpacing.roundedMedium),
-      child: Text(text, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 13)),
+      decoration: BoxDecoration(color: AppColors.cameraScrim, borderRadius: AppSpacing.roundedMedium),
+      child: Text(text, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.onCamera, fontSize: 13)),
     );
   }
 }
@@ -176,9 +177,9 @@ class _RoundAction extends StatelessWidget {
       onPressed: onPressed,
       icon: Icon(icon, size: 22),
       style: IconButton.styleFrom(
-        backgroundColor: Colors.black.withValues(alpha: 0.55),
-        foregroundColor: Colors.white,
-        disabledForegroundColor: Colors.white38,
+        backgroundColor: AppColors.cameraControl,
+        foregroundColor: AppColors.onCamera,
+        disabledForegroundColor: AppColors.onCameraDisabled,
         fixedSize: const Size(48, 48),
       ),
     );
@@ -204,15 +205,15 @@ class _CameraUnavailable extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Colors.black,
+      color: AppColors.cameraBackdrop,
       alignment: Alignment.center,
       padding: const EdgeInsets.all(AppSpacing.xl),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(LucideIcons.circleAlert, color: Colors.white, size: 48),
+          const Icon(LucideIcons.circleAlert, color: AppColors.onCamera, size: 48),
           const SizedBox(height: AppSpacing.lg),
-          Text(_message, style: const TextStyle(color: Colors.white), textAlign: TextAlign.center),
+          Text(_message, style: const TextStyle(color: AppColors.onCamera), textAlign: TextAlign.center),
           const SizedBox(height: AppSpacing.xl),
           FilledButton.icon(onPressed: onManual, icon: const Icon(LucideIcons.keyboard, size: 18), label: const Text('Nhập số tài khoản')),
         ],

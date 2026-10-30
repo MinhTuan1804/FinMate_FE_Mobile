@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:finmate/core/theme/app_colors.dart';
 import 'package:finmate/core/theme/app_spacing.dart';
+import 'package:finmate/core/theme/app_typography.dart';
 
 /// Thanh điều hướng dưới: hai tab mỗi bên và nút QUÉT QR chuyển khoản ở GIỮA (ô vuông bo góc chứa icon quét mã).
 ///
@@ -80,7 +81,7 @@ class AppBottomNav extends StatelessWidget {
                   item.label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 11, fontWeight: selected ? FontWeight.w700 : FontWeight.w500, color: color),
+                  style: AppTypography.navLabel(selected: selected, color: color),
                 ),
               ],
             ),
