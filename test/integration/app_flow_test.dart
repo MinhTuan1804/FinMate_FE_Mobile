@@ -219,6 +219,13 @@ class _FakeBackend {
         return ok({'periodStart': '2026-09-01', 'periodEnd': '2026-10-01', 'totalBudget': null, 'categoryBudgets': []});
       case ('GET', '/saving-goals'):
         return ok([]);
+      // Quản lý tài chính: người dùng chưa làm khảo sát và chưa dùng cách nào (dữ liệu khảo sát là phản hồi thật của backend)
+      case ('GET', '/survey'):
+        return respondFixture('finance_survey_pending');
+      case ('POST', '/survey/skip'):
+        return respondFixture('finance_survey_pending');
+      case ('GET', '/me/methods'):
+        return ok([]);
       case ('GET', '/transactions'):
         return ok(transactions);
       case ('GET', '/reports/monthly-summary'):
@@ -297,6 +304,14 @@ void main() {
     await tester.enterText(find.byType(TextField).first, '15.000.000');
     await tester.tap(find.text('Hoàn tất & Khám phá FinMate'));
     await tester.pumpAndSettle();
+
+    // Thiết lập xong thì tới khảo sát để gợi ý cách quản lý tài chính; bỏ qua được
+    expect(find.text('Khảo sát nhanh'), findsOneWidget);
+    await tester.tap(find.widgetWithText(TextButton, 'Để sau'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Để sau'));
+    await tester.pumpAndSettle();
+    expect(backend.calls, contains('POST /api/v1/survey/skip'));
 
     expect(find.text('Xin chào,'), findsOneWidget);
     expect(find.text('Probe'), findsOneWidget);

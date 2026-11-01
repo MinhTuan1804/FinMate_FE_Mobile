@@ -83,7 +83,8 @@ class _InitialSetupScreenState extends ConsumerState<InitialSetupScreen> {
                   .toList(),
             ),
           );
-      if (mounted) context.go('/home');
+      // Thiết lập xong thì tới khảo sát để FinMate gợi ý cách quản lý tài chính; bỏ qua được và làm lại được từ trang chủ.
+      if (mounted) context.go('/finance-survey?onboarding=1');
     } catch (e) {
       if (mounted) _showError(errorMessage(e));
     } finally {

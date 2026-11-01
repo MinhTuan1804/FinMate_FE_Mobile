@@ -75,6 +75,22 @@ void main() {
       expect(post.data, {'name': 'Du lịch', 'targetCents': 30000000, 'deadline': '2026-11-15T00:00:00.000Z'});
     });
 
+    test('mục tiêu đã hủy không hiện trong danh sách; xóa mục tiêu gọi POST /cancel', () async {
+      final goals = [
+        {'id': 'g1', 'name': 'Đang chạy', 'targetCents': 100, 'savedCents': 0, 'status': 'Active', 'deadline': null},
+        {'id': 'g2', 'name': 'Đã hủy', 'targetCents': 100, 'savedCents': 50, 'status': 'Cancelled', 'deadline': null},
+      ];
+      final adapter = RouteAdapter((o) => respondJson({'success': true, 'data': o.method == 'GET' ? goals : goals.first}));
+      final repo = PlanningRepository(apiClient: testApiClient(adapter));
+
+      final listed = await repo.getGoals();
+      await repo.cancelGoal('g1');
+
+      expect(listed.map((g) => g.id), ['g1']);
+      expect(adapter.requests.last.method, 'POST');
+      expect(adapter.requests.last.path, '/api/v1/saving-goals/g1/cancel');
+    });
+
     test('contribute gửi amountCents tới /contribute và trả mục tiêu đã cập nhật (bỏ qua celebration)', () async {
       final adapter = RouteAdapter((o) => respondJson({
             'success': true,

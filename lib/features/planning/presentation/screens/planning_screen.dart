@@ -10,6 +10,7 @@ import 'package:finmate/core/theme/app_typography.dart';
 import 'package:finmate/features/categories/domain/category.dart';
 import 'package:finmate/features/categories/presentation/categories_provider.dart';
 import 'package:finmate/features/categories/presentation/category_icons.dart';
+import 'package:finmate/features/finance_methods/presentation/controllers/finance_providers.dart';
 import 'package:finmate/features/planning/domain/entities/budget_entity.dart';
 import 'package:finmate/features/planning/domain/entities/savings_goal_entity.dart';
 import 'package:finmate/features/planning/presentation/controllers/planning_controller.dart';
@@ -74,7 +75,16 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> with SingleTick
         .read(planningControllerProvider.notifier)
         .createSavingsGoal(title: result.name, targetAmountCents: result.target, targetDate: result.deadline)
         .then((_) => true));
-    if (ok == true) _snack('Đã tạo mục tiêu tiết kiệm');
+    if (ok == true) {
+      _refreshHome();
+      _snack('Đã tạo mục tiêu tiết kiệm');
+    }
+  }
+
+  /// Mục tiêu đổi thì "còn được chi" và các mẫu mục tiêu gợi ý ở trang chủ phải tính lại.
+  void _refreshHome() {
+    ref.invalidate(spendableProvider);
+    ref.invalidate(goalSuggestionsProvider);
   }
 
   Future<void> _contribute(SavingsGoalEntity goal) async {
@@ -84,7 +94,34 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> with SingleTick
     final result = await _run(() => ref.read(planningControllerProvider.notifier).contributeToGoal(goal.id, amount));
     if (result == null) return;
 
+    _refreshHome();
     _snack('Đã nạp ${formatVnd(amount)} vào mục tiêu!');
+  }
+
+  Future<void> _deleteGoal(SavingsGoalEntity goal) async {
+    final saved = goal.currentAmountCents > BigInt.zero ? ' Bạn đã tích lũy ${goal.formattedCurrent} cho mục tiêu này.' : '';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Xóa mục tiêu "${goal.title}"?'),
+        content: Text('Mục tiêu sẽ biến mất khỏi danh sách và không còn được tính vào kế hoạch tài chính. Lịch sử nạp tiền vẫn được lưu lại.$saved'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Giữ lại')),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.danger),
+            child: const Text('Xóa mục tiêu'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    final ok = await _run(() => ref.read(planningControllerProvider.notifier).cancelSavingsGoal(goal.id).then((_) => true));
+    if (ok == true) {
+      _refreshHome();
+      _snack('Đã xóa mục tiêu "${goal.title}"');
+    }
   }
 
   @override
@@ -398,6 +435,13 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> with SingleTick
                   border: Border.all(color: color.withValues(alpha: 0.3)),
                 ),
                 child: Text(goal.statusLabel(), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color)),
+              ),
+              IconButton(
+                onPressed: () => _deleteGoal(goal),
+                icon: const Icon(LucideIcons.trash2, size: 18),
+                tooltip: 'Xóa mục tiêu',
+                color: AppColors.danger,
+                visualDensity: VisualDensity.compact,
               ),
             ],
           ),

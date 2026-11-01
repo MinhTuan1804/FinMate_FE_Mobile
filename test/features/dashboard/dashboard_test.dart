@@ -8,6 +8,8 @@ import 'package:finmate/features/analytics/presentation/reports_providers.dart';
 import 'package:finmate/features/auth/domain/entities/user_profile.dart';
 import 'package:finmate/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:finmate/features/dashboard/presentation/screens/home_screen.dart';
+import 'package:finmate/features/finance_methods/domain/finance_models.dart';
+import 'package:finmate/features/finance_methods/presentation/controllers/finance_providers.dart';
 import 'package:finmate/features/transactions/domain/entities/transaction_entity.dart';
 import 'package:finmate/features/transactions/presentation/controllers/transaction_controller.dart';
 
@@ -76,6 +78,9 @@ void main() {
           transactionControllerProvider.overrideWith((ref) => MockTransactionController(const AsyncValue.data([]))),
           accountsControllerProvider.overrideWith((ref) => MockAccountsController(AsyncValue.data(accounts ?? _accounts))),
           monthlySummaryProvider.overrideWith((ref) => (summary ?? () async => _summary)()),
+          // Phần quản lý tài chính ở trang chủ: người dùng chưa dùng cách nào và chưa làm khảo sát
+          myMethodsProvider.overrideWith((ref) async => const <UserMethod>[]),
+          surveyProvider.overrideWith((ref) async => const Survey(status: 'pending', questions: [], answers: [])),
         ],
         child: const MaterialApp(home: HomeScreen()),
       ),

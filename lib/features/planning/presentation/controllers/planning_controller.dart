@@ -98,6 +98,11 @@ class PlanningController extends StateNotifier<AsyncValue<PlanningState>> {
     await loadPlanningData(silent: true);
   }
 
+  Future<void> cancelSavingsGoal(String goalId) async {
+    await repository.cancelGoal(goalId);
+    await loadPlanningData(silent: true);
+  }
+
   Future<SavingsGoalEntity> contributeToGoal(String goalId, BigInt amountCents) async {
     final result = await repository.contribute(goalId, amountCents);
     await loadPlanningData(silent: true);

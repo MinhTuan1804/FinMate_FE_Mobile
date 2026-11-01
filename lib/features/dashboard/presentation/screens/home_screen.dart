@@ -11,6 +11,7 @@ import 'package:finmate/features/accounts/presentation/controllers/accounts_cont
 import 'package:finmate/features/analytics/presentation/reports_providers.dart';
 import 'package:finmate/features/assistant/presentation/widgets/assistant_prompt_bar.dart';
 import 'package:finmate/features/auth/presentation/controllers/auth_controller.dart';
+import 'package:finmate/features/finance_methods/presentation/widgets/method_home_section.dart';
 import 'package:finmate/features/transactions/domain/entities/transaction_entity.dart';
 import 'package:finmate/features/transactions/presentation/controllers/transaction_controller.dart';
 import 'package:finmate/features/transactions/presentation/widgets/create_transaction_bottom_sheet.dart';
@@ -73,6 +74,11 @@ class HomeScreen extends ConsumerWidget {
 
               // 4. Quick Action Buttons
               _buildQuickActions(context),
+
+              const SizedBox(height: 24),
+
+              // Cách quản lý tài chính người dùng đang dùng: các khối do admin cấu hình nên mỗi cách một trang chủ khác nhau
+              const FinanceHomeSection(),
 
               const SizedBox(height: 24),
 

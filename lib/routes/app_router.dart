@@ -16,6 +16,10 @@ import 'package:finmate/features/transactions/presentation/screens/transactions_
 import 'package:finmate/features/planning/presentation/screens/planning_screen.dart';
 import 'package:finmate/features/analytics/presentation/screens/analytics_screen.dart';
 import 'package:finmate/features/profile/presentation/screens/profile_screen.dart';
+import 'package:finmate/features/finance_methods/presentation/screens/alert_thresholds_screen.dart';
+import 'package:finmate/features/finance_methods/presentation/screens/my_methods_screen.dart';
+import 'package:finmate/features/finance_methods/presentation/screens/recommendation_screen.dart';
+import 'package:finmate/features/finance_methods/presentation/screens/survey_screen.dart';
 import 'package:finmate/features/qr_transfer/domain/vietqr_parser.dart';
 import 'package:finmate/features/qr_transfer/presentation/screens/qr_history_screen.dart';
 import 'package:finmate/features/qr_transfer/presentation/screens/qr_scan_screen.dart';
@@ -131,6 +135,22 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/profile',
         builder: (context, state) => const ProfileScreen(),
+      ),
+      GoRoute(
+        path: '/finance-survey',
+        builder: (context, state) => SurveyScreen(onboarding: state.uri.queryParameters['onboarding'] == '1'),
+      ),
+      GoRoute(
+        path: '/finance-recommendation',
+        builder: (context, state) => RecommendationScreen(onboarding: state.uri.queryParameters['onboarding'] == '1'),
+      ),
+      GoRoute(
+        path: '/finance-methods',
+        builder: (context, state) => const MyMethodsScreen(),
+      ),
+      GoRoute(
+        path: '/alert-thresholds',
+        builder: (context, state) => const AlertThresholdsScreen(),
       ),
       GoRoute(
         path: '/qr-scan',

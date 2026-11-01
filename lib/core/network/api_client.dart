@@ -57,10 +57,17 @@ class ApiClient {
     String path, {
     dynamic data,
     Map<String, dynamic>? queryParameters,
+    // Chỉ cho lệnh biết là chậm (vd. AI chọn cách quản lý ~7 giây); lệnh thường giữ hạn chờ mặc định.
+    Duration? receiveTimeout,
     required T Function(dynamic json) fromJsonT,
   }) async {
     try {
-      final response = await dio.post(path, data: data, queryParameters: queryParameters);
+      final response = await dio.post(
+        path,
+        data: data,
+        queryParameters: queryParameters,
+        options: receiveTimeout == null ? null : Options(receiveTimeout: receiveTimeout),
+      );
       return _parse(response, fromJsonT);
     } on DioException catch (e) {
       throw _handleError(e);

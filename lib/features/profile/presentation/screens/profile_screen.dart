@@ -151,6 +151,28 @@ class ProfileScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 16),
+            Text('Cảnh báo', style: AppTypography.h3(context)),
+            const SizedBox(height: 8),
+            ListTile(
+              key: const ValueKey('alert-thresholds-tile'),
+              onTap: () => context.push('/alert-thresholds'),
+              tileColor: isDark ? AppColors.surfaceDarkElevated : AppColors.surfaceLightSubtle,
+              shape: RoundedRectangleBorder(
+                borderRadius: AppSpacing.roundedMedium,
+                side: BorderSide(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+              ),
+              leading: const Icon(LucideIcons.bellRing, color: AppColors.primary, size: 24),
+              title: Text(
+                'Ngưỡng cảnh báo ngân sách',
+                style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w600, fontSize: 13),
+              ),
+              subtitle: Text(
+                'Chọn mức dùng hạn mức để FinMate nhắc bạn. Có mặc định, chỉnh lại được bất cứ lúc nào.',
+                style: AppTypography.caption(context).copyWith(fontSize: 11),
+              ),
+              trailing: const Icon(LucideIcons.chevronRight, size: 18),
+            ),
+            const SizedBox(height: 16),
             Text('Quyền riêng tư', style: AppTypography.h3(context)),
             const SizedBox(height: 8),
             SwitchListTile(

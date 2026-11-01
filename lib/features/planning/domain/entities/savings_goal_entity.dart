@@ -39,6 +39,8 @@ class SavingsGoalEntity {
     return double.parse(percentage.toStringAsFixed(1));
   }
 
+  bool get isCancelled => status == 'cancelled';
+
   bool get isCompleted => status == 'completed' || (targetAmountCents > BigInt.zero && currentAmountCents >= targetAmountCents);
 
   bool isOverdue({DateTime? asOf}) => !isCompleted && targetDate != null && targetDate!.isBefore(asOf ?? DateTime.now());

@@ -4,17 +4,23 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:finmate/core/theme/app_colors.dart';
 import 'package:finmate/features/categories/domain/category.dart';
 import 'package:finmate/features/categories/presentation/categories_provider.dart';
+import 'package:finmate/features/finance_methods/presentation/controllers/finance_providers.dart';
 import 'package:finmate/features/planning/domain/entities/budget_entity.dart';
 import 'package:finmate/features/planning/domain/entities/savings_goal_entity.dart';
 import 'package:finmate/features/planning/presentation/controllers/planning_controller.dart';
 import 'package:finmate/features/planning/presentation/screens/planning_screen.dart';
 import '../../fixtures/fixture.dart';
+import '../finance_methods/fake_finance_repository.dart';
 
 class MockPlanningController extends StateNotifier<AsyncValue<PlanningState>> implements PlanningController {
   final List<(String, BigInt)> contributions = [];
+  final List<String> cancelled = [];
   SavingsGoalEntity? nextResult;
 
   MockPlanningController(super.state);
+
+  @override
+  Future<void> cancelSavingsGoal(String goalId) async => cancelled.add(goalId);
 
   @override
   Future<SavingsGoalEntity> contributeToGoal(String goalId, BigInt amountCents) async {
@@ -158,13 +164,14 @@ void main() {
   });
 
   group('PlanningScreen', () {
-    Future<MockPlanningController> pump(WidgetTester tester, AsyncValue<PlanningState> state) async {
+    Future<MockPlanningController> pump(WidgetTester tester, AsyncValue<PlanningState> state, {List<Override> overrides = const []}) async {
       tester.view.physicalSize = const Size(800, 2400);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
       final mock = MockPlanningController(state);
       await tester.pumpWidget(ProviderScope(
         overrides: [
+          ...overrides,
           planningControllerProvider.overrideWith((ref) => mock),
           categoriesProvider.overrideWith((ref) async => (fixtureData('categories') as List).map((e) => Category.fromJson(e as Map<String, dynamic>)).toList()),
         ],
@@ -221,6 +228,67 @@ void main() {
       expect(mock.contributions.single.$2, BigInt.from(1000000));
       expect(find.text('Đã nạp 1.000.000 ₫ vào mục tiêu!'), findsOneWidget);
       expect(find.textContaining('lên cấp'), findsNothing);
+    });
+
+    testWidgets('xóa mục tiêu: hỏi xác nhận (kèm số đã tích lũy), đồng ý thì gọi controller và báo đã xóa', (tester) async {
+      final mock = await pump(tester, AsyncValue.data(stateWith(goals: [_goal(deadline: DateTime(2027, 1, 1))])));
+
+      await tester.tap(find.text('Mục tiêu tiết kiệm'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Xóa mục tiêu'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Xóa mục tiêu "Quỹ khẩn cấp"?'), findsOneWidget);
+      expect(find.textContaining('Bạn đã tích lũy 1.000.000 ₫'), findsOneWidget);
+      expect(mock.cancelled, isEmpty, reason: 'chưa xác nhận thì chưa xóa');
+
+      await tester.tap(find.text('Xóa mục tiêu'));
+      await tester.pumpAndSettle();
+
+      expect(mock.cancelled, ['g1']);
+      expect(find.text('Đã xóa mục tiêu "Quỹ khẩn cấp"'), findsOneWidget);
+    });
+
+    testWidgets('xóa mục tiêu: "còn được chi" ở trang chủ được tính lại, không giữ số của mục tiêu đã xóa', (tester) async {
+      var spendableLoads = 0;
+      await pump(
+        tester,
+        AsyncValue.data(stateWith(goals: [_goal()])),
+        overrides: [
+          spendableProvider.overrideWith((ref) async {
+            spendableLoads++;
+            return sampleSpendable();
+          }),
+        ],
+      );
+      // Trang chủ đang mở ở tab bên cạnh nên đang giữ provider này.
+      final container = ProviderScope.containerOf(tester.element(find.byType(PlanningScreen)));
+      container.listen(spendableProvider, (_, __) {});
+      await container.read(spendableProvider.future);
+      expect(spendableLoads, 1);
+
+      await tester.tap(find.text('Mục tiêu tiết kiệm'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Xóa mục tiêu'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Xóa mục tiêu'));
+      await tester.pumpAndSettle();
+
+      expect(spendableLoads, 2);
+    });
+
+    testWidgets('xóa mục tiêu rồi chọn "Giữ lại": không gọi controller', (tester) async {
+      final mock = await pump(tester, AsyncValue.data(stateWith(goals: [_goal()])));
+
+      await tester.tap(find.text('Mục tiêu tiết kiệm'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Xóa mục tiêu'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Giữ lại'));
+      await tester.pumpAndSettle();
+
+      expect(mock.cancelled, isEmpty);
+      expect(find.text('Quỹ khẩn cấp'), findsOneWidget);
     });
 
     testWidgets('nạp tiền với số 0 bị chặn, không gọi controller', (tester) async {

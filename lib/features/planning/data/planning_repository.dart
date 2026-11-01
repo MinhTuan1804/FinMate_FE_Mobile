@@ -56,7 +56,13 @@ class PlanningRepository {
       '/api/v1/saving-goals',
       fromJsonT: (json) => (json as List).map((e) => SavingsGoalEntity.fromJson(e as Map<String, dynamic>)).toList(),
     );
-    return response.data ?? const [];
+    // Backend trả cả mục tiêu đã hủy (lịch sử); người dùng coi hủy là xóa nên không hiện lại.
+    return (response.data ?? const <SavingsGoalEntity>[]).where((g) => !g.isCancelled).toList();
+  }
+
+  /// "Xóa" mục tiêu = hủy ở backend: mục tiêu ngừng hoạt động, lịch sử nạp tiền được giữ lại.
+  Future<void> cancelGoal(String goalId) async {
+    await apiClient.post('/api/v1/saving-goals/$goalId/cancel', fromJsonT: (json) => json);
   }
 
   Future<void> createGoal({required String name, required BigInt targetCents, DateTime? deadline}) async {
