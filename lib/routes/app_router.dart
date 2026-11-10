@@ -16,6 +16,30 @@ import 'package:finmate/features/transactions/presentation/screens/transactions_
 import 'package:finmate/features/planning/presentation/screens/planning_screen.dart';
 import 'package:finmate/features/analytics/presentation/screens/analytics_screen.dart';
 import 'package:finmate/features/profile/presentation/screens/profile_screen.dart';
+import 'package:finmate/features/accounts/presentation/screens/accounts_screen.dart';
+import 'package:finmate/features/survey/presentation/screens/survey_screen.dart';
+import 'package:finmate/features/support/presentation/screens/support_screen.dart';
+import 'package:finmate/features/support/presentation/screens/support_ticket_detail_screen.dart';
+import 'package:finmate/features/support/presentation/screens/support_access_log_screen.dart';
+import 'package:finmate/features/app_config/presentation/screens/app_config_screen.dart';
+import 'package:finmate/features/subscriptions/presentation/screens/subscriptions_screen.dart';
+
+import 'package:finmate/features/community/presentation/screens/community_screen.dart';
+import 'package:finmate/features/community/presentation/screens/community_post_detail_screen.dart';
+import 'package:finmate/features/community/presentation/screens/community_places_screen.dart';
+import 'package:finmate/features/community/presentation/screens/community_place_detail_screen.dart';
+import 'package:finmate/features/community/presentation/screens/community_profile_screen.dart';
+import 'package:finmate/features/categories/presentation/screens/categories_screen.dart';
+import 'package:finmate/features/recurring/presentation/screens/recurring_items_screen.dart';
+import 'package:finmate/features/groups/presentation/screens/groups_screen.dart';
+import 'package:finmate/features/groups/presentation/screens/group_detail_screen.dart';
+import 'package:finmate/features/groups/presentation/screens/accept_invitation_screen.dart';
+import 'package:finmate/features/groups/presentation/screens/group_finance_screen.dart';
+import 'package:finmate/features/forecast/presentation/screens/forecast_screen.dart';
+import 'package:finmate/features/forecast/presentation/screens/forecast_settings_screen.dart';
+import 'package:finmate/features/qr_transfers/presentation/screens/qr_transfer_screen.dart';
+import 'package:finmate/features/devices/presentation/screens/devices_screen.dart';
+import 'package:finmate/features/finance_methods/presentation/screens/finance_methods_screen.dart';
 
 const _splashPath = '/splash';
 const _termsPath = '/terms';
@@ -127,6 +151,98 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/profile',
         builder: (context, state) => const ProfileScreen(),
+      ),
+      GoRoute(
+        path: '/accounts',
+        builder: (context, state) => const AccountsScreen(),
+      ),
+      GoRoute(
+        path: '/categories',
+        builder: (context, state) => const CategoriesScreen(),
+      ),
+      GoRoute(
+        path: '/recurring-items',
+        builder: (context, state) => const RecurringItemsScreen(),
+      ),
+      GoRoute(
+        path: '/groups',
+        builder: (context, state) => const GroupsScreen(),
+      ),
+      GoRoute(
+        path: '/group-detail',
+        builder: (context, state) => GroupDetailScreen(groupId: state.extra as String),
+      ),
+      GoRoute(
+        path: '/forecast',
+        builder: (context, state) => const ForecastScreen(),
+      ),
+      GoRoute(
+        path: '/forecast-settings',
+        builder: (context, state) => const ForecastSettingsScreen(),
+      ),
+      GoRoute(
+        path: '/qr-transfers',
+        builder: (context, state) => const QrTransferScreen(),
+      ),
+      GoRoute(
+        path: '/devices',
+        builder: (context, state) => const DevicesScreen(),
+      ),
+      GoRoute(
+        path: '/finance-methods',
+        builder: (context, state) => const FinanceMethodsScreen(),
+      ),
+      GoRoute(
+        path: '/survey',
+        builder: (context, state) => const SurveyScreen(),
+      ),
+      GoRoute(
+        path: '/support',
+        builder: (context, state) => const SupportScreen(),
+      ),
+      GoRoute(
+        path: '/support-ticket',
+        builder: (context, state) => SupportTicketDetailScreen(ticketId: state.extra as String),
+      ),
+      GoRoute(
+        path: '/support-access-log',
+        builder: (context, state) => const SupportAccessLogScreen(),
+      ),
+      GoRoute(
+        path: '/app-config',
+        builder: (context, state) => const AppConfigScreen(),
+      ),
+      GoRoute(
+        path: '/subscriptions',
+        builder: (context, state) => const SubscriptionsScreen(),
+      ),
+      GoRoute(
+        path: '/community',
+        builder: (context, state) => const CommunityScreen(),
+      ),
+      GoRoute(
+        path: '/community-post',
+        builder: (context, state) => CommunityPostDetailScreen(postId: state.extra as String),
+      ),
+      GoRoute(
+        path: '/community-places',
+        builder: (context, state) => const CommunityPlacesScreen(),
+      ),
+      GoRoute(
+        path: '/community-place',
+        builder: (context, state) => CommunityPlaceDetailScreen(placeId: state.extra as String),
+      ),
+      GoRoute(
+        path: '/community-profile',
+        builder: (context, state) => const CommunityProfileScreen(),
+      ),
+      GoRoute(
+        path: '/accept-invitation',
+        builder: (context, state) => const AcceptInvitationScreen(),
+      ),
+      GoRoute(
+        path: '/group-finance',
+        builder: (context, state) => GroupFinanceScreen(groupId: state.extra as String),
       ),
     ],
   );

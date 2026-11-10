@@ -269,8 +269,7 @@ void main() {
   }
 
   Future<void> loginFromWelcome(WidgetTester tester) async {
-    await tester.tap(find.byType(Checkbox));
-    await tester.pump();
+    // Màn Welcome không còn Checkbox: cam kết điều khoản đã dời sang màn /terms sau đăng nhập (BR-01/09/70).
     await tester.tap(find.text('Đăng nhập với Email'));
     await tester.pumpAndSettle();
 
@@ -320,7 +319,7 @@ void main() {
     await tester.tap(find.text('Tiếp tục'));
     await tester.pumpAndSettle();
 
-    expect(backend.consentCalls, ['accept:terms:2']);
+    expect(backend.consentCalls, ['accept:terms:3']);
     expect(backend.aiConsent, isTrue); // một lần đồng ý điều khoản là đủ để dùng AI
     expect(find.textContaining('Thiết lập ban đầu'), findsOneWidget);
   });
@@ -406,8 +405,6 @@ void main() {
 
   testWidgets('đăng ký -> OTP -> (server không cấp token) -> về đăng nhập với email điền sẵn -> vào app', (tester) async {
     await launch(tester);
-    await tester.tap(find.byType(Checkbox));
-    await tester.pump();
     await tester.tap(find.text('Tạo tài khoản mới'));
     await tester.pumpAndSettle();
 
@@ -450,8 +447,6 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    await tester.tap(find.byType(Checkbox));
-    await tester.pump();
     await openLogin();
     expect(find.textContaining('Phiên đăng nhập đã hết hạn'), findsOneWidget);
 
