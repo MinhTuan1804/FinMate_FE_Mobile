@@ -1,0 +1,27 @@
+{
+  "success": true,
+  "data": {
+    "ticket": {
+      "id": "aaaaaaaa-0000-0000-0000-000000000001",
+      "category": "Transaction",
+      "status": "Closed",
+      "subject": "Giao dịch bị trùng",
+      "rating": null,
+      "createdAt": "2026-11-01T08:00:00Z",
+      "updatedAt": "2026-11-02T10:00:00Z",
+      "resolvedAt": "2026-11-02T09:00:00Z",
+      "closedAt": "2026-11-02T10:00:00Z"
+    },
+    "messages": [
+      {
+        "id": "bbbbbbbb-0000-0000-0000-000000000001",
+        "kind": "Customer",
+        "body": "Tôi thấy giao dịch 200k bị ghi 2 lần.",
+        "createdAt": "2026-11-01T08:00:00Z",
+        "attachments": []
+      }
+    ]
+  },
+  "error": null,
+  "meta": null
+}

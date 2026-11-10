@@ -1,0 +1,18 @@
+{
+  "success": true,
+  "data": {
+    "id": "dddddddd-0000-0000-0000-000000000001",
+    "ticketId": "aaaaaaaa-0000-0000-0000-000000000001",
+    "scopes": ["Accounts", "Transactions"],
+    "reason": "Cần xem giao dịch để kiểm tra khoản trùng.",
+    "status": "Approved",
+    "financialAccountId": null,
+    "createdAt": "2026-11-01T08:10:00Z",
+    "requestExpiresAt": "2026-11-02T08:10:00Z",
+    "decidedAt": "2026-11-01T08:12:00Z",
+    "expiresAt": "2026-11-02T08:12:00Z",
+    "revokedAt": null
+  },
+  "error": null,
+  "meta": null
+}

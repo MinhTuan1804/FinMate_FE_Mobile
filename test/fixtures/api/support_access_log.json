@@ -1,0 +1,9 @@
+{
+  "success": true,
+  "data": [
+    { "ticketId": "aaaaaaaa-0000-0000-0000-000000000001", "scope": "Transactions", "viewedAt": "2026-11-01T09:00:00Z" },
+    { "ticketId": "aaaaaaaa-0000-0000-0000-000000000001", "scope": "Accounts", "viewedAt": "2026-11-01T09:00:05Z" }
+  ],
+  "error": null,
+  "meta": null
+}
