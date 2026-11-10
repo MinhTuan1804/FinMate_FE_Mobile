@@ -1,0 +1,61 @@
+{
+  "success": true,
+  "data": [
+    {
+      "id": "qr-1",
+      "receiverBankBin": "970415",
+      "receiverBankName": "VietinBank",
+      "receiverAccountNumber": "1030123456",
+      "receiverName": "Nguyen Van A",
+      "senderBankBin": "970422",
+      "senderBankName": "MB Bank",
+      "amountCents": 500000,
+      "message": "Tra tien com",
+      "categoryId": "cat-1",
+      "categoryName": "Ăn uống",
+      "status": "Pending",
+      "isExpired": false,
+      "scannedAt": "2026-11-09T10:00:00Z",
+      "matchedAt": null,
+      "matchedTransactionId": null
+    },
+    {
+      "id": "qr-2",
+      "receiverBankBin": "970422",
+      "receiverBankName": "MB Bank",
+      "receiverAccountNumber": "0022334455",
+      "receiverName": null,
+      "senderBankBin": "970422",
+      "senderBankName": "MB Bank",
+      "amountCents": 2000000,
+      "message": null,
+      "categoryId": null,
+      "categoryName": null,
+      "status": "Matched",
+      "isExpired": false,
+      "scannedAt": "2026-11-08T08:00:00Z",
+      "matchedAt": "2026-11-08T08:05:00Z",
+      "matchedTransactionId": "tx-9"
+    },
+    {
+      "id": "qr-3",
+      "receiverBankBin": "970415",
+      "receiverBankName": "VietinBank",
+      "receiverAccountNumber": "9988776655",
+      "receiverName": "Cua hang B",
+      "senderBankBin": "970422",
+      "senderBankName": "MB Bank",
+      "amountCents": 100000,
+      "message": null,
+      "categoryId": null,
+      "categoryName": null,
+      "status": "Pending",
+      "isExpired": true,
+      "scannedAt": "2026-10-01T08:00:00Z",
+      "matchedAt": null,
+      "matchedTransactionId": null
+    }
+  ],
+  "error": null,
+  "meta": null
+}

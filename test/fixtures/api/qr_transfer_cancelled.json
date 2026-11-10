@@ -1,0 +1,23 @@
+{
+  "success": true,
+  "data": {
+    "id": "qr-1",
+    "receiverBankBin": "970415",
+    "receiverBankName": "VietinBank",
+    "receiverAccountNumber": "1030123456",
+    "receiverName": "Nguyen Van A",
+    "senderBankBin": "970422",
+    "senderBankName": "MB Bank",
+    "amountCents": 500000,
+    "message": "Tra tien com",
+    "categoryId": "cat-1",
+    "categoryName": "Ăn uống",
+    "status": "Cancelled",
+    "isExpired": false,
+    "scannedAt": "2026-11-09T10:00:00Z",
+    "matchedAt": null,
+    "matchedTransactionId": null
+  },
+  "error": null,
+  "meta": null
+}
