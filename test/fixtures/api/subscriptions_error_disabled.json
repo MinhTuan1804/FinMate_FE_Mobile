@@ -1,0 +1,6 @@
+{
+  "success": false,
+  "data": null,
+  "error": { "code": "SUBSCRIPTION_DISABLED", "message": "Tính năng đăng ký gói hiện chưa được bật." },
+  "meta": null
+}

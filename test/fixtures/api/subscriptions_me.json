@@ -1,0 +1,18 @@
+{
+  "success": true,
+  "data": {
+    "enabled": true,
+    "planCode": "free",
+    "planName": "Miễn phí",
+    "isFree": true,
+    "expiresAt": null,
+    "nextPurchaseStartsAt": "2026-11-10T10:00:00Z",
+    "upcoming": [],
+    "features": [
+      { "key": "chat_ai", "name": "Trò chuyện AI", "enabled": true, "monthlyLimit": 20, "used": 5 },
+      { "key": "bill_scan", "name": "Quét hóa đơn", "enabled": false, "monthlyLimit": null, "used": 0 }
+    ]
+  },
+  "error": null,
+  "meta": null
+}
