@@ -103,4 +103,35 @@ class PlanningController extends StateNotifier<AsyncValue<PlanningState>> {
     await loadPlanningData(silent: true);
     return result;
   }
+
+  /// Xoá một ngân sách theo hạng mục (không áp dụng cho ngân sách tổng)
+  Future<void> deleteBudget(String id) async {
+    await repository.deleteBudget(id);
+    await loadPlanningData(silent: true);
+  }
+
+  /// Chuyển một phần hạn mức từ ngân sách này sang ngân sách khác
+  Future<void> transferBudgetLimit({required String fromBudgetId, required String toBudgetId, required BigInt amountCents}) async {
+    await repository.transferBudgetLimit(fromBudgetId: fromBudgetId, toBudgetId: toBudgetId, amountCents: amountCents);
+    await loadPlanningData(silent: true);
+  }
+
+  /// Sửa tên/hạn mức/hạn chót của mục tiêu
+  Future<void> updateGoal({required String id, required String name, required BigInt targetCents, DateTime? deadline}) async {
+    await repository.updateGoal(id: id, name: name, targetCents: targetCents, deadline: deadline);
+    await loadPlanningData(silent: true);
+  }
+
+  /// Hủy một mục tiêu đang theo đuổi
+  Future<void> cancelGoal(String id) async {
+    await repository.cancelGoal(id);
+    await loadPlanningData(silent: true);
+  }
+
+  /// Xem tiến độ chi tiết của một mục tiêu — không ảnh hưởng state đang hiển thị
+  Future<GoalProgressEntity> getGoalProgress(String id) => repository.getGoalProgress(id);
+
+  /// Xem trước tính khả thi cho một mục tiêu CHƯA tạo — không ảnh hưởng state đang hiển thị
+  Future<GoalFeasibilityEntity?> previewFeasibility({required BigInt targetCents, BigInt? savedCents, required DateTime deadline}) =>
+      repository.previewFeasibility(targetCents: targetCents, savedCents: savedCents, deadline: deadline);
 }

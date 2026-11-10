@@ -66,8 +66,49 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> with SingleTick
     if (ok == true) _snack('Đã lưu ngân sách');
   }
 
+  Future<void> _deleteBudget(BudgetEntity budget) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Xoá ngân sách'),
+        content: Text('Xoá ngân sách cho "${budget.category}"? Hành động này không thể hoàn tác.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Xoá', style: TextStyle(color: AppColors.danger)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    final ok = await _run(() => ref.read(planningControllerProvider.notifier).deleteBudget(budget.id).then((_) => true));
+    if (ok == true) _snack('Đã xoá ngân sách');
+  }
+
+  Future<void> _transferBudgetLimit(PlanningState planning) async {
+    final result = await showDialog<_TransferInput>(
+      context: context,
+      builder: (_) => _TransferDialog(budgets: planning.categoryBudgets),
+    );
+    if (result == null || !mounted) return;
+
+    final ok = await _run(() => ref
+        .read(planningControllerProvider.notifier)
+        .transferBudgetLimit(fromBudgetId: result.fromBudgetId, toBudgetId: result.toBudgetId, amountCents: result.amount)
+        .then((_) => true));
+    if (ok == true) _snack('Đã chuyển hạn mức');
+  }
+
+  Future<GoalFeasibilityEntity?> _previewFeasibility(BigInt target, DateTime deadline) =>
+      ref.read(planningControllerProvider.notifier).previewFeasibility(targetCents: target, deadline: deadline);
+
   Future<void> _addGoal() async {
-    final result = await showDialog<_GoalInput>(context: context, builder: (_) => const _GoalDialog());
+    final result = await showDialog<_GoalInput>(
+      context: context,
+      builder: (_) => _GoalDialog(onPreviewFeasibility: _previewFeasibility),
+    );
     if (result == null || !mounted) return;
 
     final ok = await _run(() => ref
@@ -75,6 +116,48 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> with SingleTick
         .createSavingsGoal(title: result.name, targetAmountCents: result.target, targetDate: result.deadline)
         .then((_) => true));
     if (ok == true) _snack('Đã tạo mục tiêu tiết kiệm');
+  }
+
+  Future<void> _editGoal(SavingsGoalEntity goal) async {
+    final result = await showDialog<_GoalInput>(
+      context: context,
+      builder: (_) => _GoalDialog(editing: goal, onPreviewFeasibility: _previewFeasibility),
+    );
+    if (result == null || !mounted) return;
+
+    final ok = await _run(() => ref
+        .read(planningControllerProvider.notifier)
+        .updateGoal(id: goal.id, name: result.name, targetCents: result.target, deadline: result.deadline)
+        .then((_) => true));
+    if (ok == true) _snack('Đã lưu mục tiêu');
+  }
+
+  Future<void> _cancelGoal(SavingsGoalEntity goal) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Hủy mục tiêu'),
+        content: Text('Hủy mục tiêu "${goal.title}"? Số tiền đã nạp vẫn được giữ lại.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Không')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Hủy mục tiêu', style: TextStyle(color: AppColors.danger)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    final ok = await _run(() => ref.read(planningControllerProvider.notifier).cancelGoal(goal.id).then((_) => true));
+    if (ok == true) _snack('Đã hủy mục tiêu');
+  }
+
+  Future<void> _showGoalDetail(SavingsGoalEntity goal) async {
+    final progress = await _run(() => ref.read(planningControllerProvider.notifier).getGoalProgress(goal.id));
+    if (progress == null || !mounted) return;
+
+    await showDialog<void>(context: context, builder: (_) => _GoalProgressDialog(progress: progress));
   }
 
   Future<void> _contribute(SavingsGoalEntity goal) async {
@@ -163,10 +246,20 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> with SingleTick
                 'NGÂN SÁCH THEO DANH MỤC',
                 style: AppTypography.caption(context).copyWith(fontWeight: FontWeight.w700, letterSpacing: 0.5),
               ),
-              TextButton.icon(
-                onPressed: () => _addOrEditBudget(planning),
-                icon: const Icon(LucideIcons.plus, size: 16),
-                label: const Text('Thêm'),
+              Row(
+                children: [
+                  if (planning.categoryBudgets.length >= 2)
+                    TextButton.icon(
+                      onPressed: () => _transferBudgetLimit(planning),
+                      icon: const Icon(LucideIcons.arrowLeftRight, size: 16),
+                      label: const Text('Chuyển'),
+                    ),
+                  TextButton.icon(
+                    onPressed: () => _addOrEditBudget(planning),
+                    icon: const Icon(LucideIcons.plus, size: 16),
+                    label: const Text('Thêm'),
+                  ),
+                ],
               ),
             ],
           ),
@@ -297,7 +390,9 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> with SingleTick
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(budget.category, style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w600)),
+                Expanded(
+                  child: Text(budget.category, style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w600)),
+                ),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
@@ -308,6 +403,12 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> with SingleTick
                     '${budget.spendingPercentage.toStringAsFixed(0)}%',
                     style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: budget.statusColor),
                   ),
+                ),
+                IconButton(
+                  key: ValueKey('delete-budget-${budget.id}'),
+                  icon: const Icon(LucideIcons.trash2, size: 18),
+                  color: AppColors.danger,
+                  onPressed: () => _deleteBudget(budget),
                 ),
               ],
             ),
@@ -453,8 +554,87 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> with SingleTick
               shape: const RoundedRectangleBorder(borderRadius: AppSpacing.roundedPill),
             ),
           ),
+          const SizedBox(height: 4),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton(
+                key: ValueKey('goal-detail-${goal.id}'),
+                onPressed: () => _showGoalDetail(goal),
+                child: const Text('Xem tiến độ'),
+              ),
+              IconButton(
+                key: ValueKey('edit-goal-${goal.id}'),
+                tooltip: 'Sửa',
+                icon: const Icon(LucideIcons.pencil, size: 18),
+                onPressed: () => _editGoal(goal),
+              ),
+              if (goal.status == 'active')
+                IconButton(
+                  key: ValueKey('cancel-goal-${goal.id}'),
+                  tooltip: 'Hủy mục tiêu',
+                  icon: const Icon(LucideIcons.x, size: 18),
+                  color: AppColors.danger,
+                  onPressed: () => _cancelGoal(goal),
+                ),
+            ],
+          ),
         ],
       ),
+    );
+  }
+}
+
+/// Chi tiết tiến độ một mục tiêu: số ngày còn lại, cần nạp/ngày, lịch sử nạp gần đây, tính khả thi
+class _GoalProgressDialog extends StatelessWidget {
+  final GoalProgressEntity progress;
+  const _GoalProgressDialog({required this.progress});
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(progress.name),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Đã tích lũy: ${progress.formattedSaved} / ${progress.formattedTarget} (${progress.percentComplete}%)'),
+            const SizedBox(height: 4),
+            Text('Còn thiếu: ${progress.formattedRemaining}'),
+            if (progress.daysRemaining != null) ...[
+              const SizedBox(height: 4),
+              Text('Còn ${progress.daysRemaining} ngày'
+                  '${progress.requiredPerDayCents != null ? ' — cần nạp ~${formatVnd(progress.requiredPerDayCents!)}/ngày' : ''}'),
+            ],
+            const SizedBox(height: 4),
+            Text(
+              progress.isOnTrack ? 'Đang bám đúng nhịp' : 'Đang chậm so với kế hoạch',
+              style: TextStyle(color: progress.isOnTrack ? AppColors.safe : AppColors.warning, fontWeight: FontWeight.w600),
+            ),
+            if (progress.feasibility != null) ...[
+              const Divider(height: 20),
+              Text(
+                'Cần ~${progress.feasibility!.formattedRequiredPerMonth}/tháng'
+                '${progress.feasibility!.isFeasible == false ? ' — vượt khả năng tài chính hiện tại' : ''}',
+                style: TextStyle(color: progress.feasibility!.isFeasible == false ? AppColors.danger : AppColors.safe, fontSize: 13),
+              ),
+            ],
+            if (progress.recentContributions.isNotEmpty) ...[
+              const Divider(height: 20),
+              Text('Lịch sử nạp gần đây', style: AppTypography.caption(context).copyWith(fontWeight: FontWeight.w700)),
+              const SizedBox(height: 4),
+              ...progress.recentContributions.map((c) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Text('${DateFormat('dd/MM/yyyy').format(c.contributedAt)}: ${c.formattedAmount}${c.note != null ? ' (${c.note})' : ''}'),
+                  )),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Đóng')),
+      ],
     );
   }
 }
@@ -545,6 +725,90 @@ class _BudgetDialogState extends State<_BudgetDialog> {
   }
 }
 
+class _TransferInput {
+  final String fromBudgetId;
+  final String toBudgetId;
+  final BigInt amount;
+  const _TransferInput(this.fromBudgetId, this.toBudgetId, this.amount);
+}
+
+/// Chuyển một phần hạn mức từ ngân sách danh mục này sang danh mục khác (cùng tháng)
+class _TransferDialog extends StatefulWidget {
+  final List<BudgetEntity> budgets;
+  const _TransferDialog({required this.budgets});
+
+  @override
+  State<_TransferDialog> createState() => _TransferDialogState();
+}
+
+class _TransferDialogState extends State<_TransferDialog> {
+  final _amount = TextEditingController();
+  String? _fromId;
+  String? _toId;
+  String? _error;
+
+  @override
+  void dispose() {
+    _amount.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final amount = parseAmountInput(_amount.text);
+    if (_fromId == null || _toId == null) {
+      setState(() => _error = 'Vui lòng chọn đủ 2 danh mục');
+    } else if (_fromId == _toId) {
+      setState(() => _error = 'Danh mục nguồn và đích phải khác nhau');
+    } else if (amount == null) {
+      setState(() => _error = _invalidAmount);
+    } else {
+      Navigator.pop(context, _TransferInput(_fromId!, _toId!, amount));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Chuyển hạn mức'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            DropdownButtonFormField<String>(
+              key: const ValueKey('transfer-from'),
+              initialValue: _fromId,
+              isExpanded: true,
+              decoration: const InputDecoration(labelText: 'Từ danh mục'),
+              items: widget.budgets.map((b) => DropdownMenuItem(value: b.id, child: Text(b.category))).toList(),
+              onChanged: (v) => setState(() => _fromId = v),
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              key: const ValueKey('transfer-to'),
+              initialValue: _toId,
+              isExpanded: true,
+              decoration: const InputDecoration(labelText: 'Đến danh mục'),
+              items: widget.budgets.map((b) => DropdownMenuItem(value: b.id, child: Text(b.category))).toList(),
+              onChanged: (v) => setState(() => _toId = v),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              key: const ValueKey('transfer-amount'),
+              controller: _amount,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(labelText: 'Số tiền chuyển (VNĐ)', errorText: _error),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Hủy')),
+        ElevatedButton(onPressed: _submit, child: const Text('Chuyển')),
+      ],
+    );
+  }
+}
+
 class _GoalInput {
   final String name;
   final BigInt target;
@@ -553,17 +817,23 @@ class _GoalInput {
 }
 
 class _GoalDialog extends StatefulWidget {
-  const _GoalDialog();
+  final SavingsGoalEntity? editing;
+  final Future<GoalFeasibilityEntity?> Function(BigInt target, DateTime deadline)? onPreviewFeasibility;
+
+  const _GoalDialog({this.editing, this.onPreviewFeasibility});
 
   @override
   State<_GoalDialog> createState() => _GoalDialogState();
 }
 
 class _GoalDialogState extends State<_GoalDialog> {
-  final _name = TextEditingController();
-  final _target = TextEditingController();
-  DateTime? _deadline;
+  late final _name = TextEditingController(text: widget.editing?.title ?? '');
+  late final _target = TextEditingController(text: widget.editing?.targetAmountCents.toString() ?? '');
+  late DateTime? _deadline = widget.editing?.targetDate;
   String? _error;
+  GoalFeasibilityEntity? _feasibility;
+  bool _feasibilityChecked = false;
+  bool _checkingFeasibility = false;
 
   @override
   void dispose() {
@@ -583,6 +853,25 @@ class _GoalDialogState extends State<_GoalDialog> {
     if (picked != null) setState(() => _deadline = picked);
   }
 
+  Future<void> _checkFeasibility() async {
+    final target = parseAmountInput(_target.text);
+    if (target == null || _deadline == null || widget.onPreviewFeasibility == null) {
+      setState(() => _error = target == null ? _invalidAmount : 'Vui lòng chọn hạn chót để xem khả thi');
+      return;
+    }
+    setState(() {
+      _checkingFeasibility = true;
+      _error = null;
+    });
+    final result = await widget.onPreviewFeasibility!(target, _deadline!);
+    if (!mounted) return;
+    setState(() {
+      _feasibility = result;
+      _feasibilityChecked = true;
+      _checkingFeasibility = false;
+    });
+  }
+
   void _submit() {
     final name = _name.text.trim();
     final target = parseAmountInput(_target.text);
@@ -598,7 +887,7 @@ class _GoalDialogState extends State<_GoalDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Tạo mục tiêu tiết kiệm'),
+      title: Text(widget.editing == null ? 'Tạo mục tiêu tiết kiệm' : 'Sửa mục tiêu'),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -616,6 +905,25 @@ class _GoalDialogState extends State<_GoalDialog> {
               icon: const Icon(LucideIcons.calendar, size: 16),
               label: Text(_deadline == null ? 'Chọn hạn chót (tùy chọn)' : DateFormat('dd/MM/yyyy').format(_deadline!)),
             ),
+            if (widget.onPreviewFeasibility != null) ...[
+              const SizedBox(height: 12),
+              TextButton.icon(
+                onPressed: _checkingFeasibility ? null : _checkFeasibility,
+                icon: const Icon(LucideIcons.calculator, size: 16),
+                label: const Text('Xem trước tính khả thi'),
+              ),
+              if (_feasibilityChecked)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: _feasibility == null
+                      ? const Text('Đã đủ tiền, không cần góp thêm.', style: TextStyle(color: AppColors.safe, fontSize: 13))
+                      : Text(
+                          'Cần ~${_feasibility!.formattedRequiredPerMonth}/tháng'
+                          '${_feasibility!.isFeasible == false ? ' — vượt khả năng tài chính hiện tại' : ''}',
+                          style: TextStyle(color: _feasibility!.isFeasible == false ? AppColors.danger : AppColors.safe, fontSize: 13),
+                        ),
+                ),
+            ],
             if (_error != null)
               Padding(
                 padding: const EdgeInsets.only(top: 12),
@@ -626,7 +934,7 @@ class _GoalDialogState extends State<_GoalDialog> {
       ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Hủy')),
-        ElevatedButton(onPressed: _submit, child: const Text('Tạo mục tiêu')),
+        ElevatedButton(onPressed: _submit, child: Text(widget.editing == null ? 'Tạo mục tiêu' : 'Lưu')),
       ],
     );
   }

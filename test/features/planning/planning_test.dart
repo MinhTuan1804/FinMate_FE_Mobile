@@ -12,7 +12,13 @@ import '../../fixtures/fixture.dart';
 
 class MockPlanningController extends StateNotifier<AsyncValue<PlanningState>> implements PlanningController {
   final List<(String, BigInt)> contributions = [];
+  final List<String> deletedBudgetIds = [];
+  final List<(String, String, BigInt)> transfers = [];
+  final List<({String id, String name, BigInt target, DateTime? deadline})> goalUpdates = [];
+  final List<String> cancelledGoalIds = [];
   SavingsGoalEntity? nextResult;
+  GoalProgressEntity? nextProgress;
+  GoalFeasibilityEntity? nextFeasibility;
 
   MockPlanningController(super.state);
 
@@ -20,6 +26,37 @@ class MockPlanningController extends StateNotifier<AsyncValue<PlanningState>> im
   Future<SavingsGoalEntity> contributeToGoal(String goalId, BigInt amountCents) async {
     contributions.add((goalId, amountCents));
     return nextResult!;
+  }
+
+  @override
+  Future<void> deleteBudget(String id) async {
+    deletedBudgetIds.add(id);
+  }
+
+  @override
+  Future<void> transferBudgetLimit({required String fromBudgetId, required String toBudgetId, required BigInt amountCents}) async {
+    transfers.add((fromBudgetId, toBudgetId, amountCents));
+  }
+
+  @override
+  Future<void> updateGoal({required String id, required String name, required BigInt targetCents, DateTime? deadline}) async {
+    goalUpdates.add((id: id, name: name, target: targetCents, deadline: deadline));
+  }
+
+  @override
+  Future<void> cancelGoal(String id) async {
+    cancelledGoalIds.add(id);
+  }
+
+  @override
+  Future<GoalProgressEntity> getGoalProgress(String id) async => nextProgress!;
+
+  int previewFeasibilityCalls = 0;
+
+  @override
+  Future<GoalFeasibilityEntity?> previewFeasibility({required BigInt targetCents, BigInt? savedCents, required DateTime deadline}) async {
+    previewFeasibilityCalls++;
+    return nextFeasibility;
   }
 
   @override
@@ -174,9 +211,9 @@ void main() {
       return mock;
     }
 
-    PlanningState stateWith({BudgetEntity? overall, List<SavingsGoalEntity> goals = const []}) => PlanningState(
+    PlanningState stateWith({BudgetEntity? overall, List<SavingsGoalEntity> goals = const [], List<BudgetEntity> categoryBudgets = const []}) => PlanningState(
           overallBudget: overall,
-          categoryBudgets: const [],
+          categoryBudgets: categoryBudgets,
           savingsGoals: goals,
           daysRemainingInMonth: 10,
         );
@@ -236,6 +273,195 @@ void main() {
 
       expect(mock.contributions, isEmpty);
       expect(find.text('Vui lòng nhập số tiền hợp lệ'), findsOneWidget);
+    });
+
+    testWidgets('xoá ngân sách theo danh mục: xác nhận rồi gọi controller', (tester) async {
+      final budget = _budget(categoryId: 'cat-1', category: 'Ăn uống', limit: 5000000, spent: 1000000);
+      final mock = await pump(tester, AsyncValue.data(stateWith(categoryBudgets: [budget])));
+
+      await tester.tap(find.byKey(ValueKey('delete-budget-${budget.id}')));
+      await tester.pumpAndSettle();
+      expect(find.text('Xoá ngân sách'), findsOneWidget);
+
+      await tester.tap(find.text('Xoá'));
+      await tester.pumpAndSettle();
+
+      expect(mock.deletedBudgetIds, [budget.id]);
+      expect(find.text('Đã xoá ngân sách'), findsOneWidget);
+    });
+
+    testWidgets('hủy xoá ngân sách: không gọi controller', (tester) async {
+      final budget = _budget(categoryId: 'cat-1', category: 'Ăn uống', limit: 5000000, spent: 1000000);
+      final mock = await pump(tester, AsyncValue.data(stateWith(categoryBudgets: [budget])));
+
+      await tester.tap(find.byKey(ValueKey('delete-budget-${budget.id}')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Hủy'));
+      await tester.pumpAndSettle();
+
+      expect(mock.deletedBudgetIds, isEmpty);
+    });
+
+    testWidgets('chỉ 1 ngân sách danh mục: không hiện nút "Chuyển"', (tester) async {
+      final budget = _budget(categoryId: 'cat-1', category: 'Ăn uống', limit: 5000000, spent: 1000000);
+      await pump(tester, AsyncValue.data(stateWith(categoryBudgets: [budget])));
+
+      expect(find.text('Chuyển'), findsNothing);
+    });
+
+    testWidgets('chuyển hạn mức giữa 2 ngân sách danh mục: chọn nguồn/đích, nhập số tiền, gọi controller', (tester) async {
+      final food = _budget(categoryId: 'cat-1', category: 'Ăn uống', limit: 5000000, spent: 1000000);
+      final transport = _budget(categoryId: 'cat-2', category: 'Di chuyển', limit: 2000000, spent: 500000);
+      final mock = await pump(tester, AsyncValue.data(stateWith(categoryBudgets: [food, transport])));
+
+      await tester.tap(find.text('Chuyển'));
+      await tester.pumpAndSettle();
+      expect(find.text('Chuyển hạn mức'), findsOneWidget);
+
+      await tester.tap(find.byType(DropdownButtonFormField<String>).at(0));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Ăn uống').last);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byType(DropdownButtonFormField<String>).at(1));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Di chuyển').last);
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byKey(const ValueKey('transfer-amount')), '500.000');
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Chuyển'));
+      await tester.pumpAndSettle();
+
+      expect(mock.transfers.single, (food.id, transport.id, BigInt.from(500000)));
+      expect(find.text('Đã chuyển hạn mức'), findsOneWidget);
+    });
+
+    testWidgets('chuyển hạn mức: chọn cùng 1 danh mục cho nguồn và đích thì bị chặn', (tester) async {
+      final food = _budget(categoryId: 'cat-1', category: 'Ăn uống', limit: 5000000, spent: 1000000);
+      final transport = _budget(categoryId: 'cat-2', category: 'Di chuyển', limit: 2000000, spent: 500000);
+      final mock = await pump(tester, AsyncValue.data(stateWith(categoryBudgets: [food, transport])));
+
+      await tester.tap(find.text('Chuyển'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byType(DropdownButtonFormField<String>).at(0));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Ăn uống').last);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byType(DropdownButtonFormField<String>).at(1));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Ăn uống').last);
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byKey(const ValueKey('transfer-amount')), '500.000');
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Chuyển'));
+      await tester.pumpAndSettle();
+
+      expect(mock.transfers, isEmpty);
+      expect(find.text('Danh mục nguồn và đích phải khác nhau'), findsOneWidget);
+    });
+
+    testWidgets('sửa mục tiêu: đổi tên, gọi controller.updateGoal', (tester) async {
+      final goal = _goal(deadline: DateTime(2027, 1, 1));
+      final mock = await pump(tester, AsyncValue.data(stateWith(goals: [goal])));
+
+      await tester.tap(find.text('Mục tiêu tiết kiệm'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(ValueKey('edit-goal-${goal.id}')));
+      await tester.pumpAndSettle();
+      expect(find.text('Sửa mục tiêu'), findsOneWidget);
+
+      await tester.enterText(find.widgetWithText(TextField, 'Tên mục tiêu (ví dụ: Quỹ du lịch)'), 'Quỹ khẩn cấp (mới)');
+      await tester.tap(find.text('Lưu'));
+      await tester.pumpAndSettle();
+
+      expect(mock.goalUpdates.single.id, goal.id);
+      expect(mock.goalUpdates.single.name, 'Quỹ khẩn cấp (mới)');
+      expect(find.text('Đã lưu mục tiêu'), findsOneWidget);
+    });
+
+    testWidgets('hủy mục tiêu đang active: xác nhận rồi gọi controller.cancelGoal', (tester) async {
+      final goal = _goal(status: 'active');
+      final mock = await pump(tester, AsyncValue.data(stateWith(goals: [goal])));
+
+      await tester.tap(find.text('Mục tiêu tiết kiệm'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(ValueKey('cancel-goal-${goal.id}')));
+      await tester.pumpAndSettle();
+      expect(find.text('Hủy mục tiêu'), findsWidgets);
+
+      await tester.tap(find.widgetWithText(TextButton, 'Hủy mục tiêu'));
+      await tester.pumpAndSettle();
+
+      expect(mock.cancelledGoalIds, [goal.id]);
+      expect(find.text('Đã hủy mục tiêu'), findsOneWidget);
+    });
+
+    testWidgets('mục tiêu đã hoàn thành: không hiện nút hủy', (tester) async {
+      final goal = _goal(status: 'completed', current: 45000000, target: 45000000);
+      await pump(tester, AsyncValue.data(stateWith(goals: [goal])));
+
+      await tester.tap(find.text('Mục tiêu tiết kiệm'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(ValueKey('cancel-goal-${goal.id}')), findsNothing);
+    });
+
+    testWidgets('xem tiến độ mục tiêu: hiện số ngày còn lại, cần nạp/ngày và tính khả thi', (tester) async {
+      final goal = _goal();
+      final mock = await pump(tester, AsyncValue.data(stateWith(goals: [goal])));
+      mock.nextProgress = GoalProgressEntity(
+        goalId: 'g1',
+        name: 'Quỹ khẩn cấp',
+        status: 'active',
+        targetCents: BigInt.from(45000000),
+        savedCents: BigInt.from(1000000),
+        remainingCents: BigInt.from(44000000),
+        percentComplete: 2,
+        daysRemaining: 55,
+        requiredPerDayCents: BigInt.from(800000),
+        isOnTrack: true,
+        feasibility: GoalFeasibilityEntity(requiredPerMonthCents: BigInt.from(22000000), isFeasible: false),
+      );
+
+      await tester.tap(find.text('Mục tiêu tiết kiệm'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(ValueKey('goal-detail-${goal.id}')));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Còn 55 ngày'), findsOneWidget);
+      expect(find.textContaining('vượt khả năng tài chính hiện tại'), findsOneWidget);
+    });
+
+    testWidgets('sửa mục tiêu: xem trước tính khả thi (đã có hạn chót sẵn) gọi controller.previewFeasibility và hiện kết quả', (tester) async {
+      final goal = _goal(deadline: DateTime(2027, 1, 1));
+      final mock = await pump(tester, AsyncValue.data(stateWith(goals: [goal])));
+      mock.nextFeasibility = GoalFeasibilityEntity(requiredPerMonthCents: BigInt.from(5000000), isFeasible: true);
+
+      await tester.tap(find.text('Mục tiêu tiết kiệm'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(ValueKey('edit-goal-${goal.id}')));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Xem trước tính khả thi'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Cần ~5.000.000'), findsOneWidget);
+    });
+
+    testWidgets('xem trước tính khả thi: thiếu hạn chót thì báo lỗi, không gọi controller', (tester) async {
+      final goal = _goal(deadline: null);
+      final mock = await pump(tester, AsyncValue.data(stateWith(goals: [goal])));
+
+      await tester.tap(find.text('Mục tiêu tiết kiệm'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(ValueKey('edit-goal-${goal.id}')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Xem trước tính khả thi'));
+      await tester.pumpAndSettle();
+
+      expect(mock.previewFeasibilityCalls, 0);
+      expect(find.text('Vui lòng chọn hạn chót để xem khả thi'), findsOneWidget);
     });
   });
 }

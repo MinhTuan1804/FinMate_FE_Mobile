@@ -51,6 +51,21 @@ class PlanningRepository {
     );
   }
 
+  /// Chuyển một phần hạn mức từ ngân sách này sang ngân sách khác (cùng tháng)
+  Future<void> transferBudgetLimit({required String fromBudgetId, required String toBudgetId, required BigInt amountCents}) async {
+    await apiClient.post(
+      '/api/v1/budgets/transfer',
+      data: {
+        'fromBudgetId': fromBudgetId,
+        'toBudgetId': toBudgetId,
+        'amountCents': amountCents.toInt(),
+      },
+      fromJsonT: (json) => json,
+    );
+  }
+
+  Future<void> deleteBudget(String id) => apiClient.delete('/api/v1/budgets/$id');
+
   Future<List<SavingsGoalEntity>> getGoals() async {
     final response = await apiClient.get(
       '/api/v1/saving-goals',
@@ -82,5 +97,52 @@ class PlanningRepository {
       fromJsonT: (json) => SavingsGoalEntity.fromJson(json as Map<String, dynamic>),
     );
     return response.data!;
+  }
+
+  /// Sửa tên/hạn mức/hạn chót của mục tiêu
+  Future<SavingsGoalEntity> updateGoal({required String id, required String name, required BigInt targetCents, DateTime? deadline}) async {
+    final response = await apiClient.patch(
+      '/api/v1/saving-goals/$id',
+      data: {
+        'name': name,
+        'targetCents': targetCents.toInt(),
+        'deadline': deadline?.toUtc().toIso8601String(),
+      },
+      fromJsonT: (json) => SavingsGoalEntity.fromJson(json as Map<String, dynamic>),
+    );
+    return response.data!;
+  }
+
+  /// Hủy một mục tiêu đang theo đuổi (không xóa, chỉ chuyển trạng thái)
+  Future<SavingsGoalEntity> cancelGoal(String id) async {
+    final response = await apiClient.post(
+      '/api/v1/saving-goals/$id/cancel',
+      fromJsonT: (json) => SavingsGoalEntity.fromJson(json as Map<String, dynamic>),
+    );
+    return response.data!;
+  }
+
+  /// Tiến độ chi tiết (số ngày còn lại, cần nạp bao nhiêu/ngày, lịch sử nạp gần đây, tính khả thi)
+  Future<GoalProgressEntity> getGoalProgress(String id) async {
+    final response = await apiClient.get(
+      '/api/v1/saving-goals/$id/progress',
+      fromJsonT: (json) => GoalProgressEntity.fromJson(json as Map<String, dynamic>),
+    );
+    return response.data!;
+  }
+
+  /// Xem trước tính khả thi cho một mục tiêu CHƯA tạo (cùng công thức với tiến độ mục tiêu đã có).
+  /// null khi không còn gì phải góp (đã đủ tiền).
+  Future<GoalFeasibilityEntity?> previewFeasibility({required BigInt targetCents, BigInt? savedCents, required DateTime deadline}) async {
+    final response = await apiClient.post(
+      '/api/v1/saving-goals/feasibility',
+      data: {
+        'targetCents': targetCents.toInt(),
+        'savedCents': (savedCents ?? BigInt.zero).toInt(),
+        'deadline': deadline.toUtc().toIso8601String(),
+      },
+      fromJsonT: (json) => GoalFeasibilityEntity.fromJson(json as Map<String, dynamic>),
+    );
+    return response.data;
   }
 }
