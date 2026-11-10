@@ -1,0 +1,43 @@
+{
+  "success": true,
+  "data": [
+    {
+      "userMethodId": "um-2",
+      "methodCode": "six_jars",
+      "methodName": "6 chiếc hũ",
+      "title": "6 chiếc hũ",
+      "periodStart": "2026-11-01T00:00:00+07:00",
+      "periodEnd": "2026-11-30T23:59:59+07:00",
+      "incomeCents": 20000000,
+      "jars": [
+        {
+          "key": "necessities_pct",
+          "label": "Thiết yếu",
+          "allocationPct": 55,
+          "allocatedCents": 11000000,
+          "spentCents": 8000000,
+          "remainingCents": 3000000,
+          "usedPct": 72,
+          "level": "t1",
+          "categories": [{"slug": "food", "name": "Ăn uống"}]
+        },
+        {
+          "key": "play_pct",
+          "label": "Hưởng thụ",
+          "allocationPct": 10,
+          "allocatedCents": 2000000,
+          "spentCents": 2200000,
+          "remainingCents": -200000,
+          "usedPct": 110,
+          "level": "over",
+          "categories": [{"slug": "entertainment", "name": "Giải trí"}]
+        }
+      ],
+      "unassignedSpentCents": 500000,
+      "t1Pct": 70,
+      "t2Pct": 90
+    }
+  ],
+  "error": null,
+  "meta": null
+}

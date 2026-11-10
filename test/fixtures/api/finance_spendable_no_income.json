@@ -1,0 +1,13 @@
+{
+  "success": true,
+  "data": {
+    "goalMode": null,
+    "incomeCents": null,
+    "spentCents": 0,
+    "goalSetAsideCents": 0,
+    "spendableCents": null,
+    "goals": []
+  },
+  "error": null,
+  "meta": null
+}

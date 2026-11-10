@@ -1,0 +1,31 @@
+{
+  "success": true,
+  "data": [
+    {
+      "id": "um-1",
+      "method": {
+        "code": "category_budget",
+        "name": "Quy tắc 50/30/20",
+        "summary": "Chia thu nhập: 50% nhu cầu, 30% mong muốn, 20% tiết kiệm.",
+        "role": "primary",
+        "goalMode": "reserve_first",
+        "whyText": "Thu nhập ổn định, thích hạn mức rõ ràng.",
+        "starterSteps": ["Chọn tỷ lệ", "Đặt hạn mức"],
+        "params": [
+          {"key": "t1_pct", "label": "Ngưỡng nhắc nhẹ (%)", "type": "percent", "default": 70, "min": 1, "max": 99, "userEditable": true},
+          {"key": "t2_pct", "label": "Ngưỡng cảnh báo mạnh (%)", "type": "percent", "default": 90, "min": 2, "max": 99, "userEditable": true},
+          {"key": "needs_pct", "label": "Tỷ lệ cho nhu cầu (%)", "type": "percent", "default": 50, "min": 0, "max": 100, "userEditable": true}
+        ],
+        "homeLayout": [{"type": "spendable"}],
+        "available": true
+      },
+      "role": "primary",
+      "chosenVia": "recommended",
+      "overrides": {},
+      "effective": {"t1_pct": 70, "t2_pct": 90, "needs_pct": 50},
+      "startedAt": "2026-11-01T08:00:00Z"
+    }
+  ],
+  "error": null,
+  "meta": null
+}

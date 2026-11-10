@@ -1,0 +1,68 @@
+{
+  "success": true,
+  "data": [
+    {
+      "code": "minimal_tracking",
+      "name": "Theo dõi chi tiêu tối giản",
+      "summary": "Chỉ theo dõi 3–5 nhóm chi chính trong vài tuần, chưa đặt hạn mức.",
+      "role": "primary",
+      "goalMode": "track_only",
+      "whyText": "Bạn chưa rõ tiền đang đi đâu nên bắt đầu bằng quan sát.",
+      "starterSteps": ["Chọn 3–5 nhóm chi", "Theo dõi vài tuần"],
+      "params": [
+        {"key": "tracked_groups", "label": "Số nhóm chi theo dõi", "type": "int", "default": 4, "min": 3, "max": 5, "userEditable": true}
+      ],
+      "homeLayout": [{"type": "params"}, {"type": "starter_steps"}],
+      "available": true
+    },
+    {
+      "code": "category_budget",
+      "name": "Quy tắc 50/30/20",
+      "summary": "Chia thu nhập: 50% nhu cầu, 30% mong muốn, 20% tiết kiệm.",
+      "role": "primary",
+      "goalMode": "reserve_first",
+      "whyText": "Thu nhập ổn định, thích hạn mức rõ ràng.",
+      "starterSteps": ["Chọn tỷ lệ", "Đặt hạn mức", "Xem chi thực tế mỗi tuần"],
+      "params": [
+        {"key": "t1_pct", "label": "Ngưỡng nhắc nhẹ (%)", "type": "percent", "default": 70, "min": 1, "max": 99, "userEditable": true},
+        {"key": "t2_pct", "label": "Ngưỡng cảnh báo mạnh (%)", "type": "percent", "default": 90, "min": 2, "max": 99, "userEditable": true},
+        {"key": "forecast_minute", "label": "Giờ nhắc dự báo hằng ngày", "type": "minutes", "default": 1320, "min": 0, "max": 1439, "userEditable": false},
+        {"key": "needs_pct", "label": "Tỷ lệ cho nhu cầu (%)", "type": "percent", "default": 50, "min": 0, "max": 100, "userEditable": true},
+        {"key": "wants_pct", "label": "Tỷ lệ cho mong muốn (%)", "type": "percent", "default": 30, "min": 0, "max": 100, "userEditable": true},
+        {"key": "goals_pct", "label": "Tỷ lệ cho mục tiêu (%)", "type": "percent", "default": 20, "min": 0, "max": 100, "userEditable": true}
+      ],
+      "homeLayout": [{"type": "spendable"}],
+      "available": true
+    },
+    {
+      "code": "six_jars",
+      "name": "6 chiếc hũ",
+      "summary": "Chia thu nhập vào 6 hũ chi tiêu khác nhau.",
+      "role": "primary",
+      "goalMode": "reserve_first",
+      "whyText": "Phù hợp khi muốn hình dung rõ từng nhóm chi.",
+      "starterSteps": ["Chia % cho từng hũ", "Theo dõi từng hũ mỗi tuần"],
+      "params": [
+        {"key": "t1_pct", "label": "Ngưỡng nhắc nhẹ (%)", "type": "percent", "default": 70, "min": 1, "max": 99, "userEditable": true},
+        {"key": "t2_pct", "label": "Ngưỡng cảnh báo mạnh (%)", "type": "percent", "default": 90, "min": 2, "max": 99, "userEditable": true},
+        {"key": "necessities_pct", "label": "Thiết yếu (%)", "type": "percent", "default": 55, "min": 0, "max": 100, "userEditable": true}
+      ],
+      "homeLayout": [{"type": "spendable"}, {"type": "jars"}],
+      "available": true
+    },
+    {
+      "code": "debt_repayment",
+      "name": "Trả nợ ưu tiên",
+      "summary": "Chỉ dùng được như công cụ bổ trợ bên cạnh cách quản lý chính.",
+      "role": "supporting",
+      "goalMode": "track_only",
+      "whyText": "Bạn đang có nghĩa vụ trả nợ cần ưu tiên.",
+      "starterSteps": ["Liệt kê khoản nợ", "Ưu tiên trả nợ lãi cao trước"],
+      "params": [],
+      "homeLayout": [{"type": "starter_steps"}],
+      "available": true
+    }
+  ],
+  "error": null,
+  "meta": null
+}
