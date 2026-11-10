@@ -1,0 +1,9 @@
+{
+  "success": false,
+  "data": null,
+  "error": {
+    "code": "SURVEY_ANSWER_INVALID",
+    "message": "Mỗi câu hỏi chỉ được trả lời một lần."
+  },
+  "meta": null
+}

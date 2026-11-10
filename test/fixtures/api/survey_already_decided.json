@@ -1,0 +1,9 @@
+{
+  "success": false,
+  "data": null,
+  "error": {
+    "code": "ONBOARDING_ALREADY_DECIDED",
+    "message": "Bạn đã làm hoặc đã bỏ qua khảo sát rồi."
+  },
+  "meta": null
+}
