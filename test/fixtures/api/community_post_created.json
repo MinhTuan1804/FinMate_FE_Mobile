@@ -1,0 +1,24 @@
+{
+  "success": true,
+  "data": {
+    "id": "66666666-6666-6666-6666-666666666666",
+    "topic": "question",
+    "title": null,
+    "body": "Có ai biết app nào theo dõi chi tiêu tốt không?",
+    "tags": [],
+    "author": { "isAnonymous": true, "displayName": null },
+    "isMine": true,
+    "createdOn": "2026-11-10T09:00:00+07:00",
+    "edited": false,
+    "voteCount": 0,
+    "commentCount": 0,
+    "votedByMe": false,
+    "spentHereVerified": false,
+    "priceCents": null,
+    "place": null,
+    "images": [],
+    "status": "visible"
+  },
+  "error": null,
+  "meta": null
+}

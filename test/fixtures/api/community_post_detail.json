@@ -1,0 +1,26 @@
+{
+  "success": true,
+  "data": {
+    "id": "11111111-1111-1111-1111-111111111111",
+    "topic": "experience",
+    "title": "Tiết kiệm 2 triệu/tháng nhờ nấu cơm mang đi làm",
+    "body": "Mình chuyển từ ăn ngoài sang mang cơm, tiết kiệm được khá nhiều.",
+    "tags": ["tiet-kiem"],
+    "author": { "isAnonymous": false, "displayName": "Minh" },
+    "isMine": true,
+    "createdOn": "2026-11-01T08:00:00+07:00",
+    "edited": false,
+    "voteCount": 12,
+    "commentCount": 3,
+    "votedByMe": false,
+    "spentHereVerified": false,
+    "priceCents": null,
+    "place": null,
+    "images": [
+      { "id": "55555555-5555-5555-5555-555555555555", "width": 1024, "height": 768, "status": "pending" }
+    ],
+    "status": "visible"
+  },
+  "error": null,
+  "meta": null
+}

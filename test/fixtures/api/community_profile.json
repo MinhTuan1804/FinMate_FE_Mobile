@@ -1,0 +1,12 @@
+{
+  "success": true,
+  "data": {
+    "provinceCode": "HCM",
+    "areaCode": "Q1",
+    "promptsEnabled": true,
+    "consentGranted": true,
+    "mutedUntil": null
+  },
+  "error": null,
+  "meta": null
+}

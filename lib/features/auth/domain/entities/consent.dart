@@ -1,7 +1,7 @@
 /// Hai thứ người dùng phải đồng ý. Chữ trên màn hình và số phiên bản dưới đây đi cùng nhau: sửa câu chữ màn nào thì tăng
 /// số của màn đó ở đây VÀ ở `ConsentVersions` của server; server từ chối (409) phiên bản không khớp, nên app cũ không thể
 /// "đồng ý" thay cho câu chữ mới.
-enum ConsentKind { terms, ai, training }
+enum ConsentKind { terms, ai, training, community }
 
 class ConsentVersions {
   const ConsentVersions._();
@@ -18,9 +18,13 @@ class ConsentVersions {
   /// Đóng góp chữ hóa đơn đã ẩn thông tin cá nhân + danh mục cuối cùng để cải thiện phân loại
   static const training = 1;
 
+  /// Đăng bài/bình luận trong Cộng đồng. Xem thì không cần đồng ý này.
+  static const community = 1;
+
   static int of(ConsentKind kind) => switch (kind) {
         ConsentKind.terms => terms,
         ConsentKind.ai => ai,
         ConsentKind.training => training,
+        ConsentKind.community => community,
       };
 }
