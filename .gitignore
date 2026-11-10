@@ -46,3 +46,5 @@ app.*.map.json
 
 # Tài khoản thử cục bộ
 docs/dev-test-account.md
+# Widget Preview related
+.widget_preview/
