@@ -1,0 +1,15 @@
+{
+  "success": true,
+  "data": {
+    "id": "ov-2",
+    "bankBin": "970422",
+    "bankName": "MB Bank",
+    "accountNumber": "0022334455",
+    "displayName": null,
+    "categoryId": "cat-1",
+    "categoryName": "Ăn uống",
+    "updatedAt": "2026-11-09T12:00:00Z"
+  },
+  "error": null,
+  "meta": null
+}

@@ -1,0 +1,15 @@
+{
+  "success": true,
+  "data": {
+    "id": "ov-1",
+    "bankBin": "970415",
+    "bankName": "VietinBank",
+    "accountNumber": "1030123456",
+    "displayName": "Nguyen Van A",
+    "categoryId": "cat-1",
+    "categoryName": "Ăn uống",
+    "updatedAt": "2026-11-05T09:00:00Z"
+  },
+  "error": null,
+  "meta": null
+}
