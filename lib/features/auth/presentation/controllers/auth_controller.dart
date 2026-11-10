@@ -151,5 +151,11 @@ class AuthController extends StateNotifier<AsyncValue<UserProfile?>> {
     await _signOutLocally();
   }
 
+  /// Đăng xuất MỌI thiết bị (kể cả thiết bị này). Lỗi được ném lại cho màn hình.
+  Future<void> logoutAllDevices() async {
+    await repository.logoutAllDevices();
+    await _signOutLocally();
+  }
+
   Future<void> handleSessionExpired() => _signOutLocally();
 }

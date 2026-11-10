@@ -22,6 +22,9 @@ abstract class IAuthRepository {
   Future<UserProfile> withdrawConsent(ConsentKind kind);
   Future<void> updateNotificationPrefs(NotificationPrefs prefs);
   Future<void> logout();
+
+  /// POST /auth/logout-all: thu hồi refresh token của MỌI thiết bị (kể cả thiết bị này), rồi xóa token cục bộ.
+  Future<void> logoutAllDevices();
   Future<bool> isAuthenticated();
 }
 
@@ -166,6 +169,12 @@ class AuthRepository implements IAuthRepository {
         // Tiếp tục xóa token cục bộ kể cả khi server trả lỗi
       }
     }
+    await tokenStorage.clearTokens();
+  }
+
+  @override
+  Future<void> logoutAllDevices() async {
+    await apiClient.post('/api/v1/auth/logout-all', fromJsonT: (json) => json);
     await tokenStorage.clearTokens();
   }
 

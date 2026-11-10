@@ -139,6 +139,15 @@ class FakeAuthRepository implements IAuthRepository {
     mockUser = null;
   }
 
+  bool loggedOutAll = false;
+
+  @override
+  Future<void> logoutAllDevices() async {
+    loggedOutAll = true;
+    isAuthed = false;
+    mockUser = null;
+  }
+
   @override
   Future<bool> isAuthenticated() async => isAuthed;
 }
@@ -211,6 +220,13 @@ void main() {
     test('Đăng xuất xóa sạch dữ liệu người dùng trong state', () async {
       await controller.login('test@finmate.com', 'Password123!');
       await controller.logout();
+      expect(controller.state.value, isNull);
+    });
+
+    test('Đăng xuất tất cả thiết bị: gọi đúng repository và cũng xóa sạch state như logout thường', () async {
+      await controller.login('test@finmate.com', 'Password123!');
+      await controller.logoutAllDevices();
+      expect(fakeRepo.loggedOutAll, isTrue);
       expect(controller.state.value, isNull);
     });
 
