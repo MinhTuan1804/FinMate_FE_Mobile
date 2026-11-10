@@ -52,6 +52,10 @@ class TransactionEntity {
   /// Nhóm của hóa đơn đã tách (slug gốc hoặc "unknown"); một giao dịch cho mỗi nhóm
   final String? receiptGroup;
 
+  /// Id nhóm (gia đình/nhóm chi tiêu) nếu giao dịch đã được chia sẻ vào nhóm; null = chưa chia sẻ.
+  /// Không lưu cục bộ (giống receiptScanId/receiptGroup) vì tính năng Nhóm cần mạng.
+  final String? groupId;
+
   const TransactionEntity({
     required this.id,
     required this.amountCents,
@@ -70,6 +74,7 @@ class TransactionEntity {
     this.source = 'Manual',
     this.receiptScanId,
     this.receiptGroup,
+    this.groupId,
   });
 
   /// Factory cho chuyển khoản nội bộ giữa 2 tài khoản (BR-26, BR-27)
@@ -145,6 +150,7 @@ class TransactionEntity {
       status: (json['status'] as String?)?.toLowerCase() == 'draft' ? TransactionStatus.draft : TransactionStatus.confirmed,
       balanceAfterCents: json['balanceAfterCents'] == null ? null : parseCents(json['balanceAfterCents']),
       source: json['source'] as String? ?? 'Manual',
+      groupId: json['groupId'] as String?,
     );
   }
 
@@ -185,6 +191,30 @@ class TransactionEntity {
       source: source ?? this.source,
       receiptScanId: receiptScanId ?? this.receiptScanId,
       receiptGroup: receiptGroup ?? this.receiptGroup,
+      groupId: groupId,
     );
   }
+
+  /// Đặt lại trạng thái chia sẻ nhóm (chia sẻ = truyền id nhóm, bỏ chia sẻ = truyền null).
+  /// Tách riêng khỏi [copyWith] vì copyWith dùng `??` nên không thể set một trường về null.
+  TransactionEntity withGroupId(String? groupId) => TransactionEntity(
+    id: id,
+    amountCents: amountCents,
+    type: type,
+    categoryId: categoryId,
+    categoryName: categoryName,
+    merchantName: merchantName,
+    description: description,
+    date: date,
+    accountId: accountId,
+    toAccountId: toAccountId,
+    status: status,
+    isSynced: isSynced,
+    clientRequestId: clientRequestId,
+    balanceAfterCents: balanceAfterCents,
+    source: source,
+    receiptScanId: receiptScanId,
+    receiptGroup: receiptGroup,
+    groupId: groupId,
+  );
 }

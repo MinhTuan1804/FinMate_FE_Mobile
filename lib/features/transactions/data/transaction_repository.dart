@@ -241,6 +241,21 @@ class TransactionRepository {
     );
   }
 
+  /// Chia sẻ giao dịch của mình vào nhóm (PUT .../group). Ví/số dư không đổi; cần mạng
+  /// (tính năng Nhóm không có hỗ trợ offline) nên lỗi được ném thẳng, không xếp hàng đồng bộ.
+  Future<void> shareTransaction({required String id, required String groupId, String? groupCategoryId}) async {
+    await apiClient.put<void>(
+      '$_transactionsPath/$id/group',
+      data: {'groupId': groupId, 'groupCategoryId': groupCategoryId},
+      fromJsonT: (_) {},
+    );
+  }
+
+  /// Bỏ chia sẻ giao dịch khỏi nhóm (DELETE .../group).
+  Future<void> unshareTransaction(String id) async {
+    await apiClient.delete('$_transactionsPath/$id/group');
+  }
+
   Future<TransactionEntity> _submit(TransactionEntity entity, String endpoint) async {
     final clientRequestId = entity.clientRequestId!;
     await database.insertLocalTransaction(toCompanion(entity));

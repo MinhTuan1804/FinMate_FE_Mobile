@@ -7,6 +7,7 @@ import 'package:finmate/core/theme/app_colors.dart';
 import 'package:finmate/core/theme/app_spacing.dart';
 import 'package:finmate/core/theme/app_typography.dart';
 import 'package:finmate/features/notifications/presentation/notification_capture_scope.dart';
+import 'package:finmate/features/groups/presentation/controllers/groups_controller.dart';
 import 'package:finmate/features/transactions/domain/entities/transaction_entity.dart';
 import 'package:finmate/features/transactions/presentation/controllers/transaction_controller.dart';
 import 'package:finmate/features/transactions/presentation/widgets/create_transaction_bottom_sheet.dart';
@@ -80,6 +81,52 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     final confirmed = await DraftEditSheet.show(context, draft);
     if (confirmed == true) {
       messenger.showSnackBar(const SnackBar(content: Text('Đã xác nhận giao dịch'), backgroundColor: AppColors.safe));
+    }
+  }
+
+  /// Mở hộp thoại chia sẻ vào nhóm (chưa chia sẻ) hoặc hộp thoại xác nhận bỏ chia sẻ (đã chia sẻ).
+  Future<void> _openShareSheet(TransactionEntity tx) async {
+    if (tx.groupId == null) {
+      final picked = await showDialog<(String, String?)>(
+        context: context,
+        builder: (_) => const _ShareToGroupDialog(),
+      );
+      if (picked == null || !mounted) return;
+      final messenger = ScaffoldMessenger.of(context);
+      try {
+        await ref.read(transactionControllerProvider.notifier).shareToGroup(
+              id: tx.id,
+              groupId: picked.$1,
+              groupCategoryId: picked.$2,
+            );
+        messenger.showSnackBar(const SnackBar(content: Text('Đã chia sẻ giao dịch vào nhóm'), backgroundColor: AppColors.safe));
+      } catch (e) {
+        messenger.showSnackBar(SnackBar(content: Text(errorMessage(e)), backgroundColor: AppColors.danger));
+      }
+    } else {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Bỏ chia sẻ giao dịch'),
+          content: const Text('Giao dịch sẽ không còn hiển thị trong nhóm. Bạn có chắc chắn?'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Hủy')),
+            TextButton(
+              key: const ValueKey('confirm-unshare-group'),
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Bỏ chia sẻ'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+      final messenger = ScaffoldMessenger.of(context);
+      try {
+        await ref.read(transactionControllerProvider.notifier).unshareFromGroup(tx.id);
+        messenger.showSnackBar(const SnackBar(content: Text('Đã bỏ chia sẻ giao dịch'), backgroundColor: AppColors.safe));
+      } catch (e) {
+        messenger.showSnackBar(SnackBar(content: Text(errorMessage(e)), backgroundColor: AppColors.danger));
+      }
     }
   }
 
@@ -377,6 +424,17 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
         children: [
           Text(tx.categoryName ?? 'Không phân loại', style: AppTypography.caption(context)),
           _syncBadge(tx),
+          IconButton(
+            key: ValueKey('share-group-${tx.id}'),
+            icon: Icon(
+              LucideIcons.users,
+              size: 16,
+              color: tx.groupId != null ? AppColors.primary : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
+            ),
+            tooltip: tx.groupId != null ? 'Đã chia sẻ vào nhóm' : 'Chia sẻ vào nhóm',
+            visualDensity: VisualDensity.compact,
+            onPressed: () => _openShareSheet(tx),
+          ),
         ],
       ),
       trailing: Text(
@@ -385,6 +443,78 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
           AppTypography.bodyLarge(context).copyWith(fontWeight: FontWeight.w700, color: color),
         ),
       ),
+    );
+  }
+}
+
+/// Hộp thoại chọn nhóm (+ danh mục nhóm tùy chọn) để chia sẻ một giao dịch.
+/// Trả về `(groupId, groupCategoryId)` khi xác nhận, `null` khi hủy. Tự watch danh sách
+/// nhóm/danh mục nhóm (không nhận qua constructor) để đúng trạng thái tải/lỗi hiện tại.
+class _ShareToGroupDialog extends ConsumerStatefulWidget {
+  const _ShareToGroupDialog();
+
+  @override
+  ConsumerState<_ShareToGroupDialog> createState() => _ShareToGroupDialogState();
+}
+
+class _ShareToGroupDialogState extends ConsumerState<_ShareToGroupDialog> {
+  String? _groupId;
+  String? _groupCategoryId;
+
+  @override
+  Widget build(BuildContext context) {
+    final groupsAsync = ref.watch(groupsControllerProvider);
+
+    return AlertDialog(
+      title: const Text('Chia sẻ vào nhóm'),
+      content: groupsAsync.when(
+        loading: () => const SizedBox(height: 56, child: Center(child: CircularProgressIndicator())),
+        error: (e, __) => Text(errorMessage(e)),
+        data: (groups) => groups.isEmpty
+            ? const Text('Bạn chưa tham gia nhóm nào.')
+            : SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    DropdownButtonFormField<String>(
+                      key: const ValueKey('share-group-select'),
+                      initialValue: _groupId,
+                      decoration: const InputDecoration(labelText: 'Nhóm'),
+                      items: [for (final g in groups) DropdownMenuItem(value: g.id, child: Text(g.name))],
+                      onChanged: (v) => setState(() {
+                        _groupId = v;
+                        _groupCategoryId = null;
+                      }),
+                    ),
+                    const SizedBox(height: 12),
+                    if (_groupId != null)
+                      ref.watch(groupCategoriesProvider(_groupId!)).when(
+                            data: (cats) => DropdownButtonFormField<String>(
+                              key: const ValueKey('share-category-select'),
+                              initialValue: _groupCategoryId,
+                              decoration: const InputDecoration(labelText: 'Danh mục nhóm (tùy chọn)'),
+                              items: [for (final c in cats) DropdownMenuItem(value: c.id, child: Text(c.name))],
+                              onChanged: (v) => setState(() => _groupCategoryId = v),
+                            ),
+                            loading: () => const SizedBox(
+                              height: 48,
+                              child: Center(child: CircularProgressIndicator()),
+                            ),
+                            error: (_, __) => const SizedBox.shrink(),
+                          ),
+                  ],
+                ),
+              ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Hủy')),
+        TextButton(
+          key: const ValueKey('confirm-share-group'),
+          onPressed: _groupId == null ? null : () => Navigator.pop(context, (_groupId!, _groupCategoryId)),
+          child: const Text('Chia sẻ'),
+        ),
+      ],
     );
   }
 }

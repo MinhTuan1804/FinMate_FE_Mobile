@@ -241,4 +241,74 @@ void main() {
       expect((await db.getPendingSyncItems()).single.endpoint, '/api/v1/transactions/transfer');
     });
   });
+
+  group('shareTransaction / unshareTransaction', () {
+    test('PUT .../group gửi đúng groupId + groupCategoryId', () async {
+      final adapter = RouteAdapter((o) => respondJson({'success': true, 'data': null}, status: 204));
+      final repo = TransactionRepository(apiClient: testApiClient(adapter), database: db);
+
+      await repo.shareTransaction(id: 'tx-1', groupId: 'g1', groupCategoryId: 'gc1');
+
+      final req = adapter.requests.single;
+      expect(req.method, 'PUT');
+      expect(req.path, '/api/v1/transactions/tx-1/group');
+      expect(req.data, {'groupId': 'g1', 'groupCategoryId': 'gc1'});
+    });
+
+    test('PUT .../group không bắt buộc groupCategoryId (gửi null khi không chọn)', () async {
+      final adapter = RouteAdapter((o) => respondJson({'success': true, 'data': null}, status: 204));
+      final repo = TransactionRepository(apiClient: testApiClient(adapter), database: db);
+
+      await repo.shareTransaction(id: 'tx-1', groupId: 'g1');
+
+      expect(adapter.requests.single.data, {'groupId': 'g1', 'groupCategoryId': null});
+    });
+
+    test('DELETE .../group bỏ chia sẻ', () async {
+      final adapter = RouteAdapter((o) => respondJson({'success': true, 'data': null}, status: 204));
+      final repo = TransactionRepository(apiClient: testApiClient(adapter), database: db);
+
+      await repo.unshareTransaction('tx-1');
+
+      final req = adapter.requests.single;
+      expect(req.method, 'DELETE');
+      expect(req.path, '/api/v1/transactions/tx-1/group');
+    });
+  });
+
+  group('TransactionEntity.groupId', () {
+    test('fromJson đọc groupId; null khi backend không trả (chưa chia sẻ)', () {
+      final shared = TransactionEntity.fromJson({
+        'id': 't1',
+        'financialAccountId': 'acc-1',
+        'amountCents': 1000,
+        'transactionType': 'Debit',
+        'transactedAt': '2026-09-30T00:00:00Z',
+        'createdAt': '2026-09-30T00:00:00Z',
+        'groupId': 'g1',
+      });
+      expect(shared.groupId, 'g1');
+
+      final notShared = TransactionEntity.fromJson({
+        'id': 't2',
+        'financialAccountId': 'acc-1',
+        'amountCents': 1000,
+        'transactionType': 'Debit',
+        'transactedAt': '2026-09-30T00:00:00Z',
+        'createdAt': '2026-09-30T00:00:00Z',
+      });
+      expect(notShared.groupId, isNull);
+    });
+
+    test('withGroupId đặt lại đúng trường groupId, giữ nguyên các trường khác', () {
+      final tx = _localTx();
+      final shared = tx.withGroupId('g1');
+      expect(shared.groupId, 'g1');
+      expect(shared.id, tx.id);
+      expect(shared.amountCents, tx.amountCents);
+
+      final unshared = shared.withGroupId(null);
+      expect(unshared.groupId, isNull);
+    });
+  });
 }
