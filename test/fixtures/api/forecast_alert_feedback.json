@@ -1,0 +1,17 @@
+{
+  "success": true,
+  "data": {
+    "id": "al-1",
+    "kind": "low_balance",
+    "title": "Số dư sắp xuống dưới mức bạn đặt",
+    "body": "Khoảng 15/11 số dư dự kiến còn 200.000 ₫ (ngưỡng 500.000 ₫). Nên chi tối đa 50.000 ₫/ngày.",
+    "data": {"shortfallDate": "2026-11-15", "balanceAtShortfallCents": "200000", "maxDailySpendCents": "50000"},
+    "status": "sent",
+    "scheduledFor": "2026-11-09T01:00:00Z",
+    "sentAt": "2026-11-09T01:00:05Z",
+    "markedInaccurate": true,
+    "createdAt": "2026-11-09T01:00:00Z"
+  },
+  "error": null,
+  "meta": null
+}

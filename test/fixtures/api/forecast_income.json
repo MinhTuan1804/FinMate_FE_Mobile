@@ -1,0 +1,15 @@
+{
+  "success": true,
+  "data": {
+    "isRegular": true,
+    "upcoming": [
+      {"date": "2026-11-25", "label": "Lương tháng 11", "amountCents": 15000000, "recurringItemId": "r-salary"}
+    ],
+    "late": [
+      {"recurringItemId": "r-freelance", "name": "Freelance ABC", "amountCents": 2000000, "expectedDate": "2026-11-01", "daysLate": 6}
+    ],
+    "irregular": null
+  },
+  "error": null,
+  "meta": null
+}

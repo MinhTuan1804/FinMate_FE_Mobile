@@ -1,0 +1,20 @@
+{
+  "success": true,
+  "data": {
+    "reserveCents": null,
+    "defaultReservePercentOfIncome": 20,
+    "effectiveReserveCents": 2000000,
+    "lowBalanceThresholdCents": 500000,
+    "quietHoursStart": null,
+    "quietHoursEnd": null,
+    "defaultQuietHoursStart": "22:00",
+    "defaultQuietHoursEnd": "07:00",
+    "forecastAlertsEnabled": true,
+    "accounts": [
+      {"id": "acc-1", "name": "Ví chính", "includeInForecast": true},
+      {"id": "acc-2", "name": "Ví tiết kiệm", "includeInForecast": false}
+    ]
+  },
+  "error": null,
+  "meta": null
+}

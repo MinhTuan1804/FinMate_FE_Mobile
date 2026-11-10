@@ -1,0 +1,52 @@
+{
+  "success": true,
+  "data": {
+    "month": "2026-12",
+    "availableMonths": ["2026-11", "2026-12"],
+    "enoughHistory": true,
+    "monthsWithData": 4,
+    "seasonalAdjusted": false,
+    "projectedTotalCents": 8000000,
+    "previousMonthTotalCents": 7000000,
+    "items": [
+      {
+        "categoryId": "cat-1",
+        "categoryName": "Ăn uống",
+        "projectedCents": 3500000,
+        "basis": "history",
+        "confidence": "normal",
+        "previousMonthCents": 3000000,
+        "currentLimitCents": 3000000,
+        "changePercent": 17,
+        "changedSignificantly": true,
+        "suggestedLimitCents": 3600000
+      },
+      {
+        "categoryId": "cat-2",
+        "categoryName": "Di chuyển",
+        "projectedCents": 500000,
+        "basis": "average",
+        "confidence": "normal",
+        "previousMonthCents": 450000,
+        "currentLimitCents": null,
+        "changePercent": null,
+        "changedSignificantly": false,
+        "suggestedLimitCents": 500000
+      },
+      {
+        "categoryId": null,
+        "categoryName": "Chưa phân loại",
+        "projectedCents": 300000,
+        "basis": "none",
+        "confidence": "low",
+        "previousMonthCents": 250000,
+        "currentLimitCents": null,
+        "changePercent": null,
+        "changedSignificantly": false,
+        "suggestedLimitCents": null
+      }
+    ]
+  },
+  "error": null,
+  "meta": null
+}

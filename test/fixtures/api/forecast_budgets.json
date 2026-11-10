@@ -1,0 +1,33 @@
+{
+  "success": true,
+  "data": [
+    {
+      "budgetId": "b1",
+      "categoryId": null,
+      "categoryName": null,
+      "limitCents": 10000000,
+      "spentCents": 6000000,
+      "projectedCents": 9500000,
+      "projectedPercent": 95,
+      "status": "ok",
+      "maxDailySpendCents": 400000,
+      "daysRemaining": 10,
+      "basis": "pace"
+    },
+    {
+      "budgetId": "b2",
+      "categoryId": "cat-1",
+      "categoryName": "Ăn uống",
+      "limitCents": 3000000,
+      "spentCents": 3200000,
+      "projectedCents": 3800000,
+      "projectedPercent": 126,
+      "status": "over",
+      "maxDailySpendCents": 0,
+      "daysRemaining": 10,
+      "basis": "history"
+    }
+  ],
+  "error": null,
+  "meta": null
+}

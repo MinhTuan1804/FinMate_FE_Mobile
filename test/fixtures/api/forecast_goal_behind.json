@@ -1,0 +1,25 @@
+{
+  "success": true,
+  "data": {
+    "goalId": "g2",
+    "name": "Mua xe máy",
+    "goalStatus": "active",
+    "targetCents": 30000000,
+    "savedCents": 5000000,
+    "remainingCents": 25000000,
+    "percentComplete": 17,
+    "deadline": "2027-01-31",
+    "forecastStatus": "behind",
+    "averageMonthlyCents": 1000000,
+    "conservativeMonthlyCents": 500000,
+    "monthsOfData": 3,
+    "confidence": "low",
+    "isScenario": false,
+    "likelyDate": "2027-08-01",
+    "conservativeDate": "2028-01-01",
+    "requiredMonthlyCents": 6250000,
+    "message": "Với tốc độ hiện tại, bạn khó đạt mục tiêu đúng hạn. Cần góp thêm."
+  },
+  "error": null,
+  "meta": null
+}

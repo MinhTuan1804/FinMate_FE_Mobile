@@ -1,0 +1,31 @@
+{
+  "success": true,
+  "data": [
+    {
+      "id": "al-1",
+      "kind": "low_balance",
+      "title": "Số dư sắp xuống dưới mức bạn đặt",
+      "body": "Khoảng 15/11 số dư dự kiến còn 200.000 ₫ (ngưỡng 500.000 ₫). Nên chi tối đa 50.000 ₫/ngày.",
+      "data": {"shortfallDate": "2026-11-15", "balanceAtShortfallCents": "200000", "maxDailySpendCents": "50000"},
+      "status": "sent",
+      "scheduledFor": "2026-11-09T01:00:00Z",
+      "sentAt": "2026-11-09T01:00:05Z",
+      "markedInaccurate": false,
+      "createdAt": "2026-11-09T01:00:00Z"
+    },
+    {
+      "id": "al-2",
+      "kind": "budget_risk",
+      "title": "Có thể vượt ngân sách Ăn uống",
+      "body": "Cứ đà này bạn sẽ chi khoảng 3.800.000 ₫ / hạn mức 3.000.000 ₫. Giữ dưới 0 ₫/ngày để không vượt.",
+      "data": {"budgetId": "b2", "projectedCents": "3800000", "maxDailySpendCents": "0"},
+      "status": "pending",
+      "scheduledFor": "2026-11-10T08:00:00Z",
+      "sentAt": null,
+      "markedInaccurate": true,
+      "createdAt": "2026-11-09T02:00:00Z"
+    }
+  ],
+  "error": null,
+  "meta": null
+}

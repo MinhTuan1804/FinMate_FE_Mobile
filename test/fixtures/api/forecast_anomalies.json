@@ -1,0 +1,37 @@
+{
+  "success": true,
+  "data": [
+    {
+      "id": "an-1",
+      "transactionId": "tx-1",
+      "kind": "merchant_spike",
+      "severity": "high",
+      "amountCents": 1200000,
+      "typicalCents": 300000,
+      "ratioPercent": 400,
+      "categoryId": "cat-1",
+      "merchantName": "Nhà hàng ABC",
+      "transactedAt": "2026-11-08T12:30:00Z",
+      "resolution": null,
+      "resolvedAt": null,
+      "createdAt": "2026-11-08T13:00:00Z"
+    },
+    {
+      "id": "an-2",
+      "transactionId": "tx-2",
+      "kind": "duplicate",
+      "severity": "high",
+      "amountCents": 500000,
+      "typicalCents": 500000,
+      "ratioPercent": 100,
+      "categoryId": null,
+      "merchantName": null,
+      "transactedAt": "2026-11-07T09:00:00Z",
+      "resolution": "wrong_entry",
+      "resolvedAt": "2026-11-07T10:00:00Z",
+      "createdAt": "2026-11-07T09:05:00Z"
+    }
+  ],
+  "error": null,
+  "meta": null
+}

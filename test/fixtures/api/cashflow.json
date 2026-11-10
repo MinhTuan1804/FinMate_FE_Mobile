@@ -1,0 +1,40 @@
+{
+  "success": true,
+  "data": {
+    "from": "2026-11-07",
+    "to": "2026-11-30",
+    "startBalanceCents": 5000000,
+    "endBalanceCents": 3200000,
+    "endLowBalanceCents": 2800000,
+    "endHighBalanceCents": 3600000,
+    "lowestDay": "2026-11-15",
+    "lowestBalanceCents": 1000000,
+    "confidence": "normal",
+    "basis": "history",
+    "days": [
+      {
+        "date": "2026-11-07",
+        "expectedBalanceCents": 4900000,
+        "lowBalanceCents": 4800000,
+        "highBalanceCents": 5000000,
+        "flexibleSpendCents": 100000,
+        "events": []
+      },
+      {
+        "date": "2026-11-15",
+        "expectedBalanceCents": 1000000,
+        "lowBalanceCents": 900000,
+        "highBalanceCents": 1100000,
+        "flexibleSpendCents": 50000,
+        "events": [
+          {"kind": "recurring_outflow", "label": "Tiền nhà", "amountCents": 4000000, "recurringItemId": "r1"}
+        ]
+      }
+    ],
+    "mainCauses": [
+      {"kind": "recurring_outflow", "label": "Tiền nhà", "amountCents": 4000000}
+    ]
+  },
+  "error": null,
+  "meta": null
+}
