@@ -69,9 +69,7 @@ class RecommendationController extends StateNotifier<AsyncValue<RecommendationEn
 
   /// 404 (chưa có gợi ý nào) là trạng thái "chưa có" bình thường, không phải lỗi màn hình phải báo.
   /// Lỗi khác (mất mạng...) thì ném vào state.error để màn hình hiện nút Thử lại.
-  /// Kiểm theo [ApiException.code] ('NOT_FOUND'), KHÔNG theo statusCode: ApiClient._handleError gộp
-  /// mọi lỗi dạng {error:{code,message}} (bất kể status HTTP thật) vào BusinessRuleException với
-  /// statusCode cố định 400, nên statusCode không phân biệt được 404 với 422 ở đây.
+  /// Kiểm theo [ApiException.code] ('NOT_FOUND') cho rõ ý, dù statusCode 404 cũng đã phân biệt được.
   Future<void> loadLatest() async {
     state = const AsyncValue.loading();
     try {
