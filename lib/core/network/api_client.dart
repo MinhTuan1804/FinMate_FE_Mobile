@@ -158,52 +158,74 @@ class ApiClient {
     }
 
     final response = err.response;
+    final status = response?.statusCode;
     final data = response?.data;
+
+    String? code;
+    String? message;
     if (data is Map<String, dynamic>) {
-      // Lỗi validation của ASP.NET (ProblemDetails): errors là map {trường: [thông điệp]}
+      // Lỗi validation tự động của ASP.NET (ProblemDetails): errors là map {trường: [thông điệp]}
       final fieldErrors = data['errors'];
       if (fieldErrors is Map) {
         final first = fieldErrors.values.expand((v) => v is List ? v : [v]).firstOrNull;
-        return BusinessRuleException(
-          code: 'VALIDATION',
-          message: first == null ? 'Dữ liệu không hợp lệ.' : 'Dữ liệu không hợp lệ: $first',
-        );
-      }
-
-      // Backend trả lỗi dạng {"error": {code, message}}; chấp nhận thêm dạng mảng {"errors": [...]}
-      final errors = data['errors'];
-      final firstError = errors is List && errors.isNotEmpty && errors.first is Map<String, dynamic>
-          ? errors.first as Map<String, dynamic>
-          : (data['error'] is Map<String, dynamic> ? data['error'] as Map<String, dynamic> : null);
-      if (firstError != null) {
-        final code = firstError['code'] as String?;
-        var message = firstError['message'] as String? ?? 'Yêu cầu không hợp lệ.';
-        // Lỗi validation: kèm thông điệp chi tiết của trường đầu tiên (details: [{field, message}])
-        final details = firstError['details'];
-        if (details is List && details.isNotEmpty && details.first is Map && (details.first as Map)['message'] is String) {
-          message = '$message ${(details.first as Map)['message']}';
+        code = 'VALIDATION';
+        message = first == null ? 'Dữ liệu không hợp lệ.' : 'Dữ liệu không hợp lệ: $first';
+      } else {
+        // Backend trả lỗi dạng {"error": {code, message}}; chấp nhận thêm dạng mảng {"errors": [...]}
+        final errors = data['errors'];
+        final firstError = errors is List && errors.isNotEmpty && errors.first is Map<String, dynamic>
+            ? errors.first as Map<String, dynamic>
+            : (data['error'] is Map<String, dynamic> ? data['error'] as Map<String, dynamic> : null);
+        if (firstError != null) {
+          code = firstError['code'] as String?;
+          message = firstError['message'] as String? ?? 'Yêu cầu không hợp lệ.';
+          // Lỗi validation: kèm thông điệp chi tiết của trường đầu tiên (details: [{field, message}])
+          final details = firstError['details'];
+          if (details is List && details.isNotEmpty && details.first is Map && (details.first as Map)['message'] is String) {
+            message = '$message ${(details.first as Map)['message']}';
+          }
         }
-        return BusinessRuleException(code: code, message: message);
       }
     }
 
-    if (response?.statusCode == 401) {
+    if (status == 401) {
       // Đăng nhập sai thông tin không phải là "phiên hết hạn"
       if (err.requestOptions.path.contains('/auth/login')) {
         return ApiException(
-          message: 'Email hoặc mật khẩu không chính xác.',
-          code: 'INVALID_CREDENTIALS',
+          message: message ?? 'Email hoặc mật khẩu không chính xác.',
+          code: code ?? 'INVALID_CREDENTIALS',
           statusCode: 401,
         );
       }
       return UnauthorizedException();
     }
 
-    final status = response?.statusCode;
+    if (status == 403) {
+      return ForbiddenException(message: message ?? 'Bạn không có quyền thực hiện hành động này.', code: code);
+    }
+
+    if (status == 404) {
+      return NotFoundException(message: message ?? 'Không tìm thấy dữ liệu yêu cầu.', code: code);
+    }
+
+    if (status == 409) {
+      return ConflictException(message: message ?? 'Dữ liệu đã bị thay đổi hoặc xung đột. Vui lòng thử lại.', code: code);
+    }
+
+    if (status == 422) {
+      return BusinessRuleException(code: code, message: message ?? 'Yêu cầu không hợp lệ.');
+    }
+
+    if (status == 400 && message != null) {
+      return BusinessRuleException(code: code, message: message, statusCode: 400);
+    }
+
     return ApiException(
-      message: status != null && status >= 500
-          ? 'Máy chủ đang gặp sự cố. Vui lòng thử lại sau.'
-          : 'Yêu cầu không thành công. Vui lòng thử lại.',
+      message: message ??
+          (status != null && status >= 500
+              ? 'Máy chủ đang gặp sự cố. Vui lòng thử lại sau.'
+              : 'Yêu cầu không thành công. Vui lòng thử lại.'),
+      code: code,
       statusCode: status,
     );
   }

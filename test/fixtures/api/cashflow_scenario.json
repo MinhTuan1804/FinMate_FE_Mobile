@@ -1,0 +1,32 @@
+{
+  "success": true,
+  "data": {
+    "from": "2026-11-07",
+    "to": "2026-11-30",
+    "startBalanceCents": 5000000,
+    "endBalanceCents": 1700000,
+    "endLowBalanceCents": 1300000,
+    "endHighBalanceCents": 2100000,
+    "lowestDay": "2026-11-20",
+    "lowestBalanceCents": 500000,
+    "confidence": "normal",
+    "basis": "history",
+    "days": [
+      {
+        "date": "2026-11-20",
+        "expectedBalanceCents": 500000,
+        "lowBalanceCents": 400000,
+        "highBalanceCents": 600000,
+        "flexibleSpendCents": 50000,
+        "events": [
+          {"kind": "scenario", "label": "Mua laptop", "amountCents": -1500000, "recurringItemId": null}
+        ]
+      }
+    ],
+    "mainCauses": [
+      {"kind": "scenario", "label": "Mua laptop", "amountCents": -1500000}
+    ]
+  },
+  "error": null,
+  "meta": null
+}

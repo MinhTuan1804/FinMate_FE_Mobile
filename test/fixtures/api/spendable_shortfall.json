@@ -1,0 +1,27 @@
+{
+  "success": true,
+  "data": {
+    "periodStart": "2026-11-07",
+    "periodEnd": "2026-11-30",
+    "daysRemaining": 23,
+    "periodBasis": "next_income",
+    "balanceCents": 1000000,
+    "expectedIncomeCents": 0,
+    "upcomingBillsCents": 4000000,
+    "goalSetAsideCents": 0,
+    "reserveCents": 0,
+    "spendableCents": 0,
+    "perDayCents": 0,
+    "shortfallCents": 3000000,
+    "accounts": [
+      {"id": "a1", "name": "Ví chính", "balanceCents": 1000000}
+    ],
+    "incomes": [],
+    "bills": [
+      {"date": "2026-11-15", "label": "Tiền nhà", "amountCents": 4000000, "recurringItemId": "r1"}
+    ],
+    "goals": []
+  },
+  "error": null,
+  "meta": null
+}

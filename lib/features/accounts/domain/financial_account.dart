@@ -68,3 +68,18 @@ class AccountProviderInfo {
         type: AccountType.fromApi(json['accountType'] as String? ?? 'Bank'),
       );
 }
+
+/// Số dư hiện tại của 1 tài khoản (GET /financial-accounts/{id}/balance)
+class AccountBalance {
+  final String accountId;
+  final BigInt balanceCents;
+  final DateTime asOf;
+
+  const AccountBalance({required this.accountId, required this.balanceCents, required this.asOf});
+
+  factory AccountBalance.fromJson(Map<String, dynamic> json) => AccountBalance(
+        accountId: json['accountId'] as String,
+        balanceCents: parseCents(json['balanceCents']),
+        asOf: DateTime.parse(json['asOf'] as String),
+      );
+}

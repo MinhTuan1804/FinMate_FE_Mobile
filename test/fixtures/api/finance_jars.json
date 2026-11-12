@@ -1,1 +1,43 @@
-{"success":true,"data":[{"userMethodId":"20baafe4-599b-46c5-9a0a-0f6985eba123","methodCode":"category_budget","methodName":"Ngân sách theo nhóm","title":"Chia thu nhập","periodStart":"2026-11-01T00:00:00+07:00","periodEnd":"2026-12-01T00:00:00+07:00","incomeCents":20000000,"jars":[{"key":"needs_pct","label":"Nhu cầu","allocationPct":50,"allocatedCents":10000000,"spentCents":2300000,"remainingCents":7700000,"usedPct":23,"level":"ok","categories":[{"slug":"transport","name":"Di chuyển"},{"slug":"family","name":"Gia đình"}]},{"key":"wants_pct","label":"Mong muốn","allocationPct":30,"allocatedCents":6000000,"spentCents":5400000,"remainingCents":600000,"usedPct":90,"level":"t2","categories":[{"slug":"education","name":"Giáo dục"}]},{"key":"goals_pct","label":"Mục tiêu","allocationPct":20,"allocatedCents":4000000,"spentCents":0,"remainingCents":4000000,"usedPct":0,"level":"ok","categories":[]}],"unassignedSpentCents":500000,"t1Pct":70,"t2Pct":90}],"error":null,"meta":null}
+{
+  "success": true,
+  "data": [
+    {
+      "userMethodId": "um-2",
+      "methodCode": "six_jars",
+      "methodName": "6 chiếc hũ",
+      "title": "6 chiếc hũ",
+      "periodStart": "2026-11-01T00:00:00+07:00",
+      "periodEnd": "2026-11-30T23:59:59+07:00",
+      "incomeCents": 20000000,
+      "jars": [
+        {
+          "key": "necessities_pct",
+          "label": "Thiết yếu",
+          "allocationPct": 55,
+          "allocatedCents": 11000000,
+          "spentCents": 8000000,
+          "remainingCents": 3000000,
+          "usedPct": 72,
+          "level": "t1",
+          "categories": [{"slug": "food", "name": "Ăn uống"}]
+        },
+        {
+          "key": "play_pct",
+          "label": "Hưởng thụ",
+          "allocationPct": 10,
+          "allocatedCents": 2000000,
+          "spentCents": 2200000,
+          "remainingCents": -200000,
+          "usedPct": 110,
+          "level": "over",
+          "categories": [{"slug": "entertainment", "name": "Giải trí"}]
+        }
+      ],
+      "unassignedSpentCents": 500000,
+      "t1Pct": 70,
+      "t2Pct": 90
+    }
+  ],
+  "error": null,
+  "meta": null
+}

@@ -1,0 +1,11 @@
+{
+  "success": true,
+  "data": [
+    { "code": "places", "name": "Quán ngon, deal tốt", "requiresPlace": true, "tags": ["an-vat", "ca-phe"] },
+    { "code": "experience", "name": "Kinh nghiệm chi tiêu", "requiresPlace": false, "tags": [] },
+    { "code": "difficulty", "name": "Khó khăn tài chính", "requiresPlace": false, "tags": [] },
+    { "code": "question", "name": "Hỏi đáp", "requiresPlace": false, "tags": [] }
+  ],
+  "error": null,
+  "meta": null
+}

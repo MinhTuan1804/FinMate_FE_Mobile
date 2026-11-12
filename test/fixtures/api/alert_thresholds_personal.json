@@ -1,0 +1,14 @@
+{
+  "success": true,
+  "data": {
+    "t1Pct": 60,
+    "t2Pct": 85,
+    "source": "personal",
+    "methodCode": null,
+    "methodName": null,
+    "personal": {"t1Pct": 60, "t2Pct": 85},
+    "systemDefault": {"t1Pct": 70, "t2Pct": 90}
+  },
+  "error": null,
+  "meta": null
+}

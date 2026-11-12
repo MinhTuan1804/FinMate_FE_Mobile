@@ -1,0 +1,1 @@
+{"success":true,"data":[{"id":"ggc1","memberUserId":"u1","memberName":"Người dùng A","amountCents":2000000,"note":"Góp đầu","contributedAt":"2026-10-01T00:00:00+00:00"},{"id":"ggc2","memberUserId":"u2","memberName":"Người dùng B","amountCents":1000000,"note":null,"contributedAt":"2026-10-15T00:00:00+00:00"}],"error":null,"meta":null}

@@ -1,0 +1,15 @@
+{
+  "success": true,
+  "data": {
+    "month": "2026-12",
+    "availableMonths": ["2026-12"],
+    "enoughHistory": false,
+    "monthsWithData": 1,
+    "seasonalAdjusted": false,
+    "projectedTotalCents": 1000000,
+    "previousMonthTotalCents": 0,
+    "items": []
+  },
+  "error": null,
+  "meta": null
+}

@@ -1,0 +1,9 @@
+{
+  "success": true,
+  "data": {
+    "url": "https://billing.finmate.vn/subscribe?code=abc123",
+    "expiresAt": "2026-11-10T10:15:00Z"
+  },
+  "error": null,
+  "meta": null
+}

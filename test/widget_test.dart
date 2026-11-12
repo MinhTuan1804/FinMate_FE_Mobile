@@ -17,7 +17,7 @@ void main() {
 
     // Verify WelcomeScreen elements exist
     expect(find.text('FinMate'), findsOneWidget);
-    expect(find.text('Đăng nhập với Email'), findsOneWidget);
+    expect(find.text('Đã có tài khoản? Đăng nhập'), findsOneWidget);
     expect(find.text('Cam kết bảo mật Zero-Credential'), findsOneWidget);
   });
 }

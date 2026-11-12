@@ -1,0 +1,25 @@
+{
+  "success": true,
+  "data": {
+    "goalId": "g1",
+    "name": "Quỹ khẩn cấp",
+    "goalStatus": "active",
+    "targetCents": 45000000,
+    "savedCents": 15000000,
+    "remainingCents": 30000000,
+    "percentComplete": 33,
+    "deadline": "2027-06-30",
+    "forecastStatus": "on_track",
+    "averageMonthlyCents": 3000000,
+    "conservativeMonthlyCents": 2000000,
+    "monthsOfData": 5,
+    "confidence": "normal",
+    "isScenario": false,
+    "likelyDate": "2027-04-15",
+    "conservativeDate": "2027-07-01",
+    "requiredMonthlyCents": 2500000,
+    "message": "Với tốc độ hiện tại, bạn sẽ đạt mục tiêu trước hạn chót."
+  },
+  "error": null,
+  "meta": null
+}

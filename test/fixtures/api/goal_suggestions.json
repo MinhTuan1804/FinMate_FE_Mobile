@@ -1,0 +1,21 @@
+{
+  "success": true,
+  "data": [
+    {
+      "templateCode": "emergency_fund",
+      "name": "Quỹ dự phòng",
+      "description": "Dành 3-6 tháng chi phí sinh hoạt cho trường hợp khẩn cấp.",
+      "defaultParams": {"months": 3},
+      "methodCode": "category_budget"
+    },
+    {
+      "templateCode": "vacation",
+      "name": "Quỹ du lịch",
+      "description": "Tiết kiệm cho chuyến đi sắp tới.",
+      "defaultParams": null,
+      "methodCode": "category_budget"
+    }
+  ],
+  "error": null,
+  "meta": null
+}

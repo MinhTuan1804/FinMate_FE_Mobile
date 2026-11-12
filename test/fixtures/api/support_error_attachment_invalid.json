@@ -1,0 +1,1 @@
+{ "success": false, "data": null, "error": { "code": "SUPPORT_ATTACHMENT_INVALID", "message": "Chỉ nhận ảnh JPEG, PNG, WebP, HEIC hoặc HEIF." }, "meta": null }

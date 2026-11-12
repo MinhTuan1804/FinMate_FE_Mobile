@@ -1,0 +1,1 @@
+{"success":true,"data":[{"id":"a1","type":"GroupCreated","actorUserId":"u1","subjectId":null,"createdAt":"2026-01-01T00:00:00+00:00"},{"id":"a2","type":"MemberJoined","actorUserId":"u1","subjectId":"u2","createdAt":"2026-01-02T00:00:00+00:00"}],"error":null,"meta":null}

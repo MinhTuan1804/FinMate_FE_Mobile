@@ -1,0 +1,23 @@
+{
+  "success": true,
+  "data": {
+    "anomaly": {
+      "id": "an-1",
+      "transactionId": "tx-1",
+      "kind": "merchant_spike",
+      "severity": "high",
+      "amountCents": 1200000,
+      "typicalCents": 300000,
+      "ratioPercent": 400,
+      "categoryId": "cat-1",
+      "merchantName": "Nhà hàng ABC",
+      "transactedAt": "2026-11-08T12:30:00Z",
+      "resolution": "suspicious",
+      "resolvedAt": "2026-11-09T06:00:00Z",
+      "createdAt": "2026-11-08T13:00:00Z"
+    },
+    "guidance": "Nếu bạn không thực hiện giao dịch này: gọi ngay tổng đài ngân hàng hoặc ví điện tử để khóa thẻ/tài khoản, đổi mật khẩu, và không cung cấp mã OTP cho bất kỳ ai."
+  },
+  "error": null,
+  "meta": null
+}

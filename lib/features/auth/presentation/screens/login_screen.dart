@@ -3,14 +3,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:finmate/core/network/api_exceptions.dart';
-import 'package:finmate/core/theme/app_colors.dart';
-import 'package:finmate/core/theme/app_spacing.dart';
-import 'package:finmate/core/theme/app_typography.dart';
-import 'package:finmate/core/widgets/glass/liquid_glass.dart';
+import 'package:finmate/core/theme/glass/glass_colors.dart';
+import 'package:finmate/core/theme/glass/glass_typography.dart';
 import 'package:finmate/features/auth/presentation/controllers/auth_controller.dart';
+import 'package:finmate/shared/widgets/glass/glass_background.dart';
+import 'package:finmate/shared/widgets/glass/glass_buttons.dart';
+import 'package:finmate/shared/widgets/glass/glass_card.dart';
+import 'package:finmate/shared/widgets/glass/glass_text_field.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   final String? initialEmail;
+
+  /// Thông báo hiển thị một lần (ví dụ: vừa xác thực email xong)
   final String? notice;
 
   const LoginScreen({super.key, this.initialEmail, this.notice});
@@ -21,11 +25,8 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  late final TextEditingController _emailController = TextEditingController(
-    text: widget.initialEmail,
-  );
+  late final TextEditingController _emailController = TextEditingController(text: widget.initialEmail);
   final _passwordController = TextEditingController();
-  bool _obscurePassword = true;
   bool _isLoading = false;
   String? _error;
   String? _notice;
@@ -34,11 +35,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   void initState() {
     super.initState();
     _notice = widget.notice;
+    // Phiên hết hạn: router đưa người dùng về đây và bật cờ này
     if (ref.read(sessionExpiredProvider)) {
       _notice = 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
-      Future.microtask(
-        () => ref.read(sessionExpiredProvider.notifier).state = false,
-      );
+      Future.microtask(() => ref.read(sessionExpiredProvider.notifier).state = false);
     }
   }
 
@@ -66,8 +66,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (!mounted) return;
     final authState = ref.read(authControllerProvider);
     final error = authState.error;
-    final notVerified =
-        error is ApiException && error.code == 'AUTH_EMAIL_NOT_VERIFIED';
+    final notVerified = error is ApiException && error.code == 'AUTH_EMAIL_NOT_VERIFIED';
     setState(() {
       _isLoading = false;
       _error = authState.hasError && !notVerified ? errorMessage(error!) : null;
@@ -77,6 +76,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       return;
     }
 
+    // Tài khoản đã xác thực sẽ được router tự chuyển đi; chỉ cần xử lý trường hợp chưa xác thực email
     final user = authState.valueOrNull;
     if (user != null && !user.isEmailVerified) {
       context.push('/verify-otp', extra: user.email);
@@ -86,62 +86,39 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final isLoading = _isLoading;
-    final actionColor = AppColors.primaryAction(context);
 
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(LucideIcons.arrowLeft, size: 20),
-          onPressed: () => context.canPop() ? context.pop() : context.go('/'),
+    return GlassBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(LucideIcons.arrowLeft, color: GlassColors.ink),
+            onPressed: () => context.canPop() ? context.pop() : context.go('/'),
+          ),
         ),
-      ),
-      body: AmbientGlassBackground(
-        child: SafeArea(
+        body: SafeArea(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+            padding: const EdgeInsets.symmetric(horizontal: 24.0),
             child: Form(
               key: _formKey,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text('Chào mừng trở lại', style: AppTypography.h1(context)),
+                  Text('Chào mừng trở lại', style: GlassTypography.headlineLg()),
                   const SizedBox(height: 8),
-                  Text(
-                    'Đăng nhập để tiếp tục quản lý chi tiêu cá nhân',
-                    style: AppTypography.body(context).copyWith(
-                      color: AppColors.textSecondary(context),
-                    ),
-                  ),
+                  Text('Đăng nhập để tiếp tục quản lý chi tiêu cá nhân', style: GlassTypography.bodyMd()),
                   const SizedBox(height: 28),
 
                   if (_notice != null) ...[
-                    Container(
+                    GlassCard(
                       padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: AppColors.info.withValues(alpha: 0.12),
-                        borderRadius: AppSpacing.roundedMedium,
-                        border: Border.all(
-                          color: AppColors.info.withValues(alpha: 0.35),
-                        ),
-                      ),
                       child: Row(
                         children: [
-                          const Icon(
-                            LucideIcons.info,
-                            color: AppColors.info,
-                            size: 20,
-                          ),
+                          const Icon(LucideIcons.info, color: GlassColors.slateAnchor, size: 20),
                           const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              _notice!,
-                              style: TextStyle(
-                                color: AppColors.textPrimary(context),
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
+                          Expanded(child: Text(_notice!, style: GlassTypography.bodySm(color: GlassColors.textPrimary))),
                         ],
                       ),
                     ),
@@ -149,168 +126,104 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ],
 
                   if (_error != null) ...[
-                    Container(
+                    GlassCard(
                       padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: AppColors.danger.withValues(alpha: 0.12),
-                        borderRadius: AppSpacing.roundedMedium,
-                        border: Border.all(
-                          color: AppColors.danger.withValues(alpha: 0.35),
-                        ),
-                      ),
                       child: Row(
                         children: [
-                          const Icon(
-                            LucideIcons.alertCircle,
-                            color: AppColors.danger,
-                            size: 20,
-                          ),
+                          const Icon(LucideIcons.alertCircle, color: GlassColors.danger, size: 20),
                           const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              _error!,
-                              style: const TextStyle(
-                                color: AppColors.danger,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ),
+                          Expanded(child: Text(_error!, style: GlassTypography.bodySm(color: GlassColors.danger))),
                         ],
                       ),
                     ),
                     const SizedBox(height: 20),
                   ],
 
-                  ZenvestSurfaceSheet(
-                    padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Text('Email', style: AppTypography.bodyMedium(context)),
-                        const SizedBox(height: 6),
-                        TextFormField(
-                          controller: _emailController,
-                          keyboardType: TextInputType.emailAddress,
-                          decoration: const InputDecoration(
-                            hintText: 'name@example.com',
-                            prefixIcon: Icon(LucideIcons.mail, size: 18),
-                          ),
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return 'Vui lòng nhập email.';
-                            }
-                            if (!value.contains('@') || !value.contains('.')) {
-                              return 'Email không hợp lệ.';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 20),
+                  GlassTextField(
+                    label: 'Email',
+                    controller: _emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    hintText: 'name@example.com',
+                    prefixIcon: LucideIcons.mail,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) return 'Vui lòng nhập email.';
+                      if (!value.contains('@') || !value.contains('.')) return 'Email không hợp lệ.';
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 20),
 
-                        Text('Mật khẩu', style: AppTypography.bodyMedium(context)),
-                        const SizedBox(height: 6),
-                        TextFormField(
-                          controller: _passwordController,
-                          obscureText: _obscurePassword,
-                          decoration: InputDecoration(
-                            hintText: 'Nhập mật khẩu của bạn',
-                            prefixIcon: const Icon(LucideIcons.lock, size: 18),
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _obscurePassword
-                                    ? LucideIcons.eyeOff
-                                    : LucideIcons.eye,
-                                size: 18,
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  _obscurePassword = !_obscurePassword;
-                                });
-                              },
-                            ),
-                          ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Vui lòng nhập mật khẩu.';
-                            }
-                            if (value.length < 8) {
-                              return 'Mật khẩu tối thiểu 8 ký tự.';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 10),
-
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: TextButton(
-                            onPressed: () => context.push('/forgot-password'),
-                            style: TextButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                              minimumSize: const Size(44, 30),
-                            ),
-                            child: Text(
-                              'Quên mật khẩu?',
-                              style: AppTypography.caption(context).copyWith(
-                                color: AppColors.primaryAction(context),
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 20),
-
-                        ElevatedButton(
-                          onPressed: isLoading ? null : _submit,
-                          child: isLoading
-                              ? SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: AppColors.onPrimaryAction(context),
-                                  ),
-                                )
-                              : const Text(
-                                  'Đăng nhập',
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                        ),
-                      ],
+                  GlassTextField(
+                    label: 'Mật khẩu',
+                    controller: _passwordController,
+                    isPassword: true,
+                    hintText: 'Nhập mật khẩu của bạn',
+                    prefixIcon: LucideIcons.lock,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) return 'Vui lòng nhập mật khẩu.';
+                      if (value.length < 8) return 'Mật khẩu tối thiểu 8 ký tự.';
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () => context.push('/forgot-password'),
+                      child: Text(
+                        'Quên mật khẩu?',
+                        style: GlassTypography.bodyMd(color: GlassColors.slateAnchor).copyWith(fontWeight: FontWeight.w600),
+                      ),
                     ),
                   ),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
+                  GlassPrimaryButton(label: 'Đăng nhập', onPressed: _submit, loading: isLoading),
 
+                  const SizedBox(height: 20),
+                  _socialDivider(),
+                  const SizedBox(height: 16),
+                  GlassSecondaryButton(
+                    label: 'Đăng nhập với Google',
+                    onPressed: () {
+                      // Luồng Google Sign-In (lấy idToken) nằm ngoài phạm vi màn hình này.
+                    },
+                  ),
+
+                  const SizedBox(height: 24),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(
-                        'Chưa có tài khoản? ',
-                        style: AppTypography.caption(context),
-                      ),
+                      Text('Chưa có tài khoản? ', style: GlassTypography.bodySm()),
                       GestureDetector(
                         onTap: () => context.push('/register'),
                         child: Text(
                           'Đăng ký ngay',
-                          style: AppTypography.caption(context).copyWith(
-                            color: actionColor,
-                            fontWeight: FontWeight.w700,
-                          ),
+                          style: GlassTypography.bodySm(color: GlassColors.ink).copyWith(fontWeight: FontWeight.w700),
                         ),
                       ),
                     ],
                   ),
+                  const SizedBox(height: 20),
                 ],
               ),
             ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _socialDivider() {
+    return Row(
+      children: [
+        const Expanded(child: Divider(color: GlassColors.secondarySurface, thickness: 1)),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Text('Hoặc đăng nhập với', style: GlassTypography.bodySm()),
+        ),
+        const Expanded(child: Divider(color: GlassColors.secondarySurface, thickness: 1)),
+      ],
     );
   }
 }

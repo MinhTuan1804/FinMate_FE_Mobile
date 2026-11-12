@@ -1,0 +1,22 @@
+{
+  "success": true,
+  "data": [
+    {
+      "code": "HCM",
+      "name": "TP. Hồ Chí Minh",
+      "areas": [
+        { "code": "Q1", "name": "Quận 1" },
+        { "code": "BT", "name": "Bình Thạnh" }
+      ]
+    },
+    {
+      "code": "HN",
+      "name": "Hà Nội",
+      "areas": [
+        { "code": "HK", "name": "Hoàn Kiếm" }
+      ]
+    }
+  ],
+  "error": null,
+  "meta": null
+}

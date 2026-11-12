@@ -1,0 +1,12 @@
+{
+  "success": true,
+  "data": {
+    "provinceCode": "HN",
+    "areaCode": "HK",
+    "promptsEnabled": false,
+    "consentGranted": true,
+    "mutedUntil": null
+  },
+  "error": null,
+  "meta": null
+}

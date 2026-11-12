@@ -110,6 +110,13 @@ class AuthController extends StateNotifier<AsyncValue<UserProfile?>> {
     await repository.resendVerification(email: email);
   }
 
+  /// Quên mật khẩu: không đụng trạng thái đăng nhập; lỗi được ném lại cho màn hình xử lý.
+  Future<void> forgotPassword(String email) => repository.forgotPassword(email: email);
+
+  /// Đặt lại mật khẩu bằng mã gửi qua email; lỗi (sai mã/email) được ném lại cho màn hình xử lý.
+  Future<void> resetPassword({required String email, required String code, required String newPassword}) =>
+      repository.resetPassword(email: email, code: code, newPassword: newPassword);
+
   Future<void> googleLogin(String idToken) async {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() => repository.googleLogin(idToken: idToken));
@@ -161,6 +168,12 @@ class AuthController extends StateNotifier<AsyncValue<UserProfile?>> {
 
   Future<void> logout() async {
     await repository.logout();
+    await _signOutLocally();
+  }
+
+  /// Đăng xuất MỌI thiết bị (kể cả thiết bị này). Lỗi được ném lại cho màn hình.
+  Future<void> logoutAllDevices() async {
+    await repository.logoutAllDevices();
     await _signOutLocally();
   }
 

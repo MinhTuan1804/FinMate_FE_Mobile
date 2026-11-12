@@ -1,0 +1,9 @@
+{
+  "success": true,
+  "data": [
+    { "id": "aaaaaaaa-0000-0000-0000-000000000001", "category": "Transaction", "status": "New", "subject": "Giao dịch bị trùng", "rating": null, "createdAt": "2026-11-01T08:00:00Z", "updatedAt": "2026-11-01T08:00:00Z", "resolvedAt": null, "closedAt": null },
+    { "id": "aaaaaaaa-0000-0000-0000-000000000002", "category": "Security", "status": "Resolved", "subject": "Không đăng nhập được", "rating": 4, "createdAt": "2026-10-20T08:00:00Z", "updatedAt": "2026-10-21T08:00:00Z", "resolvedAt": "2026-10-21T08:00:00Z", "closedAt": null }
+  ],
+  "error": null,
+  "meta": null
+}

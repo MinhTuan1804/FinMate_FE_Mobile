@@ -1,0 +1,18 @@
+{
+  "success": true,
+  "data": {
+    "items": [
+      {
+        "id": "77777777-7777-7777-7777-777777777777",
+        "body": "Hay quá, cảm ơn bạn chia sẻ!",
+        "author": { "isAnonymous": false, "displayName": "Lan" },
+        "isMine": false,
+        "createdOn": "2026-11-02T10:00:00+07:00",
+        "edited": false
+      }
+    ],
+    "nextCursor": null
+  },
+  "error": null,
+  "meta": null
+}

@@ -92,3 +92,105 @@ class SavingsGoalEntity {
     );
   }
 }
+
+/// Cảnh báo kèm gợi ý về tính khả thi của mục tiêu (không phải từ chối) — dùng chung cho
+/// cả tiến độ mục tiêu đã có (GoalProgressEntity.feasibility) và bản xem trước mục tiêu chưa tạo.
+class GoalFeasibilityEntity {
+  final BigInt requiredPerMonthCents;
+  final BigInt? availablePerMonthCents;
+  final bool? isFeasible;
+  final DateTime? suggestedDeadline;
+  final BigInt? suggestedTargetCents;
+
+  const GoalFeasibilityEntity({
+    required this.requiredPerMonthCents,
+    this.availablePerMonthCents,
+    this.isFeasible,
+    this.suggestedDeadline,
+    this.suggestedTargetCents,
+  });
+
+  factory GoalFeasibilityEntity.fromJson(Map<String, dynamic> json) => GoalFeasibilityEntity(
+        requiredPerMonthCents: parseCents(json['requiredPerMonthCents']),
+        availablePerMonthCents: json['availablePerMonthCents'] == null ? null : parseCents(json['availablePerMonthCents']),
+        isFeasible: json['isFeasible'] as bool?,
+        suggestedDeadline: (json['suggestedDeadline'] as String?) == null ? null : DateTime.tryParse(json['suggestedDeadline'] as String)?.toLocal(),
+        suggestedTargetCents: json['suggestedTargetCents'] == null ? null : parseCents(json['suggestedTargetCents']),
+      );
+
+  String get formattedRequiredPerMonth => formatVnd(requiredPerMonthCents);
+}
+
+/// Một lần nạp tiền vào mục tiêu (trong GoalProgressEntity.recentContributions)
+class GoalContributionEntity {
+  final String id;
+  final BigInt amountCents;
+  final String? note;
+  final DateTime contributedAt;
+
+  const GoalContributionEntity({required this.id, required this.amountCents, this.note, required this.contributedAt});
+
+  factory GoalContributionEntity.fromJson(Map<String, dynamic> json) => GoalContributionEntity(
+        id: json['id'] as String,
+        amountCents: parseCents(json['amountCents']),
+        note: json['note'] as String?,
+        contributedAt: DateTime.parse(json['contributedAt'] as String).toLocal(),
+      );
+
+  String get formattedAmount => formatVnd(amountCents);
+}
+
+/// Tiến độ chi tiết của một mục tiêu (GET /saving-goals/{id}/progress)
+class GoalProgressEntity {
+  final String goalId;
+  final String name;
+  final String status;
+  final BigInt targetCents;
+  final BigInt savedCents;
+  final BigInt remainingCents;
+  final int percentComplete;
+  final DateTime? deadline;
+  final int? daysRemaining;
+  final BigInt? requiredPerDayCents;
+  final bool isOnTrack;
+  final List<GoalContributionEntity> recentContributions;
+  final GoalFeasibilityEntity? feasibility;
+
+  const GoalProgressEntity({
+    required this.goalId,
+    required this.name,
+    required this.status,
+    required this.targetCents,
+    required this.savedCents,
+    required this.remainingCents,
+    required this.percentComplete,
+    this.deadline,
+    this.daysRemaining,
+    this.requiredPerDayCents,
+    required this.isOnTrack,
+    this.recentContributions = const [],
+    this.feasibility,
+  });
+
+  factory GoalProgressEntity.fromJson(Map<String, dynamic> json) => GoalProgressEntity(
+        goalId: json['goalId'] as String,
+        name: json['name'] as String? ?? '',
+        status: (json['status'] as String? ?? 'active').toLowerCase(),
+        targetCents: parseCents(json['targetCents']),
+        savedCents: parseCents(json['savedCents']),
+        remainingCents: parseCents(json['remainingCents']),
+        percentComplete: json['percentComplete'] as int? ?? 0,
+        deadline: (json['deadline'] as String?) == null ? null : DateTime.tryParse(json['deadline'] as String)?.toLocal(),
+        daysRemaining: json['daysRemaining'] as int?,
+        requiredPerDayCents: json['requiredPerDayCents'] == null ? null : parseCents(json['requiredPerDayCents']),
+        isOnTrack: json['isOnTrack'] as bool? ?? true,
+        recentContributions: (json['recentContributions'] as List<dynamic>? ?? const [])
+            .map((e) => GoalContributionEntity.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        feasibility: json['feasibility'] == null ? null : GoalFeasibilityEntity.fromJson(json['feasibility'] as Map<String, dynamic>),
+      );
+
+  String get formattedTarget => formatVnd(targetCents);
+  String get formattedSaved => formatVnd(savedCents);
+  String get formattedRemaining => formatVnd(remainingCents);
+}

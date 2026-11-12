@@ -1,1 +1,16 @@
-{"success":true,"data":{"goalMode":"reserve_first","incomeCents":20000000,"spentCents":0,"goalSetAsideCents":0,"spendableCents":20000000,"goals":[]},"error":null,"meta":null}
+{
+  "success": true,
+  "data": {
+    "goalMode": "reserve_first",
+    "incomeCents": 20000000,
+    "spentCents": 8000000,
+    "goalSetAsideCents": 2000000,
+    "spendableCents": 10000000,
+    "goals": [
+      {"goalId": "goal-1", "name": "Quỹ dự phòng", "requiredPerMonthCents": 1500000, "depositedThisMonthCents": 1500000, "setAsideCents": 1500000},
+      {"goalId": "goal-2", "name": "Quỹ du lịch", "requiredPerMonthCents": 500000, "depositedThisMonthCents": 500000, "setAsideCents": 500000}
+    ]
+  },
+  "error": null,
+  "meta": null
+}

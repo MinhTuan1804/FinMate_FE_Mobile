@@ -1,0 +1,29 @@
+{
+  "success": true,
+  "data": {
+    "periodStart": "2026-11-07",
+    "periodEnd": "2026-11-30",
+    "daysRemaining": 23,
+    "periodBasis": "month_end",
+    "balanceCents": 5000000,
+    "expectedIncomeCents": 0,
+    "upcomingBillsCents": 4000000,
+    "goalSetAsideCents": 300000,
+    "reserveCents": 200000,
+    "spendableCents": 500000,
+    "perDayCents": 21739,
+    "shortfallCents": 0,
+    "accounts": [
+      {"id": "a1", "name": "Ví chính", "balanceCents": 5000000}
+    ],
+    "incomes": [],
+    "bills": [
+      {"date": "2026-11-15", "label": "Tiền nhà", "amountCents": 4000000, "recurringItemId": "r1"}
+    ],
+    "goals": [
+      {"goalId": "g1", "name": "Du lịch hè", "requiredPerMonthCents": 300000, "depositedThisMonthCents": 0, "setAsideCents": 300000}
+    ]
+  },
+  "error": null,
+  "meta": null
+}

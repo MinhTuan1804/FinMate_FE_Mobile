@@ -1,0 +1,1 @@
+{ "success": false, "data": null, "error": { "code": "SUPPORT_TOO_MANY_OPEN_TICKETS", "message": "Bạn đang có quá nhiều yêu cầu chưa đóng." }, "meta": null }

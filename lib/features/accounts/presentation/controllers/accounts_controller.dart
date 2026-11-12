@@ -53,4 +53,25 @@ class AccountsController extends StateNotifier<AsyncValue<List<FinancialAccount>
     await load();
     return created;
   }
+
+  /// Đổi tên; lỗi được ném lại cho màn hình, thành công thì tải lại danh sách
+  Future<void> rename(String id, String name) async {
+    await repository.updateAccount(id: id, name: name);
+    await load();
+  }
+
+  /// Bật/tắt theo dõi tự động; lỗi được ném lại cho màn hình, thành công thì tải lại danh sách
+  Future<void> setMonitoring(String id, bool isMonitored) async {
+    await repository.toggleMonitoring(id: id, isMonitored: isMonitored);
+    await load();
+  }
+
+  /// Số dư hiện tại; lỗi được ném lại cho màn hình
+  Future<AccountBalance> getBalance(String id) => repository.getBalance(id);
+
+  /// Xóa tài khoản/ví; lỗi được ném lại cho màn hình, thành công thì tải lại danh sách
+  Future<void> delete(String id) async {
+    await repository.deleteAccount(id);
+    await load();
+  }
 }

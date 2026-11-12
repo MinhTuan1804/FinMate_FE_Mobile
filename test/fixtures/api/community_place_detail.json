@@ -1,0 +1,41 @@
+{
+  "success": true,
+  "data": {
+    "place": {
+      "id": "33333333-3333-3333-3333-333333333333",
+      "name": "Bún bò Huế Cô Ba",
+      "provinceCode": "HCM",
+      "areaCode": "Q1",
+      "addressText": "12 Lê Lợi, Q1",
+      "shareCount": 5,
+      "spentHereCount": 20,
+      "voteCount": 8,
+      "typicalPriceCents": 3500,
+      "tags": ["an-vat"],
+      "lastSharedOn": "2026-10-28"
+    },
+    "posts": [
+      {
+        "id": "22222222-2222-2222-2222-222222222222",
+        "topic": "places",
+        "title": "Bún bò Huế ngon rẻ ở Q1",
+        "body": "Quán nhỏ nhưng chất lượng, giá chỉ 35k/tô.",
+        "tags": ["an-vat"],
+        "author": { "isAnonymous": true, "displayName": null },
+        "isMine": false,
+        "createdOn": "2026-10-28T12:00:00+07:00",
+        "edited": false,
+        "voteCount": 8,
+        "commentCount": 1,
+        "votedByMe": true,
+        "spentHereVerified": true,
+        "priceCents": 3500,
+        "place": null,
+        "images": [],
+        "status": null
+      }
+    ]
+  },
+  "error": null,
+  "meta": null
+}

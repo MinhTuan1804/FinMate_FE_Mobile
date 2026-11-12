@@ -1,0 +1,23 @@
+{
+  "success": true,
+  "data": {
+    "items": [
+      {
+        "id": "33333333-3333-3333-3333-333333333333",
+        "name": "Bún bò Huế Cô Ba",
+        "provinceCode": "HCM",
+        "areaCode": "Q1",
+        "addressText": "12 Lê Lợi, Q1",
+        "shareCount": 5,
+        "spentHereCount": 20,
+        "voteCount": 8,
+        "typicalPriceCents": 3500,
+        "tags": ["an-vat"],
+        "lastSharedOn": "2026-10-28"
+      }
+    ],
+    "nextCursor": null
+  },
+  "error": null,
+  "meta": null
+}

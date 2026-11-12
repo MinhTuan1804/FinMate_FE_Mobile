@@ -1,0 +1,10 @@
+{
+  "success": true,
+  "data": [
+    {"bin": "970422", "name": "MB Bank", "appCode": "mb", "canMatchNotifications": true},
+    {"bin": "970415", "name": "VietinBank", "appCode": "icb", "canMatchNotifications": true},
+    {"bin": "970436", "name": "Vietcombank", "appCode": "vcb", "canMatchNotifications": false}
+  ],
+  "error": null,
+  "meta": null
+}

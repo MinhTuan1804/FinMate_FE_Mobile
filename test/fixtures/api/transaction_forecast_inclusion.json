@@ -1,0 +1,6 @@
+{
+  "success": true,
+  "data": {"transactionId": "tx-1", "excludeFromForecast": false, "reason": null},
+  "error": null,
+  "meta": null
+}

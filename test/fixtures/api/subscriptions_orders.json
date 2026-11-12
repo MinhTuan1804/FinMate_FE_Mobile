@@ -1,0 +1,27 @@
+{
+  "success": true,
+  "data": [
+    {
+      "invoiceNumber": "FM261110ABCDEF",
+      "planCode": "pro",
+      "planName": "Pro",
+      "cycle": "Monthly",
+      "amountCents": 4900000,
+      "status": "Paid",
+      "createdAt": "2026-11-01T03:00:00Z",
+      "paidAt": "2026-11-01T03:05:00Z"
+    },
+    {
+      "invoiceNumber": "FM261105FEDCBA",
+      "planCode": "pro",
+      "planName": "Pro",
+      "cycle": "Yearly",
+      "amountCents": 49000000,
+      "status": "Pending",
+      "createdAt": "2026-11-05T08:00:00Z",
+      "paidAt": null
+    }
+  ],
+  "error": null,
+  "meta": null
+}

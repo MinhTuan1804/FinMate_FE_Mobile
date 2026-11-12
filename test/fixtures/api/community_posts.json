@@ -1,0 +1,56 @@
+{
+  "success": true,
+  "data": {
+    "items": [
+      {
+        "id": "11111111-1111-1111-1111-111111111111",
+        "topic": "experience",
+        "title": "Tiết kiệm 2 triệu/tháng nhờ nấu cơm mang đi làm",
+        "body": "Mình chuyển từ ăn ngoài sang mang cơm, tiết kiệm được khá nhiều.",
+        "tags": ["tiet-kiem"],
+        "author": { "isAnonymous": false, "displayName": "Minh" },
+        "isMine": true,
+        "createdOn": "2026-11-01T08:00:00+07:00",
+        "edited": false,
+        "voteCount": 12,
+        "commentCount": 3,
+        "votedByMe": false,
+        "spentHereVerified": false,
+        "priceCents": null,
+        "place": null,
+        "images": [],
+        "status": "visible"
+      },
+      {
+        "id": "22222222-2222-2222-2222-222222222222",
+        "topic": "places",
+        "title": "Bún bò Huế ngon rẻ ở Q1",
+        "body": "Quán nhỏ nhưng chất lượng, giá chỉ 35k/tô.",
+        "tags": ["an-vat"],
+        "author": { "isAnonymous": true, "displayName": null },
+        "isMine": false,
+        "createdOn": "2026-10-28T12:00:00+07:00",
+        "edited": false,
+        "voteCount": 8,
+        "commentCount": 1,
+        "votedByMe": true,
+        "spentHereVerified": true,
+        "priceCents": 3500,
+        "place": {
+          "id": "33333333-3333-3333-3333-333333333333",
+          "name": "Bún bò Huế Cô Ba",
+          "provinceCode": "HCM",
+          "areaCode": "Q1",
+          "addressText": "12 Lê Lợi, Q1"
+        },
+        "images": [
+          { "id": "44444444-4444-4444-4444-444444444444", "width": 800, "height": 600, "status": "approved" }
+        ],
+        "status": null
+      }
+    ],
+    "nextCursor": null
+  },
+  "error": null,
+  "meta": null
+}

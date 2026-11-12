@@ -1,0 +1,12 @@
+{
+  "success": true,
+  "data": {
+    "provinceCode": null,
+    "areaCode": null,
+    "promptsEnabled": true,
+    "consentGranted": false,
+    "mutedUntil": null
+  },
+  "error": null,
+  "meta": null
+}

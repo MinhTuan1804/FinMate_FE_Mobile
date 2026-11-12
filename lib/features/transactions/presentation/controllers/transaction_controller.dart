@@ -176,6 +176,24 @@ class TransactionController extends StateNotifier<AsyncValue<List<TransactionEnt
     state = AsyncValue.data([for (final t in state.value ?? const <TransactionEntity>[]) t.id == id ? saved : t]);
   }
 
+  /// Chia sẻ giao dịch vào nhóm. BE trả 204 (không có body) nên tự cập nhật state local bằng [TransactionEntity.withGroupId].
+  Future<void> shareToGroup({required String id, required String groupId, String? groupCategoryId}) async {
+    await repository.shareTransaction(id: id, groupId: groupId, groupCategoryId: groupCategoryId);
+    if (!mounted) return;
+    state = AsyncValue.data([
+      for (final t in state.value ?? const <TransactionEntity>[]) t.id == id ? t.withGroupId(groupId) : t,
+    ]);
+  }
+
+  /// Bỏ chia sẻ giao dịch khỏi nhóm.
+  Future<void> unshareFromGroup(String id) async {
+    await repository.unshareTransaction(id);
+    if (!mounted) return;
+    state = AsyncValue.data([
+      for (final t in state.value ?? const <TransactionEntity>[]) t.id == id ? t.withGroupId(null) : t,
+    ]);
+  }
+
   Future<void> transferInternal({
     required BigInt amountCents,
     required String fromAccountId,

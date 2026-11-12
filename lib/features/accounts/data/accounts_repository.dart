@@ -46,4 +46,36 @@ class AccountsRepository {
     );
     return response.data!;
   }
+
+  /// Đổi tên tài khoản/ví (PATCH /financial-accounts/{id})
+  Future<FinancialAccount> updateAccount({required String id, required String name}) async {
+    final response = await apiClient.patch(
+      '/api/v1/financial-accounts/$id',
+      data: {'accountName': name},
+      fromJsonT: (json) => FinancialAccount.fromJson(json as Map<String, dynamic>),
+    );
+    return response.data!;
+  }
+
+  /// Bật/tắt theo dõi tự động (PATCH /financial-accounts/{id}/monitoring)
+  Future<FinancialAccount> toggleMonitoring({required String id, required bool isMonitored}) async {
+    final response = await apiClient.patch(
+      '/api/v1/financial-accounts/$id/monitoring',
+      data: {'isMonitored': isMonitored},
+      fromJsonT: (json) => FinancialAccount.fromJson(json as Map<String, dynamic>),
+    );
+    return response.data!;
+  }
+
+  /// Số dư hiện tại (GET /financial-accounts/{id}/balance)
+  Future<AccountBalance> getBalance(String id) async {
+    final response = await apiClient.get(
+      '/api/v1/financial-accounts/$id/balance',
+      fromJsonT: (json) => AccountBalance.fromJson(json as Map<String, dynamic>),
+    );
+    return response.data!;
+  }
+
+  /// Xóa tài khoản/ví (DELETE /financial-accounts/{id})
+  Future<void> deleteAccount(String id) => apiClient.delete('/api/v1/financial-accounts/$id');
 }

@@ -1,0 +1,52 @@
+{
+  "success": true,
+  "data": {
+    "version": 3,
+    "serverTime": "2026-11-10T10:00:00Z",
+    "config": {
+      "maintenance": {
+        "enabled": false,
+        "title": "FinMate đang bảo trì",
+        "message": "Chúng tôi đang nâng cấp hệ thống để phục vụ bạn tốt hơn. Vui lòng quay lại sau ít phút.",
+        "estimatedEndAt": null
+      },
+      "appVersion": {
+        "minVersion": "1.0.0",
+        "latestVersion": "1.2.0",
+        "forceUpdate": false,
+        "storeUrl": "https://play.google.com/store/apps/details?id=com.finmate.app"
+      },
+      "features": {
+        "chatAi": true,
+        "voice": true,
+        "billScan": true,
+        "notificationReading": true,
+        "groups": false,
+        "support": true,
+        "marketAlerts": false,
+        "community": false,
+        "subscriptions": false
+      },
+      "limits": { "alertT1Percent": 70, "alertT2Percent": 90 },
+      "sync": { "intervalMinutes": 15, "maxRetries": 5, "queueRetentionDays": 7 },
+      "theme": {
+        "primaryColor": "#1E88E5",
+        "backgroundColor": null,
+        "navBarColor": null,
+        "fontFamily": null,
+        "textScale": 1.0,
+        "logoUrl": null
+      },
+      "qrTransfer": { "matchWindowMinutes": 30, "clockSkewMinutes": 2 },
+      "financeMethods": { "recommendationReuseMinutes": 10, "supportMinSharePercent": 50 },
+      "forecast": { "historyWindowDays": 90, "minHistoryDays": 30 },
+      "groups": { "maxMembers": 20, "maxGroupsPerUser": 5 },
+      "support": { "maxOpenTicketsPerUser": 10, "maxAttachmentsPerMessage": 3 },
+      "monitoring": {},
+      "marketData": {},
+      "community": {}
+    }
+  },
+  "error": null,
+  "meta": null
+}

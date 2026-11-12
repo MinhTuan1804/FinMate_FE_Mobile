@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:finmate/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:finmate/features/auth/presentation/screens/training_consent_screen.dart';
 import 'package:finmate/features/auth/presentation/screens/terms_consent_screen.dart';
@@ -21,26 +22,48 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  /// TermsConsentScreen tự điều hướng sang /ai-consent khi đồng ý xong, nên cần GoRouter thật trong context.
+  Future<void> pumpTerms(WidgetTester tester, ConsentRepo repo) async {
+    tester.view.physicalSize = const Size(800, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final auth = AuthController(repository: repo);
+    await auth.checkAuthStatus();
+    final router = GoRouter(routes: [
+      GoRoute(path: '/', builder: (_, __) => const TermsConsentScreen()),
+      GoRoute(path: '/ai-consent', builder: (_, __) => const Text('AI_CONSENT_PAGE')),
+    ]);
+    await tester.pumpWidget(ProviderScope(
+      overrides: [authControllerProvider.overrideWith((ref) => auth)],
+      child: MaterialApp.router(routerConfig: router),
+    ));
+    await tester.pumpAndSettle();
+  }
+
   group('màn Điều khoản và Quyền riêng tư', () {
-    testWidgets('nói rõ dữ liệu nào ở đâu; nút Tiếp tục chỉ bấm được sau khi tick đồng ý', (tester) async {
+    testWidgets('nói rõ 3 nguyên tắc chính; nút Đồng ý chỉ bấm được sau khi tick đồng ý', (tester) async {
       final repo = ConsentRepo(consentTestUser());
-      await pump(tester, repo, const TermsConsentScreen());
+      await pumpTerms(tester, repo);
 
       expect(find.text('Trước khi bắt đầu'), findsOneWidget);
-      expect(find.textContaining('Chúng tôi không bán dữ liệu của bạn'), findsOneWidget);
-      expect(find.textContaining('lưu trên điện thoại của bạn'), findsOneWidget);
+      expect(find.text('Bảo mật cấp ngân hàng'), findsOneWidget);
+      expect(find.text('Không chia sẻ bên thứ ba'), findsOneWidget);
+      expect(find.text('Quyền kiểm soát thuộc về bạn'), findsOneWidget);
 
-      final button = find.widgetWithText(FilledButton, 'Tiếp tục');
-      expect(tester.widget<FilledButton>(button).onPressed, isNull);
+      final button = find.widgetWithText(ElevatedButton, 'Đồng ý & Tiếp tục');
+      expect(tester.widget<ElevatedButton>(button).onPressed, isNull);
 
       await tester.tap(find.byType(Checkbox));
       await tester.pump();
-      expect(tester.widget<FilledButton>(button).onPressed, isNotNull);
+      expect(tester.widget<ElevatedButton>(button).onPressed, isNotNull);
     });
 
-    testWidgets('nêu rõ việc gửi tên món cho AI: gửi gì, không gửi gì, ai nhận, và tắt ở đâu (một lần đồng ý là đủ, không hỏi lại)', (tester) async {
+    testWidgets('toàn văn (mở qua liên kết) nêu rõ việc gửi tên món cho AI: gửi gì, không gửi gì, ai nhận, và tắt ở đâu', (tester) async {
       final repo = ConsentRepo(consentTestUser());
-      await pump(tester, repo, const TermsConsentScreen());
+      await pumpTerms(tester, repo);
+
+      await tester.tap(find.textContaining('Xem toàn văn'));
+      await tester.pumpAndSettle();
 
       expect(find.textContaining('Phân loại chi tiêu bằng AI'), findsOneWidget);
       expect(find.textContaining('Google Gemini'), findsWidgets);
@@ -49,34 +72,37 @@ void main() {
       expect(find.textContaining('Không gửi'), findsOneWidget); // giá tiền, ảnh, âm thanh, tài khoản; thuốc không bao giờ gửi
       expect(find.textContaining('Cá nhân'), findsWidgets); // chỉ chỗ tắt trong Hồ sơ
       expect(find.textContaining('đóng góp dữ liệu'), findsNothing); // dữ liệu huấn luyện luôn là lựa chọn riêng, không gộp vào điều khoản
+      expect(find.textContaining('Chúng tôi không bán dữ liệu của bạn'), findsOneWidget);
+      expect(find.textContaining('lưu trên điện thoại của bạn'), findsOneWidget);
     });
 
-    testWidgets('tick rồi Tiếp tục: ghi đồng ý điều khoản đúng một lần, và đó cũng là đồng ý dùng AI (không có lời gọi nào khác)', (tester) async {
+    testWidgets('tick rồi Đồng ý & Tiếp tục: ghi đồng ý điều khoản đúng một lần rồi sang /ai-consent (không có lời gọi nào khác)', (tester) async {
       final repo = ConsentRepo(consentTestUser());
-      await pump(tester, repo, const TermsConsentScreen());
+      await pumpTerms(tester, repo);
 
       await tester.tap(find.byType(Checkbox));
       await tester.pump();
-      await tester.tap(find.widgetWithText(FilledButton, 'Tiếp tục'));
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Đồng ý & Tiếp tục'));
       await tester.pumpAndSettle();
 
       expect(repo.calls, ['accept:terms']);
-      expect(repo.user.aiConsentGranted, isTrue);
+      expect(repo.user.aiConsentGranted, isTrue); // server tự bật AI khi đồng ý Điều khoản
       expect(repo.user.trainingConsentGranted, isFalse);
+      expect(find.text('AI_CONSENT_PAGE'), findsOneWidget);
     });
 
     testWidgets('lỗi mạng: hiện lỗi, không coi là đã đồng ý, bấm lại được', (tester) async {
       final repo = ConsentRepo(consentTestUser())..failNext = true;
-      await pump(tester, repo, const TermsConsentScreen());
+      await pumpTerms(tester, repo);
       await tester.tap(find.byType(Checkbox));
       await tester.pump();
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Tiếp tục'));
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Đồng ý & Tiếp tục'));
       await tester.pumpAndSettle();
 
       expect(find.text('Không lưu được, thử lại nhé'), findsOneWidget);
       expect(repo.user.termsAccepted, isFalse);
-      expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Tiếp tục')).onPressed, isNotNull);
+      expect(tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, 'Đồng ý & Tiếp tục')).onPressed, isNotNull);
     });
   });
 

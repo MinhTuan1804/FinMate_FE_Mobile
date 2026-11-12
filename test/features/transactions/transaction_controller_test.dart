@@ -227,4 +227,46 @@ void main() {
 
     expect(adapter.requests.where((r) => r.method == 'GET'), hasLength(2));
   });
+
+  group('shareToGroup / unshareFromGroup', () {
+    test('chia sẻ thành công thì cập nhật groupId của đúng giao dịch trong state', () async {
+      final adapter = RouteAdapter((o) {
+        if (o.method == 'GET') {
+          return respondJson({'success': true, 'data': [_tx('a', 'Debit'), _tx('b', 'Credit')], 'meta': {'cursor': null}});
+        }
+        return respondJson({'success': true, 'data': null}, status: 204);
+      });
+      final controller = build(adapter);
+      await pumpEventQueue();
+
+      await controller.shareToGroup(id: 'a', groupId: 'g1', groupCategoryId: 'gc1');
+
+      final putReq = adapter.requests.firstWhere((r) => r.method == 'PUT');
+      expect(putReq.path, '/api/v1/transactions/a/group');
+      expect(putReq.data, {'groupId': 'g1', 'groupCategoryId': 'gc1'});
+
+      final list = controller.state.value!;
+      expect(list.firstWhere((t) => t.id == 'a').groupId, 'g1');
+      expect(list.firstWhere((t) => t.id == 'b').groupId, isNull);
+    });
+
+    test('bỏ chia sẻ thành công thì xóa groupId của đúng giao dịch trong state', () async {
+      final adapter = RouteAdapter((o) {
+        if (o.method == 'GET') {
+          return respondJson({'success': true, 'data': [_tx('a', 'Debit')], 'meta': {'cursor': null}});
+        }
+        return respondJson({'success': true, 'data': null}, status: 204);
+      });
+      final controller = build(adapter);
+      await pumpEventQueue();
+      await controller.shareToGroup(id: 'a', groupId: 'g1');
+      expect(controller.state.value!.single.groupId, 'g1');
+
+      await controller.unshareFromGroup('a');
+
+      final deleteReq = adapter.requests.firstWhere((r) => r.method == 'DELETE');
+      expect(deleteReq.path, '/api/v1/transactions/a/group');
+      expect(controller.state.value!.single.groupId, isNull);
+    });
+  });
 }

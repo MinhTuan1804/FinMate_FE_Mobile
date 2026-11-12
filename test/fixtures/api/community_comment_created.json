@@ -1,0 +1,13 @@
+{
+  "success": true,
+  "data": {
+    "id": "88888888-8888-8888-8888-888888888888",
+    "body": "Mình cũng vậy, tiết kiệm được nhiều.",
+    "author": { "isAnonymous": true, "displayName": null },
+    "isMine": true,
+    "createdOn": "2026-11-10T09:05:00+07:00",
+    "edited": false
+  },
+  "error": null,
+  "meta": null
+}

@@ -1,0 +1,8 @@
+{
+  "success": true,
+  "data": [
+    {"budgetId": "b1", "categoryId": "cat-1", "limitCents": 3600000, "effective": "next_period"}
+  ],
+  "error": null,
+  "meta": null
+}

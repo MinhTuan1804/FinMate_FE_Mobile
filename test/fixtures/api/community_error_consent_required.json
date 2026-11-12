@@ -1,0 +1,6 @@
+{
+  "success": false,
+  "data": null,
+  "error": { "code": "COMMUNITY_CONSENT_REQUIRED", "message": "Bạn cần đồng ý tham gia Cộng đồng trước khi đăng bài." },
+  "meta": null
+}

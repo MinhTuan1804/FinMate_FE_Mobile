@@ -1,0 +1,16 @@
+{
+  "success": true,
+  "data": {
+    "isRegular": false,
+    "upcoming": [],
+    "late": [],
+    "irregular": {
+      "conservativeMonthlyCents": 4000000,
+      "averageMonthlyCents": 5500000,
+      "monthsUsed": 3,
+      "receivedThisMonthCents": 1200000
+    }
+  },
+  "error": null,
+  "meta": null
+}

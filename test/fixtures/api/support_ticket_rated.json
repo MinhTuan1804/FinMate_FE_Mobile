@@ -1,0 +1,6 @@
+{
+  "success": true,
+  "data": { "id": "aaaaaaaa-0000-0000-0000-000000000001", "category": "Transaction", "status": "Closed", "subject": "Giao dịch bị trùng", "rating": 5, "createdAt": "2026-11-01T08:00:00Z", "updatedAt": "2026-11-02T11:00:00Z", "resolvedAt": "2026-11-02T09:00:00Z", "closedAt": "2026-11-02T10:00:00Z" },
+  "error": null,
+  "meta": null
+}

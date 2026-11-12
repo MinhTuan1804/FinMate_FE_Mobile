@@ -81,6 +81,54 @@ void main() {
         throwsA(isA<ApiException>().having((e) => e.code, 'code', 'FINANCIAL_ACCOUNT_PACKAGE_DUPLICATE')),
       );
     });
+    test('updateAccount gửi accountName mới và trả về tài khoản đã đổi tên', () async {
+      final updated = {...(fixtureData('accounts') as List)[0] as Map<String, dynamic>, 'accountName': 'Vietcombank 2'};
+      final adapter = RouteAdapter((o) => respondJson({'success': true, 'data': updated}));
+      final repo = AccountsRepository(apiClient: testApiClient(adapter));
+
+      final result = await repo.updateAccount(id: '78b154c6-c8d8-4b6d-9367-981772ce5382', name: 'Vietcombank 2');
+
+      final req = adapter.requests.single;
+      expect(req.method, 'PATCH');
+      expect(req.path, contains('/financial-accounts/78b154c6-c8d8-4b6d-9367-981772ce5382'));
+      expect(req.data, {'accountName': 'Vietcombank 2'});
+      expect(result.name, 'Vietcombank 2');
+    });
+
+    test('toggleMonitoring gửi isMonitored và PATCH đúng path /monitoring', () async {
+      final updated = {...(fixtureData('accounts') as List)[0] as Map<String, dynamic>, 'isMonitored': false};
+      final adapter = RouteAdapter((o) => respondJson({'success': true, 'data': updated}));
+      final repo = AccountsRepository(apiClient: testApiClient(adapter));
+
+      final result = await repo.toggleMonitoring(id: '78b154c6-c8d8-4b6d-9367-981772ce5382', isMonitored: false);
+
+      final req = adapter.requests.single;
+      expect(req.path, contains('/financial-accounts/78b154c6-c8d8-4b6d-9367-981772ce5382/monitoring'));
+      expect(req.data, {'isMonitored': false});
+      expect(result.isMonitored, isFalse);
+    });
+
+    test('getBalance đọc đúng accountId/balanceCents/asOf', () async {
+      final adapter = RouteAdapter((o) => respondFixture('account_balance'));
+      final repo = AccountsRepository(apiClient: testApiClient(adapter));
+
+      final balance = await repo.getBalance('78b154c6-c8d8-4b6d-9367-981772ce5382');
+
+      expect(adapter.requests.single.path, contains('/financial-accounts/78b154c6-c8d8-4b6d-9367-981772ce5382/balance'));
+      expect(balance.accountId, '78b154c6-c8d8-4b6d-9367-981772ce5382');
+      expect(balance.balanceCents, BigInt.from(31055000));
+    });
+
+    test('deleteAccount gọi DELETE đúng path', () async {
+      final adapter = RouteAdapter((o) => respondJson({'success': true, 'data': null}));
+      final repo = AccountsRepository(apiClient: testApiClient(adapter));
+
+      await repo.deleteAccount('78b154c6-c8d8-4b6d-9367-981772ce5382');
+
+      final req = adapter.requests.single;
+      expect(req.method, 'DELETE');
+      expect(req.path, contains('/financial-accounts/78b154c6-c8d8-4b6d-9367-981772ce5382'));
+    });
   });
 
   group('accountsControllerProvider', () {
@@ -136,6 +184,79 @@ void main() {
 
       expect(posts, 1);
       expect(adapter.requests.where((r) => r.method == 'GET'), hasLength(2));
+    });
+    test('rename gọi update rồi tải lại danh sách', () async {
+      var patches = 0;
+      final adapter = RouteAdapter((o) {
+        if (o.method == 'PATCH') {
+          patches++;
+          final updated = {...(fixtureData('accounts') as List)[0] as Map<String, dynamic>, 'accountName': 'Tên mới'};
+          return respondJson({'success': true, 'data': updated});
+        }
+        return respondFixture('accounts');
+      });
+      final container = build(adapter);
+      container.listen(accountsControllerProvider, (_, __) {});
+      await pumpEventQueue();
+
+      await container.read(accountsControllerProvider.notifier).rename('78b154c6-c8d8-4b6d-9367-981772ce5382', 'Tên mới');
+
+      expect(patches, 1);
+      expect(adapter.requests.where((r) => r.method == 'GET'), hasLength(2));
+    });
+
+    test('setMonitoring gọi toggle rồi tải lại danh sách', () async {
+      final adapter = RouteAdapter((o) {
+        if (o.method == 'PATCH') {
+          final updated = {...(fixtureData('accounts') as List)[1] as Map<String, dynamic>, 'isMonitored': false};
+          return respondJson({'success': true, 'data': updated});
+        }
+        return respondFixture('accounts');
+      });
+      final container = build(adapter);
+      container.listen(accountsControllerProvider, (_, __) {});
+      await pumpEventQueue();
+
+      await container.read(accountsControllerProvider.notifier).setMonitoring('ca6ba2c5-38ea-4af3-a664-a79a191a3ca7', false);
+
+      expect(adapter.to('/monitoring'), hasLength(1));
+      expect(adapter.requests.where((r) => r.method == 'GET'), hasLength(2));
+    });
+
+    test('delete gọi xóa rồi tải lại danh sách', () async {
+      var deletes = 0;
+      final adapter = RouteAdapter((o) {
+        if (o.method == 'DELETE') {
+          deletes++;
+          return respondJson({'success': true, 'data': null});
+        }
+        return respondFixture('accounts');
+      });
+      final container = build(adapter);
+      container.listen(accountsControllerProvider, (_, __) {});
+      await pumpEventQueue();
+
+      await container.read(accountsControllerProvider.notifier).delete('78b154c6-c8d8-4b6d-9367-981772ce5382');
+
+      expect(deletes, 1);
+      expect(adapter.requests.where((r) => r.method == 'GET'), hasLength(2));
+    });
+
+    test('getBalance trả thẳng kết quả từ repository, không tải lại danh sách', () async {
+      var gets = 0;
+      final adapter = RouteAdapter((o) {
+        if (o.path.contains('/balance')) return respondFixture('account_balance');
+        gets++;
+        return respondFixture('accounts');
+      });
+      final container = build(adapter);
+      container.listen(accountsControllerProvider, (_, __) {});
+      await pumpEventQueue();
+
+      final balance = await container.read(accountsControllerProvider.notifier).getBalance('78b154c6-c8d8-4b6d-9367-981772ce5382');
+
+      expect(balance.balanceCents, BigInt.from(31055000));
+      expect(gets, 1);
     });
   });
 }

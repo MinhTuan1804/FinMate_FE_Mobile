@@ -1,0 +1,23 @@
+{
+  "success": true,
+  "data": {
+    "version": 4,
+    "serverTime": "2026-11-10T10:05:00Z",
+    "config": {
+      "maintenance": {
+        "enabled": true,
+        "title": "Đang bảo trì",
+        "message": "Hệ thống đang nâng cấp, quay lại sau 30 phút.",
+        "estimatedEndAt": "2026-11-10T11:00:00Z"
+      },
+      "appVersion": { "minVersion": "1.0.0", "latestVersion": "1.2.0", "forceUpdate": true, "storeUrl": "" },
+      "features": {
+        "chatAi": true, "voice": true, "billScan": true, "notificationReading": true,
+        "groups": false, "support": true, "marketAlerts": false, "community": false, "subscriptions": false
+      },
+      "theme": { "primaryColor": null, "backgroundColor": null, "navBarColor": null, "fontFamily": null, "textScale": 1.0, "logoUrl": null }
+    }
+  },
+  "error": null,
+  "meta": null
+}
