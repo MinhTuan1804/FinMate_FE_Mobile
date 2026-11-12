@@ -3,146 +3,129 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:finmate/core/format/money.dart';
-import 'package:finmate/core/theme/app_colors.dart';
-import 'package:finmate/core/theme/app_spacing.dart';
-import 'package:finmate/core/theme/app_typography.dart';
+import 'package:finmate/core/theme/glass/glass_colors.dart';
+import 'package:finmate/core/theme/glass/glass_radius.dart';
+import 'package:finmate/core/theme/glass/glass_typography.dart';
+import 'package:finmate/features/accounts/domain/financial_account.dart';
 import 'package:finmate/features/accounts/presentation/controllers/accounts_controller.dart';
 import 'package:finmate/features/analytics/presentation/reports_providers.dart';
 import 'package:finmate/features/assistant/presentation/widgets/assistant_prompt_bar.dart';
 import 'package:finmate/features/auth/presentation/controllers/auth_controller.dart';
+import 'package:finmate/features/finance_methods/presentation/controllers/finance_methods_controller.dart';
 import 'package:finmate/features/transactions/domain/entities/transaction_entity.dart';
 import 'package:finmate/features/transactions/presentation/controllers/transaction_controller.dart';
 import 'package:finmate/features/transactions/presentation/widgets/create_transaction_bottom_sheet.dart';
+import 'package:finmate/shared/widgets/glass/glass_background.dart';
+import 'package:finmate/shared/widgets/glass/glass_bottom_nav.dart';
+import 'package:finmate/shared/widgets/glass/glass_card.dart';
+import 'package:finmate/shared/widgets/glass/glass_circular_progress.dart';
+import 'package:finmate/shared/widgets/glass/glass_transaction_row.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final user = ref.watch(authControllerProvider).value;
     final txState = ref.watch(transactionControllerProvider);
 
-    return Scaffold(
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // 1. Header (User Welcome & Notification)
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Xin chào,',
-                        style: AppTypography.caption(context),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        user?.displayName ?? 'Bạn của FinMate',
-                        style: AppTypography.h3(context).copyWith(fontWeight: FontWeight.w700),
-                      ),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(LucideIcons.circleUser, size: 24),
-                        onPressed: () => context.push('/profile'),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 20),
-
-              // 2. Balance Card (Neo-Fintech Minimalist)
-              _buildBalanceCard(context, ref, isDark),
-
-              const SizedBox(height: 16),
-
-              const AssistantPromptBar(),
-
-              const SizedBox(height: 16),
-
-              // 4. Quick Action Buttons
-              _buildQuickActions(context),
-
-              const SizedBox(height: 24),
-
-              // 5. Recent Transactions Header & List
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'GIAO DỊCH GẦN ĐÂY',
-                    style: AppTypography.caption(context).copyWith(
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.5,
+    return GlassBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Xin chào,', style: GlassTypography.bodyMd()),
+                        const SizedBox(height: 2),
+                        Text(user?.displayName ?? 'Bạn của FinMate', style: GlassTypography.headlineLg()),
+                      ],
                     ),
-                  ),
-                  TextButton(
-                    onPressed: () => context.push('/transactions'),
-                    child: const Text('Xem tất cả'),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 8),
-
-              txState.when(
-                loading: () => const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(20.0),
-                    child: CircularProgressIndicator(),
-                  ),
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(LucideIcons.bell, size: 22, color: GlassColors.textPrimary),
+                          onPressed: () => context.push('/notifications'),
+                        ),
+                        IconButton(
+                          icon: const Icon(LucideIcons.circleUser, size: 24, color: GlassColors.textPrimary),
+                          onPressed: () => context.push('/profile'),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-                error: (_, __) => const Text('Không thể tải giao dịch'),
-                data: (transactions) {
-                  final recents = transactions.take(4).toList();
-                  if (recents.isEmpty) {
-                    return Container(
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-                        borderRadius: AppSpacing.roundedMedium,
-                        border: Border.all(
-                          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                const SizedBox(height: 16),
+                _AccountChipRow(),
+                const SizedBox(height: 16),
+                _buildBalanceCard(context, ref),
+                const SizedBox(height: 16),
+                const AssistantPromptBar(),
+                const SizedBox(height: 16),
+                _buildSafeToSpendCard(context, ref),
+                const SizedBox(height: 16),
+                _buildQuickActions(context),
+                const SizedBox(height: 16),
+                _buildMethodShortcut(context),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('GIAO DỊCH GẦN ĐÂY', style: GlassTypography.labelCaps()),
+                    TextButton(
+                      onPressed: () => context.push('/transactions'),
+                      child: Text('Xem tất cả', style: GlassTypography.bodyMd(color: GlassColors.accentSkyBlue)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                txState.when(
+                  loading: () => const Center(
+                    child: Padding(padding: EdgeInsets.all(20.0), child: CircularProgressIndicator()),
+                  ),
+                  error: (_, __) => Text('Không thể tải giao dịch', style: GlassTypography.bodyMd()),
+                  data: (transactions) {
+                    final recents = transactions.take(4).toList();
+                    if (recents.isEmpty) {
+                      return GlassCard(
+                        child: Center(
+                          child: Text(
+                            'Chưa có giao dịch nào.\nHãy bấm "Ghi chép" để thêm giao dịch đầu tiên!',
+                            textAlign: TextAlign.center,
+                            style: GlassTypography.bodyMd(),
+                          ),
                         ),
-                      ),
-                      child: Center(
-                        child: Text(
-                          'Chưa có giao dịch nào.\nHãy bấm "Ghi chép" để thêm giao dịch đầu tiên!',
-                          textAlign: TextAlign.center,
-                          style: AppTypography.caption(context),
-                        ),
+                      );
+                    }
+                    return GlassCard(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                      child: Column(
+                        children: [for (final tx in recents) _buildTransactionRow(tx)],
                       ),
                     );
-                  }
-
-                  return Column(
-                    children: recents.map((tx) => _buildTransactionItem(context, tx, isDark)).toList(),
-                  );
-                },
-              ),
-            ],
+                  },
+                ),
+              ],
+            ),
           ),
         ),
+        bottomNavigationBar: GlassBottomNav(currentIndex: 0, onDestinationSelected: (idx) => _onNavSelected(context, idx)),
       ),
-      bottomNavigationBar: _buildBottomNav(context, 0),
     );
   }
 
-  Widget _buildBalanceCard(BuildContext context, WidgetRef ref, bool isDark) {
+  Widget _buildBalanceCard(BuildContext context, WidgetRef ref) {
     final accounts = ref.watch(accountsControllerProvider);
     final summary = ref.watch(monthlySummaryProvider);
 
-    // Số dư = tổng số dư các tài khoản; thu/chi tháng từ báo cáo của backend (không số giả)
     final balanceText = accounts.when(
       data: (list) => formatVnd(list.fold(BigInt.zero, (sum, a) => sum + a.balanceCents)),
       loading: () => '...',
@@ -153,55 +136,27 @@ class HomeScreen extends ConsumerWidget {
     final income = summary.valueOrNull == null ? '—' : '+${formatVnd(summary.value!.totalIncomeCents)}';
     final expense = summary.valueOrNull == null ? '—' : '-${formatVnd(summary.value!.totalSpentCents)}';
 
-    return Container(
+    return GlassCard(
+      level: 2,
+      borderRadius: GlassRadius.roundedCardLarge,
       padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-        borderRadius: AppSpacing.roundedLarge,
-        border: Border.all(
-          color: isDark ? AppColors.borderDark : AppColors.borderLight,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.04),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'TỔNG TÀI SẢN KHẢ DỤNG',
-            style: AppTypography.caption(context).copyWith(
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.5,
-            ),
-          ),
+          Text('TỔNG TÀI SẢN KHẢ DỤNG', style: GlassTypography.labelCaps()),
           const SizedBox(height: 8),
-          Text(
-            balanceText,
-            style: AppTypography.tabular(
-              AppTypography.moneyLarge.copyWith(
-                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-              ),
-            ),
-          ),
+          Text(balanceText, style: GlassTypography.displayHero()),
           if (hasNoAccount) ...[
             const SizedBox(height: 4),
-            Text(
-              'Bạn chưa có tài khoản. Bấm "Ghi chép" để tạo ví đầu tiên.',
-              style: AppTypography.caption(context),
-            ),
+            Text('Bạn chưa có tài khoản. Bấm "Ghi chép" để tạo ví đầu tiên.', style: GlassTypography.bodySm()),
           ],
           const SizedBox(height: 18),
-          const Divider(height: 1),
+          Divider(height: 1, color: GlassColors.glassBorder),
           const SizedBox(height: 16),
           Row(
             children: [
-              Expanded(child: _flowItem(context, 'Thu nhập', income, LucideIcons.arrowDownLeft, AppColors.income)),
-              Expanded(child: _flowItem(context, 'Chi tiêu', expense, LucideIcons.arrowUpRight, AppColors.expense)),
+              Expanded(child: _flowItem('Thu nhập', income, LucideIcons.arrowDownLeft, GlassColors.success)),
+              Expanded(child: _flowItem('Chi tiêu', expense, LucideIcons.arrowUpRight, GlassColors.danger)),
             ],
           ),
           if (hasError)
@@ -212,7 +167,7 @@ class HomeScreen extends ConsumerWidget {
                   ref.invalidate(monthlySummaryProvider);
                   ref.read(accountsControllerProvider.notifier).load();
                 },
-                child: const Text('Thử lại'),
+                child: Text('Thử lại', style: GlassTypography.bodyMd(color: GlassColors.accentSkyBlue)),
               ),
             ),
         ],
@@ -220,7 +175,7 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _flowItem(BuildContext context, String label, String value, IconData icon, Color color) {
+  Widget _flowItem(String label, String value, IconData icon, Color color) {
     return Row(
       children: [
         Container(
@@ -233,18 +188,55 @@ class HomeScreen extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, style: AppTypography.caption(context)),
-              Text(
-                value,
-                overflow: TextOverflow.ellipsis,
-                style: AppTypography.tabular(
-                  AppTypography.caption(context).copyWith(fontWeight: FontWeight.w700, color: color),
-                ),
-              ),
+              Text(label, style: GlassTypography.bodySm()),
+              Text(value, overflow: TextOverflow.ellipsis, style: GlassTypography.labelNumeric(color: color)),
             ],
           ),
         ),
       ],
+    );
+  }
+
+  /// "Chi an toàn hôm nay": đọc spendableProvider (đã có, không cần dữ liệu mới), tự tính số
+  /// ngày còn lại trong tháng (entity không có field ngày) để ra định mức/ngày.
+  Widget _buildSafeToSpendCard(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(spendableProvider);
+    return async.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (s) {
+        if (s.spendableCents == null) return const SizedBox.shrink();
+        final now = DateTime.now();
+        final lastDayOfMonth = DateTime(now.year, now.month + 1, 0).day;
+        final daysRemaining = lastDayOfMonth - now.day + 1;
+        final perDay = daysRemaining > 0 ? s.spendableCents! ~/ BigInt.from(daysRemaining) : BigInt.zero;
+        final percentUsed = s.incomeCents == null || s.incomeCents == BigInt.zero
+            ? 0.0
+            : (s.spentCents.toDouble() / s.incomeCents!.toDouble() * 100);
+
+        return GlassCard(
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Chi an toàn hôm nay', style: GlassTypography.labelCaps()),
+                    const SizedBox(height: 6),
+                    Text(formatVnd(perDay), style: GlassTypography.headlineLg()),
+                    const SizedBox(height: 2),
+                    Text('Đã chi: ${formatVnd(s.spentCents)}', style: GlassTypography.bodySm()),
+                  ],
+                ),
+              ),
+              GlassCircularProgress(
+                percent: percentUsed,
+                center: Text('${percentUsed.round()}%', style: GlassTypography.labelNumeric()),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -259,24 +251,9 @@ class HomeScreen extends ConsumerWidget {
           onTap: () => CreateTransactionBottomSheet.show(context),
           highlight: true,
         ),
-        _buildActionItem(
-          context,
-          icon: LucideIcons.target,
-          label: 'Kế hoạch',
-          onTap: () => context.push('/planning'),
-        ),
-        _buildActionItem(
-          context,
-          icon: LucideIcons.chartPie,
-          label: 'Báo cáo',
-          onTap: () => context.push('/analytics'),
-        ),
-        _buildActionItem(
-          context,
-          icon: LucideIcons.arrowLeftRight,
-          label: 'Lịch sử',
-          onTap: () => context.push('/transactions'),
-        ),
+        _buildActionItem(context, icon: LucideIcons.target, label: 'Kế hoạch', onTap: () => context.push('/planning')),
+        _buildActionItem(context, icon: LucideIcons.chartPie, label: 'Báo cáo', onTap: () => context.push('/analytics')),
+        _buildActionItem(context, icon: LucideIcons.arrowLeftRight, label: 'Lịch sử', onTap: () => context.push('/transactions')),
       ],
     );
   }
@@ -296,153 +273,143 @@ class HomeScreen extends ConsumerWidget {
             width: 54,
             height: 54,
             decoration: BoxDecoration(
-              color: highlight ? AppColors.primary : AppColors.primary.withValues(alpha: 0.1),
+              color: highlight ? GlassColors.ink : GlassColors.secondarySurface,
               borderRadius: BorderRadius.circular(16),
             ),
-            child: Icon(
-              icon,
-              size: 22,
-              color: highlight ? Colors.white : AppColors.primary,
-            ),
+            child: Icon(icon, size: 22, color: highlight ? Colors.white : GlassColors.slateAnchor),
           ),
           const SizedBox(height: 8),
-          Text(
-            label,
-            style: AppTypography.caption(context).copyWith(fontWeight: FontWeight.w600),
-          ),
+          Text(label, style: GlassTypography.bodySm(color: GlassColors.textPrimary).copyWith(fontWeight: FontWeight.w600)),
         ],
       ),
     );
   }
 
-  Widget _buildTransactionItem(BuildContext context, TransactionEntity tx, bool isDark) {
-    if (tx.isInternalTransfer) {
-      return Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-          borderRadius: AppSpacing.roundedMedium,
-          border: Border.all(
-            color: isDark ? AppColors.borderDark : AppColors.borderLight,
-          ),
-        ),
+  // Luồng 2 (B1 hub): lối tắt "Xem phương pháp" -> B5 Cách quản lý của tôi. Trước đây Trang chủ
+  // không có đường nào tới B5 ngoài việc đi vòng qua Hồ sơ -> "Cách quản lý tài chính" (B4).
+  Widget _buildMethodShortcut(BuildContext context) {
+    return InkWell(
+      borderRadius: GlassRadius.roundedCard,
+      onTap: () => context.push('/finance-methods/my-methods'),
+      child: GlassCard(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         child: Row(
           children: [
             Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: Colors.blueGrey.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(LucideIcons.arrowLeftRight, size: 18, color: Colors.blueGrey),
+              width: 40,
+              height: 40,
+              decoration: const BoxDecoration(color: GlassColors.secondarySurface, shape: BoxShape.circle),
+              child: const Icon(LucideIcons.wallet, size: 20, color: GlassColors.slateAnchor),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    tx.description.isNotEmpty ? tx.description : 'Chuyển tiền nội bộ',
-                    style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w600, fontSize: 13),
-                  ),
-                  const SizedBox(height: 2),
-                  const Text(
-                    'Nội bộ - Không tính chi tiêu',
-                    style: TextStyle(fontSize: 10, color: Colors.blueGrey, fontWeight: FontWeight.w500),
-                  ),
+                  Text('Cách quản lý của bạn', style: GlassTypography.bodyLg(color: GlassColors.textPrimary).copyWith(fontWeight: FontWeight.w600)),
+                  Text('Xem phương pháp và các hũ đang dùng', style: GlassTypography.bodySm()),
                 ],
               ),
             ),
-            Text(
-              tx.formattedAmount,
-              style: AppTypography.tabular(
-                AppTypography.body(context).copyWith(fontWeight: FontWeight.w600),
-              ),
-            ),
+            const Icon(LucideIcons.chevronRight, size: 18, color: GlassColors.textMuted),
           ],
         ),
-      );
-    }
-
-    final isExpense = tx.type == TransactionType.expense;
-    final color = isExpense ? AppColors.expense : AppColors.income;
-    final prefix = isExpense ? '-' : '+';
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-        borderRadius: AppSpacing.roundedMedium,
-        border: Border.all(
-          color: isDark ? AppColors.borderDark : AppColors.borderLight,
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(
-              isExpense ? LucideIcons.arrowDownLeft : LucideIcons.arrowUpRight,
-              size: 18,
-              color: color,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  tx.description.isNotEmpty ? tx.description : (tx.categoryName ?? 'Giao dịch'),
-                  style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w600, fontSize: 13),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  tx.categoryName ?? 'Chung',
-                  style: AppTypography.caption(context).copyWith(fontSize: 11),
-                ),
-              ],
-            ),
-          ),
-          Text(
-            '$prefix${tx.formattedAmount}',
-            style: AppTypography.tabular(
-              AppTypography.body(context).copyWith(
-                fontWeight: FontWeight.w700,
-                color: color,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
 
-  Widget _buildBottomNav(BuildContext context, int currentIndex) {
-    return NavigationBar(
-      selectedIndex: currentIndex,
-      onDestinationSelected: (idx) {
-        if (idx == 0) context.go('/home');
-        if (idx == 1) context.push('/transactions');
-        if (idx == 2) context.push('/planning');
-        if (idx == 3) context.push('/analytics');
-        if (idx == 4) context.push('/profile');
-      },
-      destinations: const [
-        NavigationDestination(icon: Icon(LucideIcons.house, size: 20), label: 'Trang chủ'),
-        NavigationDestination(icon: Icon(LucideIcons.receipt, size: 20), label: 'Sổ thu chi'),
-        NavigationDestination(icon: Icon(LucideIcons.target, size: 20), label: 'Kế hoạch'),
-        NavigationDestination(icon: Icon(LucideIcons.chartPie, size: 20), label: 'Phân tích'),
-        NavigationDestination(icon: Icon(LucideIcons.user, size: 20), label: 'Cá nhân'),
-      ],
+  Widget _buildTransactionRow(TransactionEntity tx) {
+    if (tx.isInternalTransfer) {
+      return GlassTransactionRow(
+        icon: LucideIcons.arrowLeftRight,
+        iconColor: GlassColors.slateAnchor,
+        title: tx.description.isNotEmpty ? tx.description : 'Chuyển tiền nội bộ',
+        subtitle: 'Nội bộ - Không tính chi tiêu',
+        amountText: tx.formattedAmount,
+        isExpense: false,
+      );
+    }
+    final isExpense = tx.type == TransactionType.expense;
+    return GlassTransactionRow(
+      icon: isExpense ? LucideIcons.arrowDownLeft : LucideIcons.arrowUpRight,
+      iconColor: isExpense ? GlassColors.danger : GlassColors.success,
+      title: tx.description.isNotEmpty ? tx.description : (tx.categoryName ?? 'Giao dịch'),
+      subtitle: tx.categoryName ?? 'Chung',
+      amountText: '${isExpense ? '-' : '+'}${tx.formattedAmount}',
+      isExpense: isExpense,
+    );
+  }
+
+  // idx == -1: nút "Quét QR" nổi giữa thanh nav (không phải 1 trong 4 tab thường).
+  void _onNavSelected(BuildContext context, int idx) {
+    switch (idx) {
+      case 0:
+        context.go('/home');
+      case 1:
+        context.push('/transactions');
+      case -1:
+        context.push('/qr-transfers');
+      case 2:
+        context.push('/planning');
+      case 3:
+        context.push('/analytics');
+    }
+  }
+}
+
+/// Dãy chip tài khoản — chỉ trang trí (hiển thị tên + số dư mỗi tài khoản), không đổi dữ liệu
+/// Balance Card (vẫn luôn tổng tất cả tài khoản).
+class _AccountChipRow extends ConsumerStatefulWidget {
+  @override
+  ConsumerState<_AccountChipRow> createState() => _AccountChipRowState();
+}
+
+class _AccountChipRowState extends ConsumerState<_AccountChipRow> {
+  int _selected = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final accounts = ref.watch(accountsControllerProvider);
+    final list = accounts.valueOrNull ?? const <FinancialAccount>[];
+    if (list.isEmpty) return const SizedBox.shrink();
+
+    return SizedBox(
+      height: 44,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: list.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, i) {
+          final account = list[i];
+          final isSelected = i == _selected;
+          return GestureDetector(
+            onTap: () => setState(() => _selected = i),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: isSelected ? GlassColors.ink : GlassColors.glassFill,
+                borderRadius: GlassRadius.roundedPill,
+                border: Border.all(color: isSelected ? GlassColors.ink : GlassColors.glassBorder),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    account.name,
+                    style: GlassTypography.bodySm(color: isSelected ? Colors.white : GlassColors.textSecondary)
+                        .copyWith(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    formatVnd(account.balanceCents),
+                    style: GlassTypography.labelNumeric(color: isSelected ? Colors.white : GlassColors.textPrimary),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 }

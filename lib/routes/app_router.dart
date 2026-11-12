@@ -43,7 +43,11 @@ import 'package:finmate/features/forecast/presentation/screens/forecast_screen.d
 import 'package:finmate/features/forecast/presentation/screens/forecast_settings_screen.dart';
 import 'package:finmate/features/qr_transfers/presentation/screens/qr_transfer_screen.dart';
 import 'package:finmate/features/devices/presentation/screens/devices_screen.dart';
-import 'package:finmate/features/finance_methods/presentation/screens/finance_methods_screen.dart';
+import 'package:finmate/features/finance_methods/presentation/screens/b4_recommendations_screen.dart';
+import 'package:finmate/features/finance_methods/presentation/screens/b5_my_methods_screen.dart';
+import 'package:finmate/features/finance_methods/presentation/screens/b6_jar_detail_screen.dart';
+import 'package:finmate/features/finance_methods/presentation/screens/b7_alert_thresholds_screen.dart';
+import 'package:finmate/features/notifications_inbox/presentation/screens/notifications_inbox_screen.dart';
 
 const _splashPath = '/splash';
 const _termsPath = '/terms';
@@ -237,7 +241,29 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/finance-methods',
-        builder: (context, state) => const FinanceMethodsScreen(),
+        builder: (context, state) => const RecommendationsScreen(),
+      ),
+      GoRoute(
+        path: '/finance-methods/my-methods',
+        builder: (context, state) => const MyMethodsScreen(),
+      ),
+      GoRoute(
+        path: '/finance-methods/alert-thresholds',
+        builder: (context, state) => const AlertThresholdsScreen(),
+      ),
+      GoRoute(
+        path: '/finance-methods/jar-detail',
+        builder: (context, state) {
+          final extra = state.extra as Map;
+          return JarDetailScreen(
+            userMethodId: extra['userMethodId'] as String,
+            jarKey: extra['jarKey'] as String,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/notifications',
+        builder: (context, state) => const NotificationsInboxScreen(),
       ),
       GoRoute(
         path: '/survey',

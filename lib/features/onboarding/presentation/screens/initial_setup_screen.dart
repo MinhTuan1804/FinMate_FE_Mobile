@@ -86,7 +86,9 @@ class _InitialSetupScreenState extends ConsumerState<InitialSetupScreen> {
                   .toList(),
             ),
           );
-      if (mounted) context.go('/home');
+      // Nối tiếp luồng: setup xong thì sang thẳng khảo sát đầu vào (B3) để có dữ liệu cho
+      // gợi ý phương pháp quản lý (B4), thay vì về Home rồi người dùng phải tự tìm trong Hồ sơ.
+      if (mounted) context.go('/survey');
     } catch (e) {
       if (mounted) _showError(errorMessage(e));
     } finally {

@@ -347,7 +347,8 @@ void main() {
     await loginFromWelcome(tester);
 
     expect(find.text('Xin chào,'), findsOneWidget);
-    expect(find.text('4.000.000 ₫'), findsOneWidget);
+    // Số dư tổng (hero) và chip tài khoản trang trí đều hiện cùng số tiền khi chỉ có 1 tài khoản.
+    expect(find.text('4.000.000 ₫'), findsWidgets);
   });
 
   testWidgets('mở lại app khi đã có token: splash rồi vào thẳng Trang chủ, không qua Welcome', (tester) async {
@@ -469,7 +470,7 @@ void main() {
     backend.accounts.add({'id': 'a1', 'accountType': 'Cash', 'accountName': 'Ví', 'providerDisplayName': null, 'isMonitored': true, 'balanceCents': 4000000});
     await storage.saveTokens(accessToken: 'a', refreshToken: 'r');
     await launch(tester);
-    expect(find.text('4.000.000 ₫'), findsOneWidget);
+    expect(find.text('4.000.000 ₫'), findsWidgets);
     final accountLoadsBefore = backend.calls.where((c) => c == 'GET /api/v1/financial-accounts').length;
 
     await tester.tap(find.text('Ghi chép'));
@@ -484,7 +485,7 @@ void main() {
     expect(backend.transactions.single['amountCents'], 500000);
     expect(backend.transactions.single['transactionType'], 'Debit');
     expect(backend.calls.where((c) => c == 'GET /api/v1/financial-accounts').length, greaterThan(accountLoadsBefore));
-    expect(find.text('3.500.000 ₫'), findsOneWidget);
+    expect(find.text('3.500.000 ₫'), findsWidgets);
   });
 
   group('trợ lý AI', () {
@@ -523,7 +524,7 @@ void main() {
       expect(backend.chatTexts, ['cafe 55k']);
       await tester.pageBack();
       await tester.pumpAndSettle();
-      expect(find.text('3.945.000 ₫'), findsOneWidget);
+      expect(find.text('3.945.000 ₫'), findsWidgets);
     });
 
     testWidgets('(b) "luong 20 trieu": thẻ nháp thiếu danh mục, đổi sang Thu nhập rồi lưu với source Manual, số dư tăng', (tester) async {
@@ -544,7 +545,7 @@ void main() {
       expect(find.textContaining('Đã ghi: 20.000.000 ₫'), findsOneWidget);
       await tester.pageBack();
       await tester.pumpAndSettle();
-      expect(find.text('24.000.000 ₫'), findsOneWidget);
+      expect(find.text('24.000.000 ₫'), findsWidgets);
     });
 
     testWidgets('chuyển 2 triệu sang tiết kiệm: thẻ chuyển tiền, lưu xong không lỗi khung hình và hai số dư đổi', (tester) async {

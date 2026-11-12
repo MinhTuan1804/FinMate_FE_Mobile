@@ -48,10 +48,12 @@ void main() {
     testWidgets('chọn main_goal=B và month_end_balance=A thì saving_style hiện ra ngay trên máy', (tester) async {
       await _pump(tester, _adapterWith());
 
+      await tester.scrollUntilVisible(find.text('Còn dư đều đặn'), 300);
       await tester.tap(find.text('Còn dư đều đặn')); // month_end_balance = A
       await tester.pumpAndSettle();
       expect(find.text('Bạn muốn dành tiền cho mục tiêu theo cách nào?'), findsNothing);
 
+      await tester.scrollUntilVisible(find.text('Tạo hoặc tăng quỹ dự phòng'), 300);
       await tester.tap(find.text('Tạo hoặc tăng quỹ dự phòng')); // main_goal = B
       await tester.pumpAndSettle();
 
@@ -61,15 +63,19 @@ void main() {
     testWidgets('đổi main_goal từ B sang A ẩn lại saving_style và xóa đáp án đã chọn cho nó', (tester) async {
       await _pump(tester, _adapterWith());
 
+      await tester.scrollUntilVisible(find.text('Còn dư đều đặn'), 300);
       await tester.tap(find.text('Còn dư đều đặn'));
       await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(find.text('Tạo hoặc tăng quỹ dự phòng'), 300);
       await tester.tap(find.text('Tạo hoặc tăng quỹ dự phòng')); // main_goal = B
       await tester.pumpAndSettle();
       expect(find.text('Bạn muốn dành tiền cho mục tiêu theo cách nào?'), findsOneWidget);
 
+      await tester.scrollUntilVisible(find.text('Chuyển tự động ngay khi nhận thu nhập'), 300);
       await tester.tap(find.text('Chuyển tự động ngay khi nhận thu nhập')); // saving_style = A
       await tester.pumpAndSettle();
 
+      await tester.scrollUntilVisible(find.text('Biết tiền đi đâu và tránh hụt cuối tháng'), 300);
       await tester.tap(find.text('Biết tiền đi đâu và tránh hụt cuối tháng')); // main_goal = A
       await tester.pumpAndSettle();
 
@@ -125,6 +131,7 @@ void main() {
       final adapter = _adapterWith();
       await _pump(tester, adapter);
 
+      await tester.scrollUntilVisible(find.text('Xóa khảo sát (reset)'), 300);
       await tester.tap(find.text('Xóa khảo sát (reset)'));
       await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(TextButton, 'Hủy'));

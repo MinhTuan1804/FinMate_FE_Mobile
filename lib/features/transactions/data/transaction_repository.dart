@@ -67,6 +67,7 @@ class TransactionRepository {
     String? cursor,
     int limit = 20,
     TransactionStatus status = TransactionStatus.confirmed,
+    String? categoryId,
   }) async {
     try {
       final response = await apiClient.get(
@@ -77,6 +78,7 @@ class TransactionRepository {
           if (fromDate != null) 'fromDate': fromDate.toUtc().toIso8601String(),
           if (toDate != null) 'toDate': toDate.toUtc().toIso8601String(),
           if (cursor != null) 'cursor': cursor,
+          if (categoryId != null) 'categoryId': categoryId,
           'limit': limit,
         },
         fromJsonT: (json) => (json as List).map((e) => TransactionEntity.fromJson(e as Map<String, dynamic>)).toList(),

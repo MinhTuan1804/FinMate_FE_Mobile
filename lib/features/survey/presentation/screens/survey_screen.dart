@@ -1,8 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:finmate/core/theme/app_spacing.dart';
+import 'package:go_router/go_router.dart';
+import 'package:finmate/core/theme/glass/glass_colors.dart';
+import 'package:finmate/core/theme/glass/glass_typography.dart';
 import 'package:finmate/features/survey/domain/survey.dart';
 import 'package:finmate/features/survey/presentation/controllers/survey_controller.dart';
+import 'package:finmate/shared/widgets/glass/glass_background.dart';
+import 'package:finmate/shared/widgets/glass/glass_bottom_dock.dart';
+import 'package:finmate/shared/widgets/glass/glass_buttons.dart';
+import 'package:finmate/shared/widgets/glass/glass_card.dart';
+import 'package:finmate/shared/widgets/glass/glass_radio_card.dart';
 
 String _statusLabel(String status) => switch (status) {
       'pending' => 'Chưa làm',
@@ -11,7 +18,7 @@ String _statusLabel(String status) => switch (status) {
       _ => status,
     };
 
-/// Màn test khảo sát đầu vào. Câu trả lời đang chọn trên máy (chưa gửi) là state cục bộ của màn
+/// Khảo sát đầu vào. Câu trả lời đang chọn trên máy (chưa gửi) là state cục bộ của màn
 /// hình ([_draftAnswers]) — mỗi khi đổi, lọc lại câu hiện/ẩn theo đúng logic ShowIf của BE ngay
 /// trên máy, không cần gọi lại API.
 class SurveyScreen extends ConsumerStatefulWidget {
@@ -55,7 +62,11 @@ class _SurveyScreenState extends ConsumerState<SurveyScreen> {
         .toList();
     try {
       await ref.read(surveyControllerProvider.notifier).submit(answers);
+      if (!mounted) return;
       _showMessage('Đã gửi khảo sát.');
+      // Nối tiếp luồng: làm xong khảo sát thì đi thẳng sang màn gợi ý phương pháp (B4),
+      // thay vì để người dùng tự tìm nút quay lại Hồ sơ.
+      context.push('/finance-methods');
     } catch (e) {
       _showMessage(surveyErrorMessage(e));
     }
@@ -64,7 +75,13 @@ class _SurveyScreenState extends ConsumerState<SurveyScreen> {
   Future<void> _skip() async {
     try {
       await ref.read(surveyControllerProvider.notifier).skip();
+      if (!mounted) return;
       _showMessage('Đã bỏ qua khảo sát.');
+      // Nếu không còn màn nào bên dưới để quay lại (vào thẳng từ onboarding bằng context.go),
+      // Navigator.canPop() == false — về Home thay vì để người dùng kẹt lại ở đây.
+      if (!Navigator.of(context).canPop()) {
+        context.go('/home');
+      }
     } catch (e) {
       _showMessage(surveyErrorMessage(e));
     }
@@ -101,87 +118,111 @@ class _SurveyScreenState extends ConsumerState<SurveyScreen> {
     });
     final state = ref.watch(surveyControllerProvider);
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Khảo sát đầu vào')),
-      body: state.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(surveyErrorMessage(e), textAlign: TextAlign.center),
-                const SizedBox(height: AppSpacing.sm),
-                ElevatedButton(
-                  onPressed: () => ref.read(surveyControllerProvider.notifier).load(),
-                  child: const Text('Thử lại'),
-                ),
-              ],
-            ),
-          ),
+    return GlassBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          title: Text('Khảo sát đầu vào', style: GlassTypography.headlineMd()),
         ),
-        data: (survey) {
-          if (survey == null) return const SizedBox.shrink();
-          final visible = _visibleQuestions(survey);
-          return ListView(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            children: [
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  child: Row(
-                    children: [
-                      const Text('Trạng thái: '),
-                      Text(_statusLabel(survey.status),
-                          style: const TextStyle(fontWeight: FontWeight.w700)),
-                    ],
-                  ),
+        body: SafeArea(
+          child: state.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, _) => Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(surveyErrorMessage(e), textAlign: TextAlign.center, style: GlassTypography.bodyMd()),
+                    const SizedBox(height: 16),
+                    GlassSecondaryButton(
+                      label: 'Thử lại',
+                      onPressed: () => ref.read(surveyControllerProvider.notifier).load(),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: AppSpacing.md),
-              for (final q in visible)
-                Card(
-                  margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.md),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+            ),
+            data: (survey) {
+              if (survey == null) return const SizedBox.shrink();
+              final visible = _visibleQuestions(survey);
+              return Column(
+                children: [
+                  Expanded(
+                    child: ListView(
+                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
                       children: [
-                        Text(q.text, style: const TextStyle(fontWeight: FontWeight.w600)),
-                        for (final o in q.options)
-                          RadioListTile<String>(
-                            dense: true,
-                            contentPadding: EdgeInsets.zero,
-                            title: Text(o.text),
-                            value: o.code,
-                            groupValue: _draftAnswers[q.code],
-                            onChanged: (v) {
-                              if (v != null) _choose(survey, q.code, v);
-                            },
+                        GlassCard(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Text('Trạng thái: ', style: GlassTypography.bodyMd()),
+                                  Text(
+                                    _statusLabel(survey.status),
+                                    style: GlassTypography.bodyMd(color: GlassColors.textPrimary).copyWith(fontWeight: FontWeight.w700),
+                                  ),
+                                ],
+                              ),
+                              if (survey.status == 'completed') ...[
+                                const SizedBox(height: 10),
+                                GlassSecondaryButton(
+                                  key: const ValueKey('survey-go-to-recommendations'),
+                                  label: 'Xem gợi ý phương pháp',
+                                  onPressed: () => context.push('/finance-methods'),
+                                ),
+                              ],
+                            ],
                           ),
+                        ),
+                        const SizedBox(height: 16),
+                        for (final q in visible) ...[
+                          GlassCard(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  q.text,
+                                  style: GlassTypography.headlineSm(),
+                                ),
+                                const SizedBox(height: 12),
+                                for (final o in q.options) ...[
+                                  GlassRadioCard(
+                                    title: o.text,
+                                    selected: _draftAnswers[q.code] == o.code,
+                                    onTap: () => _choose(survey, q.code, o.code),
+                                  ),
+                                  const SizedBox(height: 10),
+                                ],
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+                        TextButton(
+                          onPressed: _delete,
+                          child: Text('Xóa khảo sát (reset)', style: GlassTypography.bodyMd(color: GlassColors.danger)),
+                        ),
                       ],
                     ),
                   ),
-                ),
-              const SizedBox(height: AppSpacing.md),
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: _draftAnswers.isEmpty ? null : () => _submit(survey),
-                      child: const Text('Gửi khảo sát'),
-                    ),
+                  GlassBottomDock(
+                    actions: [
+                      GlassGhostButton(label: 'Bỏ qua', onPressed: _skip),
+                      GlassPrimaryButton(
+                        label: 'Gửi khảo sát',
+                        onPressed: _draftAnswers.isEmpty ? null : () => _submit(survey),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: AppSpacing.sm),
-                  OutlinedButton(onPressed: _skip, child: const Text('Bỏ qua')),
                 ],
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              TextButton(onPressed: _delete, child: const Text('Xóa khảo sát (reset)')),
-            ],
-          );
-        },
+              );
+            },
+          ),
+        ),
       ),
     );
   }
