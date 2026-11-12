@@ -4,12 +4,12 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:finmate/core/format/money.dart';
 import 'package:finmate/core/network/api_exceptions.dart';
+import 'package:finmate/core/theme/app_colors.dart';
+import 'package:finmate/core/theme/app_typography.dart';
+import 'package:finmate/core/widgets/glass/liquid_glass.dart';
 import 'package:finmate/features/accounts/domain/financial_account.dart';
 import 'package:finmate/features/accounts/presentation/controllers/accounts_controller.dart';
 import 'package:finmate/features/onboarding/presentation/controllers/onboarding_controller.dart';
-import 'package:finmate/core/theme/app_colors.dart';
-import 'package:finmate/core/theme/app_spacing.dart';
-import 'package:finmate/core/theme/app_typography.dart';
 
 class InitialSetupScreen extends ConsumerStatefulWidget {
   const InitialSetupScreen({super.key});
@@ -69,12 +69,9 @@ class _InitialSetupScreenState extends ConsumerState<InitialSetupScreen> {
 
     setState(() => _isSaving = true);
     try {
-      final providers =
-          ref.read(accountProvidersProvider).valueOrNull ??
+      final providers = ref.read(accountProvidersProvider).valueOrNull ??
           const <AccountProviderInfo>[];
-      await ref
-          .read(onboardingControllerProvider)
-          .complete(
+      await ref.read(onboardingControllerProvider).complete(
             OnboardingInput(
               monthlyIncomeCents: income.toInt(),
               cashBalanceCents: cash,
@@ -83,7 +80,6 @@ class _InitialSetupScreenState extends ConsumerState<InitialSetupScreen> {
                   .toList(),
             ),
           );
-      // Thiết lập xong thì tới khảo sát để FinMate gợi ý cách quản lý tài chính; bỏ qua được và làm lại được từ trang chủ.
       if (mounted) context.go('/finance-survey?onboarding=1');
     } catch (e) {
       if (mounted) _showError(errorMessage(e));
@@ -94,8 +90,6 @@ class _InitialSetupScreenState extends ConsumerState<InitialSetupScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -108,80 +102,72 @@ class _InitialSetupScreenState extends ConsumerState<InitialSetupScreen> {
               onPressed: () {
                 setState(() => _currentStep++);
               },
-              child: const Text(
+              child: Text(
                 'Bỏ qua',
-                style: TextStyle(color: AppColors.textSecondaryDark),
+                style: TextStyle(color: AppColors.textSecondary(context)),
               ),
             ),
         ],
       ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Progress Bar
-              LinearProgressIndicator(
-                value: (_currentStep + 1) / 3,
-                backgroundColor: isDark
-                    ? AppColors.surfaceDarkElevated
-                    : AppColors.surfaceLightSubtle,
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(4),
-              ),
-              const SizedBox(height: 28),
+      body: AmbientGlassBackground(
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Liquid Glass Capsule Progress Bar
+                LiquidGlassProgressBar(
+                  value: (_currentStep + 1) / 3,
+                  height: 7,
+                ),
+                const SizedBox(height: 28),
 
-              Expanded(child: _buildCurrentStep(context, isDark)),
+                Expanded(child: _buildCurrentStep(context)),
 
-              // Bottom Navigation Button
-              ElevatedButton(
-                onPressed: _isSaving
-                    ? null
-                    : () {
-                        if (_currentStep < 2) {
-                          setState(() => _currentStep++);
-                        } else {
-                          _completeSetup();
-                        }
-                      },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: const RoundedRectangleBorder(
-                    borderRadius: AppSpacing.roundedPill,
+                // Bottom Navigation Button
+                ElevatedButton(
+                  onPressed: _isSaving
+                      ? null
+                      : () {
+                          if (_currentStep < 2) {
+                            setState(() => _currentStep++);
+                          } else {
+                            _completeSetup();
+                          }
+                        },
+                  child: Text(
+                    _currentStep < 2
+                        ? 'Tiếp tục'
+                        : 'Hoàn tất & Khám phá FinMate',
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
-                child: Text(
-                  _currentStep < 2 ? 'Tiếp tục' : 'Hoàn tất & Khám phá FinMate',
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildCurrentStep(BuildContext context, bool isDark) {
+  Widget _buildCurrentStep(BuildContext context) {
     switch (_currentStep) {
       case 0:
-        return _buildStep1Permissions(context, isDark);
+        return _buildStep1Permissions(context);
       case 1:
-        return _buildStep2AppSelection(context, isDark);
+        return _buildStep2AppSelection(context);
       case 2:
       default:
-        return _buildStep3FinancialInit(context, isDark);
+        return _buildStep3FinancialInit(context);
     }
   }
 
   // Bước 1: Quyền & ROM Defense (BR-03, BR-05, BR-10)
-  Widget _buildStep1Permissions(BuildContext context, bool isDark) {
+  Widget _buildStep1Permissions(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -190,29 +176,24 @@ class _InitialSetupScreenState extends ConsumerState<InitialSetupScreen> {
         Text(
           'FinMate lắng nghe thông báo biến động số dư từ ngân hàng để tự động ghi chép tức thì mà không cần bạn nhập tay.',
           style: AppTypography.body(context).copyWith(
-            color: isDark
-                ? AppColors.textSecondaryDark
-                : AppColors.textSecondaryLight,
+            color: AppColors.textSecondary(context),
           ),
         ),
         const SizedBox(height: 24),
-
         _permissionItem(
+          context,
           icon: LucideIcons.bellRing,
           title: 'Quyền truy cập thông báo',
           desc:
               'Cho phép FinMate nhận diện biến động số dư từ ngân hàng và ví điện tử.',
-          isGranted: false,
-          isDark: isDark,
         ),
         const SizedBox(height: 16),
         _permissionItem(
+          context,
           icon: LucideIcons.batteryCharging,
           title: 'Tắt tối ưu hóa pin (ROM Defense)',
           desc:
               'Ngăn hệ điều hành Android tự động tắt ngầm dịch vụ lắng nghe thông báo.',
-          isGranted: false,
-          isDark: isDark,
         ),
         const SizedBox(height: 16),
         Text(
@@ -223,28 +204,28 @@ class _InitialSetupScreenState extends ConsumerState<InitialSetupScreen> {
     );
   }
 
-  Widget _permissionItem({
+  Widget _permissionItem(
+    BuildContext context, {
     required IconData icon,
     required String title,
     required String desc,
-    required bool isGranted,
-    required bool isDark,
   }) {
-    return Container(
+    final actionColor = AppColors.primaryAction(context);
+    return LiquidGlassCard(
+      enableBlur: false,
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDark
-            ? AppColors.surfaceDarkElevated
-            : AppColors.surfaceLightSubtle,
-        borderRadius: AppSpacing.roundedMedium,
-        border: Border.all(
-          color: isDark ? AppColors.borderDark : AppColors.borderLight,
-        ),
-      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: AppColors.primary, size: 24),
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: actionColor.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: actionColor, size: 20),
+          ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
@@ -252,21 +233,12 @@ class _InitialSetupScreenState extends ConsumerState<InitialSetupScreen> {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
+                  style: AppTypography.bodyMedium(context).copyWith(
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  desc,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: isDark
-                        ? AppColors.textSecondaryDark
-                        : AppColors.textSecondaryLight,
-                  ),
-                ),
+                Text(desc, style: AppTypography.caption(context)),
               ],
             ),
           ),
@@ -276,7 +248,9 @@ class _InitialSetupScreenState extends ConsumerState<InitialSetupScreen> {
   }
 
   // Bước 2: Chọn ứng dụng theo dõi (BR-07, BR-11)
-  Widget _buildStep2AppSelection(BuildContext context, bool isDark) {
+  Widget _buildStep2AppSelection(BuildContext context) {
+    final actionColor = AppColors.primaryAction(context);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -285,17 +259,12 @@ class _InitialSetupScreenState extends ConsumerState<InitialSetupScreen> {
         Text(
           'FinMate chỉ xử lý thông báo từ các ứng dụng bạn chủ động cho phép dưới đây.',
           style: AppTypography.body(context).copyWith(
-            color: isDark
-                ? AppColors.textSecondaryDark
-                : AppColors.textSecondaryLight,
+            color: AppColors.textSecondary(context),
           ),
         ),
         const SizedBox(height: 20),
-
         Expanded(
-          child: ref
-              .watch(accountProvidersProvider)
-              .when(
+          child: ref.watch(accountProvidersProvider).when(
                 loading: () => const Center(child: CircularProgressIndicator()),
                 error: (e, _) => Center(
                   child: Column(
@@ -312,42 +281,37 @@ class _InitialSetupScreenState extends ConsumerState<InitialSetupScreen> {
                 ),
                 data: (providers) => ListView(
                   children: providers.map((provider) {
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      child: Material(
-                        color: isDark
-                            ? AppColors.surfaceDarkElevated
-                            : AppColors.surfaceLightSubtle,
-                        clipBehavior: Clip.antiAlias,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: AppSpacing.roundedMedium,
-                          side: BorderSide(
-                            color: isDark
-                                ? AppColors.borderDark
-                                : AppColors.borderLight,
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: LiquidGlassCard(
+                        enableBlur: false,
+                        padding: EdgeInsets.zero,
+                        child: Material(
+                          type: MaterialType.transparency,
+                          child: SwitchListTile(
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                            ),
+                            title: Text(
+                              provider.displayName,
+                              style: AppTypography.bodyMedium(context).copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            subtitle: Text(
+                              provider.type.label,
+                              style: AppTypography.caption(context),
+                            ),
+                            value: _selectedProviderIds.contains(provider.id),
+                            activeTrackColor: actionColor,
+                            onChanged: (val) {
+                              setState(() {
+                                val
+                                    ? _selectedProviderIds.add(provider.id)
+                                    : _selectedProviderIds.remove(provider.id);
+                              });
+                            },
                           ),
-                        ),
-                        child: SwitchListTile(
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                          ),
-                          title: Text(
-                            provider.displayName,
-                            style: const TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                          subtitle: Text(
-                            provider.type.label,
-                            style: AppTypography.caption(context),
-                          ),
-                          value: _selectedProviderIds.contains(provider.id),
-                          activeTrackColor: AppColors.primary,
-                          onChanged: (val) {
-                            setState(() {
-                              val
-                                  ? _selectedProviderIds.add(provider.id)
-                                  : _selectedProviderIds.remove(provider.id);
-                            });
-                          },
                         ),
                       ),
                     );
@@ -360,54 +324,68 @@ class _InitialSetupScreenState extends ConsumerState<InitialSetupScreen> {
   }
 
   // Bước 3: Khởi tạo thông tin tài chính (BR-08, BR-45)
-  Widget _buildStep3FinancialInit(BuildContext context, bool isDark) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Kế hoạch tài chính tháng', style: AppTypography.h2(context)),
-        const SizedBox(height: 8),
-        Text(
-          'Thiết lập thu nhập dự kiến và số dư ví để kích hoạt hệ thống cảnh báo và cố vấn AI.',
-          style: AppTypography.body(context).copyWith(
-            color: isDark
-                ? AppColors.textSecondaryDark
-                : AppColors.textSecondaryLight,
+  Widget _buildStep3FinancialInit(BuildContext context) {
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Kế hoạch tài chính tháng', style: AppTypography.h2(context)),
+          const SizedBox(height: 8),
+          Text(
+            'Thiết lập thu nhập dự kiến và số dư ví để kích hoạt hệ thống cảnh báo và cố vấn AI.',
+            style: AppTypography.body(context).copyWith(
+              color: AppColors.textSecondary(context),
+            ),
           ),
-        ),
-        const SizedBox(height: 24),
-
-        Text(
-          'Thu nhập hàng tháng dự kiến (VND)',
-          style: AppTypography.bodyMedium(context),
-        ),
-        const SizedBox(height: 8),
-        TextField(
-          controller: _incomeController,
-          keyboardType: TextInputType.number,
-          style: AppTypography.moneyMedium,
-          decoration: const InputDecoration(
-            prefixIcon: Icon(LucideIcons.banknote, size: 20),
-            suffixText: '₫',
+          const SizedBox(height: 24),
+          ZenvestHeroDeck(
+            peekBadgeText: 'INIT',
+            child: LiquidGlassCard(
+              variant: LiquidGlassVariant.iridescentHero,
+              enableBlur: true,
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Thu nhập hàng tháng dự kiến (VND)',
+                    style: AppTypography.bodyMedium(context),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _incomeController,
+                    keyboardType: TextInputType.number,
+                    style: AppTypography.moneyMedium.copyWith(
+                      color: AppColors.textPrimary(context),
+                    ),
+                    decoration: const InputDecoration(
+                      prefixIcon: Icon(LucideIcons.banknote, size: 20),
+                      suffixText: '₫',
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    'Số dư ví tiền mặt hiện có (VND)',
+                    style: AppTypography.bodyMedium(context),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _cashController,
+                    keyboardType: TextInputType.number,
+                    style: AppTypography.moneyMedium.copyWith(
+                      color: AppColors.textPrimary(context),
+                    ),
+                    decoration: const InputDecoration(
+                      prefixIcon: Icon(LucideIcons.wallet, size: 20),
+                      suffixText: '₫',
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-        ),
-
-        const SizedBox(height: 24),
-
-        Text(
-          'Số dư ví tiền mặt hiện có (VND)',
-          style: AppTypography.bodyMedium(context),
-        ),
-        const SizedBox(height: 8),
-        TextField(
-          controller: _cashController,
-          keyboardType: TextInputType.number,
-          style: AppTypography.moneyMedium,
-          decoration: const InputDecoration(
-            prefixIcon: Icon(LucideIcons.wallet, size: 20),
-            suffixText: '₫',
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

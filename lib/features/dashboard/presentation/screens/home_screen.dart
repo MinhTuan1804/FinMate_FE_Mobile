@@ -2,142 +2,240 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:finmate/features/dashboard/presentation/widgets/app_bottom_nav.dart';
+import 'package:finmate/core/config/brand_logo.dart';
 import 'package:finmate/core/format/money.dart';
 import 'package:finmate/core/theme/app_colors.dart';
 import 'package:finmate/core/theme/app_spacing.dart';
 import 'package:finmate/core/theme/app_typography.dart';
+import 'package:finmate/core/widgets/glass/liquid_glass.dart';
 import 'package:finmate/features/accounts/presentation/controllers/accounts_controller.dart';
 import 'package:finmate/features/analytics/presentation/reports_providers.dart';
 import 'package:finmate/features/assistant/presentation/widgets/assistant_prompt_bar.dart';
 import 'package:finmate/features/auth/presentation/controllers/auth_controller.dart';
+import 'package:finmate/features/dashboard/presentation/widgets/app_bottom_nav.dart';
 import 'package:finmate/features/finance_methods/presentation/widgets/method_home_section.dart';
 import 'package:finmate/features/transactions/domain/entities/transaction_entity.dart';
 import 'package:finmate/features/transactions/presentation/controllers/transaction_controller.dart';
 import 'package:finmate/features/transactions/presentation/widgets/create_transaction_bottom_sheet.dart';
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  bool _hideBalance = false;
+
+  @override
+  Widget build(BuildContext context) {
     final user = ref.watch(authControllerProvider).value;
     final txState = ref.watch(transactionControllerProvider);
 
     return Scaffold(
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // 1. Header (User Welcome & Notification)
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
+      body: AmbientGlassBackground(
+        child: SafeArea(
+          bottom: false,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // 1. Zenvest Brand Top Bar (Logo + FinMate on left, Bell + Avatar on right)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const BrandLogo(size: 26),
+                        const SizedBox(width: 8),
+                        Text(
+                          'FinMate',
+                          style: AppTypography.h3(context).copyWith(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.4,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        LiquidGlassIconButton(
+                          icon: LucideIcons.bell,
+                          size: 40,
+                          iconSize: 18,
+                          tooltip: 'Thông báo',
+                          onPressed: () => context.push('/notifications'),
+                        ),
+                        const SizedBox(width: 6),
+                        LiquidGlassIconButton(
+                          icon: LucideIcons.circleUser,
+                          size: 40,
+                          iconSize: 20,
+                          tooltip: 'Cá nhân',
+                          onPressed: () => context.push('/profile'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 16),
+
+                // 2. Zenvest Editorial Greeting Header ("Your Financial Overview" / "Welcome to Zenvest")
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         'Xin chào,',
-                        style: AppTypography.caption(context),
+                        style: AppTypography.caption(context).copyWith(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         user?.displayName ?? 'Bạn của FinMate',
-                        style: AppTypography.h3(context).copyWith(fontWeight: FontWeight.w700),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.h1(context).copyWith(
+                          fontSize: 26,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.7,
+                        ),
                       ),
                     ],
-                  ),
-                  Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(LucideIcons.circleUser, size: 24),
-                        onPressed: () => context.push('/profile'),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 20),
-
-              // 2. Balance Card (Neo-Fintech Minimalist)
-              _buildBalanceCard(context, ref, isDark),
-
-              const SizedBox(height: 16),
-
-              const AssistantPromptBar(),
-
-              const SizedBox(height: 16),
-
-              // 4. Quick Action Buttons
-              _buildQuickActions(context),
-
-              const SizedBox(height: 24),
-
-              // Cách quản lý tài chính người dùng đang dùng: các khối do admin cấu hình nên mỗi cách một trang chủ khác nhau
-              const FinanceHomeSection(),
-
-              const SizedBox(height: 24),
-
-              // 5. Recent Transactions Header & List
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'GIAO DỊCH GẦN ĐÂY',
-                    style: AppTypography.caption(context).copyWith(
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () => context.push('/transactions'),
-                    child: const Text('Xem tất cả'),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 8),
-
-              txState.when(
-                loading: () => const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(20.0),
-                    child: CircularProgressIndicator(),
                   ),
                 ),
-                error: (_, __) => const Text('Không thể tải giao dịch'),
-                data: (transactions) {
-                  final recents = transactions.take(4).toList();
-                  if (recents.isEmpty) {
-                    return Container(
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-                        borderRadius: AppSpacing.roundedMedium,
-                        border: Border.all(
-                          color: isDark ? AppColors.borderDark : AppColors.borderLight,
-                        ),
-                      ),
-                      child: Center(
-                        child: Text(
-                          'Chưa có giao dịch nào.\nHãy bấm "Ghi chép" để thêm giao dịch đầu tiên!',
-                          textAlign: TextAlign.center,
-                          style: AppTypography.caption(context),
-                        ),
-                      ),
-                    );
-                  }
 
-                  return Column(
-                    children: recents.map((tx) => _buildTransactionItem(context, tx, isDark)).toList(),
-                  );
-                },
-              ),
-            ],
+                const SizedBox(height: 18),
+
+                // 3. Zenvest Stacked / Peek Hero Balance Card Deck (Ảnh 3)
+                ZenvestHeroDeck(
+                  peekBadgeText: 'SAV',
+                  child: _buildBalanceCard(context, ref),
+                ),
+
+                const SizedBox(height: 16),
+
+                // 4. Zenvest Action Pill Row (Send ↗ / Received ↙ / ... + Solid Dark '+' Circle)
+                _buildQuickActions(context),
+
+                const SizedBox(height: 18),
+
+                // 5. Elevated White-Glass Bottom Sheet ("Transactions" Sheet-on-Sky Architecture)
+                ZenvestSurfaceSheet(
+                  title: 'Giao dịch gần đây',
+                  leading: IconButton(
+                    icon: Icon(
+                      LucideIcons.slidersHorizontal,
+                      size: 18,
+                      color: AppColors.textPrimary(context),
+                    ),
+                    tooltip: 'Bộ lọc giao dịch',
+                    onPressed: () => context.push('/transactions'),
+                  ),
+                  trailing: IconButton(
+                    icon: Icon(
+                      LucideIcons.search,
+                      size: 18,
+                      color: AppColors.textPrimary(context),
+                    ),
+                    tooltip: 'Xem tất cả',
+                    onPressed: () => context.push('/transactions'),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // AI Assistant Glass Prompt Bar
+                      const AssistantPromptBar(),
+                      const SizedBox(height: 14),
+
+                      // Active Finance Method Summary
+                      const FinanceHomeSection(),
+                      const SizedBox(height: 14),
+
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Hoạt động mới nhất',
+                            style: AppTypography.caption(context).copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textSecondary(context),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () => context.push('/transactions'),
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              minimumSize: const Size(44, 34),
+                            ),
+                            child: const Text('Xem tất cả'),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      txState.when(
+                        loading: () => const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(20.0),
+                            child: CircularProgressIndicator(),
+                          ),
+                        ),
+                        error: (_, __) => Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          child: Text(
+                            'Không thể tải giao dịch',
+                            style: AppTypography.body(context).copyWith(
+                              color: AppColors.danger,
+                            ),
+                          ),
+                        ),
+                        data: (transactions) {
+                          final recents = transactions.take(4).toList();
+                          if (recents.isEmpty) {
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 20),
+                              child: Center(
+                                child: Text(
+                                  'Chưa có giao dịch nào.\nHãy bấm "Ghi chép" để thêm giao dịch đầu tiên!',
+                                  textAlign: TextAlign.center,
+                                  style: AppTypography.caption(context),
+                                ),
+                              ),
+                            );
+                          }
+
+                          return Column(
+                            children: [
+                              for (var i = 0; i < recents.length; i++) ...[
+                                if (i > 0)
+                                  Divider(
+                                    height: 1,
+                                    color: AppColors.border(context)
+                                        .withValues(alpha: 0.55),
+                                  ),
+                                _buildTransactionItem(context, recents[i]),
+                              ],
+                            ],
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -145,70 +243,138 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildBalanceCard(BuildContext context, WidgetRef ref, bool isDark) {
+  Widget _buildBalanceCard(BuildContext context, WidgetRef ref) {
     final accounts = ref.watch(accountsControllerProvider);
     final summary = ref.watch(monthlySummaryProvider);
 
-    // Số dư = tổng số dư các tài khoản; thu/chi tháng từ báo cáo của backend (không số giả)
-    final balanceText = accounts.when(
-      data: (list) => formatVnd(list.fold(BigInt.zero, (sum, a) => sum + a.balanceCents)),
+    final rawBalanceText = accounts.when(
+      data: (list) => formatVnd(
+        list.fold(BigInt.zero, (sum, a) => sum + a.balanceCents),
+      ),
       loading: () => '...',
       error: (_, __) => '—',
     );
+    final balanceText = _hideBalance ? '•••••••• ₫' : rawBalanceText;
     final hasNoAccount = accounts.valueOrNull?.isEmpty ?? false;
     final hasError = accounts.hasError || summary.hasError;
-    final income = summary.valueOrNull == null ? '—' : '+${formatVnd(summary.value!.totalIncomeCents)}';
-    final expense = summary.valueOrNull == null ? '—' : '-${formatVnd(summary.value!.totalSpentCents)}';
+    final income = summary.valueOrNull == null
+        ? '—'
+        : '+${formatVnd(summary.value!.totalIncomeCents)}';
+    final expense = summary.valueOrNull == null
+        ? '—'
+        : '-${formatVnd(summary.value!.totalSpentCents)}';
 
-    return Container(
-      padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-        borderRadius: AppSpacing.roundedLarge,
-        border: Border.all(
-          color: isDark ? AppColors.borderDark : AppColors.borderLight,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.04),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+    return LiquidGlassCard(
+      variant: LiquidGlassVariant.iridescentHero,
+      enableBlur: true,
+      borderRadius: BorderRadius.circular(24),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Top Currency Badge Row (Zenvest Circular Flag/Currency Badge + VNĐ)
+          Row(
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.expense.withValues(alpha: 0.88),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.9),
+                    width: 1.5,
+                  ),
+                ),
+                child: const Center(
+                  child: Icon(
+                    LucideIcons.sparkles,
+                    size: 13,
+                    color: Color(0xFFFDE047),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'VNĐ',
+                style: AppTypography.bodyMedium(context).copyWith(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.2,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Balance Label + Large Amount with Inline Eye Toggle ("$ 40,500.80 👁")
           Text(
             'TỔNG TÀI SẢN KHẢ DỤNG',
             style: AppTypography.caption(context).copyWith(
+              fontSize: 11.5,
               fontWeight: FontWeight.w600,
-              letterSpacing: 0.5,
+              letterSpacing: 0.3,
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            balanceText,
-            style: AppTypography.tabular(
-              AppTypography.moneyLarge.copyWith(
-                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+          const SizedBox(height: 4),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Flexible(
+                child: Text(
+                  balanceText,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.displayBalance(context).copyWith(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
               ),
-            ),
+              const SizedBox(width: 8),
+              InkWell(
+                borderRadius: AppSpacing.roundedPill,
+                onTap: () => setState(() => _hideBalance = !_hideBalance),
+                child: Padding(
+                  padding: const EdgeInsets.all(6),
+                  child: Icon(
+                    _hideBalance ? LucideIcons.eyeOff : LucideIcons.eye,
+                    size: 18,
+                    color: AppColors.textSecondary(context),
+                  ),
+                ),
+              ),
+            ],
           ),
           if (hasNoAccount) ...[
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
             Text(
               'Bạn chưa có tài khoản. Bấm "Ghi chép" để tạo ví đầu tiên.',
               style: AppTypography.caption(context),
             ),
           ],
           const SizedBox(height: 18),
-          const Divider(height: 1),
-          const SizedBox(height: 16),
+
+          // Bottom 2-Column Metadata Row (matching "Account Number" / "Valid Date" in Zenvest)
           Row(
             children: [
-              Expanded(child: _flowItem(context, 'Thu nhập', income, LucideIcons.arrowDownLeft, AppColors.income)),
-              Expanded(child: _flowItem(context, 'Chi tiêu', expense, LucideIcons.arrowUpRight, AppColors.expense)),
+              Expanded(
+                child: _flowColumn(
+                  context,
+                  label: 'Thu nhập',
+                  value: income,
+                  valueColor: AppColors.income,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _flowColumn(
+                  context,
+                  label: 'Chi tiêu',
+                  value: expense,
+                  valueColor: AppColors.expense,
+                ),
+              ),
             ],
           ),
           if (hasError)
@@ -227,28 +393,33 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _flowItem(BuildContext context, String label, String value, IconData icon, Color color) {
-    return Row(
+  Widget _flowColumn(
+    BuildContext context, {
+    required String label,
+    required String value,
+    required Color valueColor,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(color: color.withValues(alpha: 0.12), shape: BoxShape.circle),
-          child: Icon(icon, size: 16, color: color),
+        Text(
+          label,
+          style: AppTypography.caption(context).copyWith(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w500,
+          ),
         ),
-        const SizedBox(width: 10),
-        Flexible(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: AppTypography.caption(context)),
-              Text(
-                value,
-                overflow: TextOverflow.ellipsis,
-                style: AppTypography.tabular(
-                  AppTypography.caption(context).copyWith(fontWeight: FontWeight.w700, color: color),
-                ),
-              ),
-            ],
+        const SizedBox(height: 3),
+        Text(
+          value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: AppTypography.tabular(
+            AppTypography.bodyMedium(context).copyWith(
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              color: valueColor,
+            ),
           ),
         ),
       ],
@@ -257,119 +428,77 @@ class HomeScreen extends ConsumerWidget {
 
   Widget _buildQuickActions(BuildContext context) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        _buildActionItem(
-          context,
+        Expanded(
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                ZenvestActionPill(
+                  label: 'Ghi chép',
+                  trailingIcon: LucideIcons.arrowUpRight,
+                  onTap: () => CreateTransactionBottomSheet.show(context),
+                ),
+                const SizedBox(width: 8),
+                ZenvestActionPill(
+                  label: 'Chuyển tiền',
+                  trailingIcon: LucideIcons.arrowLeftRight,
+                  onTap: () => context.push('/transactions/transfer'),
+                ),
+                const SizedBox(width: 8),
+                ZenvestActionPill(
+                  label: 'Quét hóa đơn',
+                  trailingIcon: LucideIcons.scanLine,
+                  onTap: () => context.push('/transactions/scan-receipt'),
+                ),
+                const SizedBox(width: 8),
+                ZenvestActionPill(
+                  label: 'Kế hoạch',
+                  trailingIcon: LucideIcons.target,
+                  onTap: () => context.push('/planning'),
+                ),
+                const SizedBox(width: 8),
+                ZenvestActionPill(
+                  label: 'Báo cáo',
+                  trailingIcon: LucideIcons.chartPie,
+                  onTap: () => context.push('/analytics'),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        LiquidGlassIconButton(
           icon: LucideIcons.plus,
-          label: 'Ghi chép',
-          onTap: () => CreateTransactionBottomSheet.show(context),
-          highlight: true,
-        ),
-        _buildActionItem(
-          context,
-          icon: LucideIcons.target,
-          label: 'Kế hoạch',
-          onTap: () => context.push('/planning'),
-        ),
-        _buildActionItem(
-          context,
-          icon: LucideIcons.chartPie,
-          label: 'Báo cáo',
-          onTap: () => context.push('/analytics'),
-        ),
-        _buildActionItem(
-          context,
-          icon: LucideIcons.arrowLeftRight,
-          label: 'Lịch sử',
-          onTap: () => context.push('/transactions'),
+          style: LiquidGlassButtonStyle.primary,
+          size: 40,
+          iconSize: 18,
+          tooltip: 'Thêm giao dịch mới',
+          onPressed: () => CreateTransactionBottomSheet.show(context),
         ),
       ],
     );
   }
 
-  Widget _buildActionItem(
-    BuildContext context, {
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-    bool highlight = false,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        children: [
-          Container(
-            width: 54,
-            height: 54,
-            decoration: BoxDecoration(
-              color: highlight ? AppColors.primary : AppColors.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Icon(
-              icon,
-              size: 22,
-              color: highlight ? Colors.white : AppColors.primary,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            label,
-            style: AppTypography.caption(context).copyWith(fontWeight: FontWeight.w600),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _buildTransactionItem(BuildContext context, TransactionEntity tx) {
+    final d = tx.date.toLocal();
+    final dateStr =
+        '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
 
-  Widget _buildTransactionItem(BuildContext context, TransactionEntity tx, bool isDark) {
     if (tx.isInternalTransfer) {
-      return Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-          borderRadius: AppSpacing.roundedMedium,
-          border: Border.all(
-            color: isDark ? AppColors.borderDark : AppColors.borderLight,
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: Colors.blueGrey.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(LucideIcons.arrowLeftRight, size: 18, color: Colors.blueGrey),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    tx.description.isNotEmpty ? tx.description : 'Chuyển tiền nội bộ',
-                    style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w600, fontSize: 13),
-                  ),
-                  const SizedBox(height: 2),
-                  const Text(
-                    'Nội bộ - Không tính chi tiêu',
-                    style: TextStyle(fontSize: 10, color: Colors.blueGrey, fontWeight: FontWeight.w500),
-                  ),
-                ],
-              ),
-            ),
-            Text(
-              tx.formattedAmount,
-              style: AppTypography.tabular(
-                AppTypography.body(context).copyWith(fontWeight: FontWeight.w600),
-              ),
-            ),
-          ],
-        ),
+      return ZenvestTransactionTile(
+        icon: LucideIcons.arrowLeftRight,
+        iconColor: AppColors.transfer,
+        title: tx.description.isNotEmpty
+            ? tx.description
+            : 'Chuyển tiền nội bộ',
+        categoryLabel: 'Nội bộ - Không tính chi tiêu',
+        timeLabel: dateStr,
+        amountText: tx.formattedAmount,
+        amountColor: AppColors.textPrimary(context),
+        typeLabel: 'Chuyển khoản',
+        typeColor: AppColors.transfer,
+        onTap: () => context.push('/transactions'),
       );
     }
 
@@ -377,59 +506,19 @@ class HomeScreen extends ConsumerWidget {
     final color = isExpense ? AppColors.expense : AppColors.income;
     final prefix = isExpense ? '-' : '+';
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-        borderRadius: AppSpacing.roundedMedium,
-        border: Border.all(
-          color: isDark ? AppColors.borderDark : AppColors.borderLight,
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(
-              isExpense ? LucideIcons.arrowDownLeft : LucideIcons.arrowUpRight,
-              size: 18,
-              color: color,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  tx.description.isNotEmpty ? tx.description : (tx.categoryName ?? 'Giao dịch'),
-                  style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w600, fontSize: 13),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  tx.categoryName ?? 'Chung',
-                  style: AppTypography.caption(context).copyWith(fontSize: 11),
-                ),
-              ],
-            ),
-          ),
-          Text(
-            '$prefix${tx.formattedAmount}',
-            style: AppTypography.tabular(
-              AppTypography.body(context).copyWith(
-                fontWeight: FontWeight.w700,
-                color: color,
-              ),
-            ),
-          ),
-        ],
-      ),
+    return ZenvestTransactionTile(
+      icon: isExpense ? LucideIcons.arrowUpRight : LucideIcons.arrowDownLeft,
+      iconColor: color,
+      title: tx.description.isNotEmpty
+          ? tx.description
+          : (tx.categoryName ?? 'Giao dịch'),
+      categoryLabel: tx.categoryName ?? 'Chung',
+      timeLabel: dateStr,
+      amountText: '$prefix${tx.formattedAmount}',
+      amountColor: AppColors.textPrimary(context),
+      typeLabel: isExpense ? 'Chi tiêu' : 'Thu nhập',
+      typeColor: color,
+      onTap: () => context.push('/transactions'),
     );
   }
 }

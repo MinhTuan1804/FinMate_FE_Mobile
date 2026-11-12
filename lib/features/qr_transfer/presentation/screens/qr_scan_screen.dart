@@ -141,7 +141,17 @@ class _ScanFrame extends StatelessWidget {
       child: Container(
         width: 260,
         height: 260,
-        decoration: BoxDecoration(border: Border.all(color: AppColors.onCamera, width: 3), borderRadius: AppSpacing.roundedLarge),
+        decoration: BoxDecoration(
+          border: Border.all(color: AppColors.onCamera, width: 2.5),
+          borderRadius: AppSpacing.roundedXl,
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.secondary.withValues(alpha: 0.28),
+              blurRadius: 24,
+              spreadRadius: 2,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -156,7 +166,11 @@ class _HintPill extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
-      decoration: BoxDecoration(color: AppColors.cameraScrim, borderRadius: AppSpacing.roundedMedium),
+      decoration: BoxDecoration(
+        color: AppColors.cameraScrim,
+        borderRadius: AppSpacing.roundedPill,
+        border: Border.all(color: AppColors.onCamera.withValues(alpha: 0.22)),
+      ),
       child: Text(text, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.onCamera, fontSize: 13)),
     );
   }
@@ -180,6 +194,7 @@ class _RoundAction extends StatelessWidget {
         backgroundColor: AppColors.cameraControl,
         foregroundColor: AppColors.onCamera,
         disabledForegroundColor: AppColors.onCameraDisabled,
+        side: BorderSide(color: AppColors.onCamera.withValues(alpha: 0.24)),
         fixedSize: const Size(48, 48),
       ),
     );

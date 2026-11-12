@@ -5,6 +5,7 @@ import 'package:finmate/core/network/api_exceptions.dart';
 import 'package:finmate/core/theme/app_colors.dart';
 import 'package:finmate/core/theme/app_spacing.dart';
 import 'package:finmate/core/theme/app_typography.dart';
+import 'package:finmate/core/widgets/glass/liquid_glass.dart';
 import 'package:finmate/features/finance_methods/data/finance_methods_repository.dart';
 import 'package:finmate/features/finance_methods/domain/finance_models.dart';
 import 'package:finmate/features/finance_methods/presentation/controllers/finance_providers.dart';
@@ -53,48 +54,57 @@ class MyMethodsScreen extends ConsumerWidget {
     final methods = ref.watch(myMethodsProvider);
     return Scaffold(
       appBar: AppBar(title: Text('Cách quản lý của tôi', style: AppTypography.h3(context))),
-      body: SafeArea(
-        child: methods.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, _) => FinanceFailure(message: errorMessage(error), onRetry: () => ref.invalidate(myMethodsProvider)),
-          data: (list) {
-            final sorted = [...list]..sort((a, b) => (b.isPrimary ? 1 : 0) - (a.isPrimary ? 1 : 0)); // cách chính lên đầu
-            return ListView(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              children: [
-                if (sorted.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl),
-                    child: Text(
-                      'Bạn chưa dùng cách nào. Hãy xem gợi ý hoặc tự chọn một cách bên dưới.',
-                      textAlign: TextAlign.center,
-                      style: AppTypography.body(context),
+      body: AmbientGlassBackground(
+        child: SafeArea(
+          child: methods.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (error, _) => FinanceFailure(message: errorMessage(error), onRetry: () => ref.invalidate(myMethodsProvider)),
+            data: (list) {
+              final sorted = [...list]..sort((a, b) => (b.isPrimary ? 1 : 0) - (a.isPrimary ? 1 : 0)); // cách chính lên đầu
+              return ListView(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                children: [
+                  ZenvestSurfaceSheet(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (sorted.isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl),
+                            child: Text(
+                              'Bạn chưa dùng cách nào. Hãy xem gợi ý hoặc tự chọn một cách bên dưới.',
+                              textAlign: TextAlign.center,
+                              style: AppTypography.body(context),
+                            ),
+                          ),
+                        for (final method in sorted)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                            child: _UserMethodCard(
+                              userMethod: method,
+                              onEdit: () => _edit(context, ref, method),
+                              onEnd: () => _end(context, ref, method),
+                            ),
+                          ),
+                        const SizedBox(height: AppSpacing.sm),
+                        OutlinedButton(
+                          key: const Key('see_recommendation'),
+                          onPressed: () => context.push('/finance-recommendation'),
+                          style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                          child: const Text('Xem gợi ý cho tôi'),
+                        ),
+                        TextButton(
+                          key: const Key('redo_survey'),
+                          onPressed: () => context.push('/finance-survey'),
+                          child: const Text('Làm lại khảo sát'),
+                        ),
+                      ],
                     ),
                   ),
-                for (final method in sorted)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                    child: _UserMethodCard(
-                      userMethod: method,
-                      onEdit: () => _edit(context, ref, method),
-                      onEnd: () => _end(context, ref, method),
-                    ),
-                  ),
-                const SizedBox(height: AppSpacing.sm),
-                OutlinedButton(
-                  key: const Key('see_recommendation'),
-                  onPressed: () => context.push('/finance-recommendation'),
-                  style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-                  child: const Text('Xem gợi ý cho tôi'),
-                ),
-                TextButton(
-                  key: const Key('redo_survey'),
-                  onPressed: () => context.push('/finance-survey'),
-                  child: const Text('Làm lại khảo sát'),
-                ),
-              ],
-            );
-          },
+                ],
+              );
+            },
+          ),
         ),
       ),
     );
@@ -112,6 +122,7 @@ class _UserMethodCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final method = userMethod.method;
     final editable = method.params.any((p) => p.userEditable);
+    final actionColor = AppColors.primaryAction(context);
     return FinanceCard(
       key: Key('method_${method.code}'),
       child: Column(
@@ -127,10 +138,10 @@ class _UserMethodCard extends StatelessWidget {
                 ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
-                decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.10), borderRadius: AppSpacing.roundedPill),
+                decoration: BoxDecoration(color: actionColor.withValues(alpha: 0.12), borderRadius: AppSpacing.roundedPill),
                 child: Text(
                   userMethod.isPrimary ? 'Cách chính' : 'Cách bổ trợ',
-                  style: AppTypography.caption(context).copyWith(color: AppColors.primary, fontWeight: FontWeight.w600),
+                  style: AppTypography.caption(context).copyWith(color: actionColor, fontWeight: FontWeight.w600),
                 ),
               ),
             ],
@@ -309,13 +320,13 @@ class _ParamEditorState extends ConsumerState<_ParamEditor> {
                     key: const Key('save_params'),
                     onPressed: _saving ? null : _save,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
+                      backgroundColor: AppColors.primaryAction(context),
+                      foregroundColor: AppColors.onPrimaryAction(context),
                       minimumSize: const Size(120, 48),
                       shape: const RoundedRectangleBorder(borderRadius: AppSpacing.roundedPill),
                     ),
                     child: _saving
-                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onPrimaryAction(context)))
                         : const Text('Lưu'),
                   ),
                 ],

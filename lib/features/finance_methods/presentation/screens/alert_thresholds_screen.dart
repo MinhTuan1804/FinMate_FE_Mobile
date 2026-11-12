@@ -6,6 +6,7 @@ import 'package:finmate/core/network/api_exceptions.dart';
 import 'package:finmate/core/theme/app_colors.dart';
 import 'package:finmate/core/theme/app_spacing.dart';
 import 'package:finmate/core/theme/app_typography.dart';
+import 'package:finmate/core/widgets/glass/liquid_glass.dart';
 import 'package:finmate/features/finance_methods/data/finance_methods_repository.dart';
 import 'package:finmate/features/finance_methods/domain/finance_models.dart';
 import 'package:finmate/features/finance_methods/presentation/controllers/finance_providers.dart';
@@ -22,25 +23,31 @@ class AlertThresholdsScreen extends ConsumerWidget {
     final settings = ref.watch(alertThresholdsProvider);
     return Scaffold(
       appBar: AppBar(title: Text('Ngưỡng cảnh báo ngân sách', style: AppTypography.h3(context))),
-      body: SafeArea(
-        child: settings.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, _) => FinanceFailure(message: errorMessage(error), onRetry: () => ref.invalidate(alertThresholdsProvider)),
-          data: (data) => ListView(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            children: [
-              Text(
-                'FinMate nhắc bạn khi chi tiêu chạm một phần hạn mức ngân sách. Vượt hết hạn mức (100%) luôn được báo.',
-                style: AppTypography.caption(context),
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              _CurrentCard(settings: data),
-              const SizedBox(height: AppSpacing.md),
-              if (data.followsMethod)
-                _MethodNotice(settings: data)
-              else
-                _ThresholdEditor(key: ValueKey('${data.source}-${data.effective.t1}-${data.effective.t2}'), settings: data),
-            ],
+      body: AmbientGlassBackground(
+        child: SafeArea(
+          child: settings.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (error, _) => FinanceFailure(message: errorMessage(error), onRetry: () => ref.invalidate(alertThresholdsProvider)),
+            data: (data) => ListView(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              children: [
+                Text(
+                  'FinMate nhắc bạn khi chi tiêu chạm một phần hạn mức ngân sách. Vượt hết hạn mức (100%) luôn được báo.',
+                  style: AppTypography.caption(context),
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                ZenvestHeroDeck(
+                  peekBadgeText: 'ALERT',
+                  child: _CurrentCard(settings: data),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                ZenvestSurfaceSheet(
+                  child: data.followsMethod
+                      ? _MethodNotice(settings: data)
+                      : _ThresholdEditor(key: ValueKey('${data.source}-${data.effective.t1}-${data.effective.t2}'), settings: data),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -264,13 +271,13 @@ class _ThresholdEditorState extends ConsumerState<_ThresholdEditor> {
                   key: const Key('save_thresholds'),
                   onPressed: _saving || !_dirty ? null : _save,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
+                    backgroundColor: AppColors.primaryAction(context),
+                    foregroundColor: AppColors.onPrimaryAction(context),
                     minimumSize: const Size(120, 48),
                     shape: const RoundedRectangleBorder(borderRadius: AppSpacing.roundedPill),
                   ),
                   child: _saving
-                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onPrimaryAction(context)))
                       : const Text('Lưu', style: TextStyle(fontWeight: FontWeight.w600)),
                 ),
               ],

@@ -115,6 +115,19 @@ class AuthController extends StateNotifier<AsyncValue<UserProfile?>> {
     state = await AsyncValue.guard(() => repository.googleLogin(idToken: idToken));
   }
 
+  Future<void> updateProfile({required String displayName, int? monthlyIncomeCents}) async {
+    final currentUser = state.value;
+    if (currentUser == null) {
+      throw ApiException(message: 'Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.', code: 'UNAUTHORIZED');
+    }
+
+    final updated = await repository.updateProfile(
+      displayName: displayName,
+      monthlyIncomeCents: monthlyIncomeCents,
+    );
+    state = AsyncValue.data(updated);
+  }
+
   Future<void> updateMonthlyIncome(int incomeCents) async {
     final currentUser = state.value;
     if (currentUser == null) {

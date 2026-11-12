@@ -6,6 +6,7 @@ import 'package:finmate/core/network/api_exceptions.dart';
 import 'package:finmate/core/theme/app_colors.dart';
 import 'package:finmate/core/theme/app_spacing.dart';
 import 'package:finmate/core/theme/app_typography.dart';
+import 'package:finmate/core/widgets/glass/liquid_glass.dart';
 import 'package:finmate/features/finance_methods/data/finance_methods_repository.dart';
 import 'package:finmate/features/finance_methods/domain/finance_models.dart';
 import 'package:finmate/features/finance_methods/presentation/controllers/finance_providers.dart';
@@ -124,11 +125,13 @@ class _SurveyScreenState extends ConsumerState<SurveyScreen> {
             if (survey.hasValue) TextButton(onPressed: _busy ? null : _confirmSkip, child: const Text('Để sau')),
           ],
         ),
-        body: SafeArea(
-          child: survey.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (error, _) => FinanceFailure(message: errorMessage(error), onRetry: () => ref.invalidate(surveyProvider)),
-            data: _content,
+        body: AmbientGlassBackground(
+          child: SafeArea(
+            child: survey.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (error, _) => FinanceFailure(message: errorMessage(error), onRetry: () => ref.invalidate(surveyProvider)),
+              data: _content,
+            ),
           ),
         ),
       ),
@@ -144,6 +147,8 @@ class _SurveyScreenState extends ConsumerState<SurveyScreen> {
     final question = visible[_index];
     final selected = _answers[question.code];
     final isLast = _index == visible.length - 1;
+    final actionColor = AppColors.primaryAction(context);
+    final onActionColor = AppColors.onPrimaryAction(context);
 
     return Column(
       children: [
@@ -154,44 +159,52 @@ class _SurveyScreenState extends ConsumerState<SurveyScreen> {
             semanticsLabel: 'Tiến độ khảo sát, câu ${_index + 1} trên ${visible.length}',
             minHeight: 6,
             borderRadius: AppSpacing.roundedPill,
-            color: AppColors.primary,
+            color: actionColor,
+            backgroundColor: AppColors.glassBorder(context),
           ),
         ),
         Expanded(
           child: ListView(
             padding: const EdgeInsets.all(AppSpacing.lg),
             children: [
-              Text('Câu ${_index + 1}/${visible.length}', style: AppTypography.caption(context)),
-              const SizedBox(height: AppSpacing.sm),
-              Text(question.text, key: const Key('survey_question'), style: AppTypography.h2(context)),
-              if (_index == 0) ...[
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  'FinMate dùng câu trả lời để gợi ý cách quản lý tài chính hợp với bạn. Chỉ các dấu hiệu ẩn danh được chuyển cho AI, và bạn không bị buộc áp dụng gợi ý.',
-                  style: AppTypography.caption(context),
-                ),
-              ],
-              const SizedBox(height: AppSpacing.lg),
-              for (final option in question.options)
-                _OptionTile(
-                  key: Key('option_${option.code}'),
-                  text: option.text,
-                  selected: selected == option.code,
-                  enabled: !_busy,
-                  onTap: () => _select(survey, question, option),
-                ),
-              if (_error != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: AppSpacing.sm),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Icon(LucideIcons.triangleAlert, size: 16, color: AppColors.danger),
-                      const SizedBox(width: AppSpacing.sm),
-                      Expanded(child: Text(_error!, style: AppTypography.caption(context).copyWith(color: AppColors.danger))),
+              ZenvestSurfaceSheet(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Câu ${_index + 1}/${visible.length}', style: AppTypography.caption(context)),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(question.text, key: const Key('survey_question'), style: AppTypography.h2(context)),
+                    if (_index == 0) ...[
+                      const SizedBox(height: AppSpacing.sm),
+                      Text(
+                        'FinMate dùng câu trả lời để gợi ý cách quản lý tài chính hợp với bạn. Chỉ các dấu hiệu ẩn danh được chuyển cho AI, và bạn không bị buộc áp dụng gợi ý.',
+                        style: AppTypography.caption(context),
+                      ),
                     ],
-                  ),
+                    const SizedBox(height: AppSpacing.lg),
+                    for (final option in question.options)
+                      _OptionTile(
+                        key: Key('option_${option.code}'),
+                        text: option.text,
+                        selected: selected == option.code,
+                        enabled: !_busy,
+                        onTap: () => _select(survey, question, option),
+                      ),
+                    if (_error != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: AppSpacing.sm),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(LucideIcons.triangleAlert, size: 16, color: AppColors.danger),
+                            const SizedBox(width: AppSpacing.sm),
+                            Expanded(child: Text(_error!, style: AppTypography.caption(context).copyWith(color: AppColors.danger))),
+                          ],
+                        ),
+                      ),
+                  ],
                 ),
+              ),
             ],
           ),
         ),
@@ -214,13 +227,13 @@ class _SurveyScreenState extends ConsumerState<SurveyScreen> {
                         ? () => _submit(survey)
                         : () => setState(() => _index++),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
+                  backgroundColor: actionColor,
+                  foregroundColor: onActionColor,
                   minimumSize: const Size(140, 48),
                   shape: const RoundedRectangleBorder(borderRadius: AppSpacing.roundedPill),
                 ),
                 child: _busy
-                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: onActionColor))
                     : Text(isLast ? 'Hoàn tất' : 'Tiếp', style: const TextStyle(fontWeight: FontWeight.w600)),
               ),
             ],
@@ -242,7 +255,7 @@ class _OptionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final actionColor = AppColors.primaryAction(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: Semantics(
@@ -253,17 +266,17 @@ class _OptionTile extends StatelessWidget {
         child: ExcludeSemantics(
           child: Material(
             color: selected
-                ? AppColors.primary.withValues(alpha: 0.10)
-                : (isDark ? AppColors.surfaceDark : AppColors.surfaceLight),
+                ? actionColor.withValues(alpha: 0.12)
+                : AppColors.surface(context).withValues(alpha: 0.72),
             shape: RoundedRectangleBorder(
-              borderRadius: AppSpacing.roundedMedium,
+              borderRadius: AppSpacing.roundedLarge,
               side: BorderSide(
-                color: selected ? AppColors.primary : (isDark ? AppColors.borderDark : AppColors.borderLight),
+                color: selected ? actionColor : AppColors.glassBorder(context),
                 width: selected ? 1.5 : 1,
               ),
             ),
             child: InkWell(
-              borderRadius: AppSpacing.roundedMedium,
+              borderRadius: AppSpacing.roundedLarge,
               onTap: enabled ? onTap : null,
               child: ConstrainedBox(
                 constraints: const BoxConstraints(minHeight: 56),
@@ -274,7 +287,7 @@ class _OptionTile extends StatelessWidget {
                       Icon(
                         selected ? LucideIcons.circleCheck : LucideIcons.circle,
                         size: 20,
-                        color: selected ? AppColors.primary : (isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
+                        color: selected ? actionColor : AppColors.textMuted(context),
                       ),
                       const SizedBox(width: AppSpacing.md),
                       Expanded(child: Text(text, style: AppTypography.body(context))),

@@ -6,6 +6,7 @@ import 'package:finmate/core/network/api_exceptions.dart';
 import 'package:finmate/core/theme/app_colors.dart';
 import 'package:finmate/core/theme/app_spacing.dart';
 import 'package:finmate/core/theme/app_typography.dart';
+import 'package:finmate/core/widgets/glass/liquid_glass.dart';
 import 'package:finmate/features/finance_methods/data/finance_methods_repository.dart';
 import 'package:finmate/features/finance_methods/domain/finance_models.dart';
 import 'package:finmate/features/finance_methods/presentation/controllers/finance_providers.dart';
@@ -128,7 +129,9 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
       },
       child: Scaffold(
         appBar: AppBar(title: Text('Gợi ý cho bạn', style: AppTypography.h3(context))),
-        body: SafeArea(child: _body(context)),
+        body: AmbientGlassBackground(
+          child: SafeArea(child: _body(context)),
+        ),
       ),
     );
   }
@@ -161,32 +164,38 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
       );
     }
 
+    final actionColor = AppColors.primaryAction(context);
+    final onActionColor = AppColors.onPrimaryAction(context);
+
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.lg),
       children: [
         Row(
           key: const Key('source_chip'),
           children: [
-            Icon(recommendation.fromAi ? LucideIcons.sparkles : LucideIcons.listChecks, size: 16, color: AppColors.primary),
+            Icon(recommendation.fromAi ? LucideIcons.sparkles : LucideIcons.listChecks, size: 16, color: actionColor),
             const SizedBox(width: AppSpacing.sm),
             Text(
               recommendation.fromAi ? 'AI gợi ý' : 'Gợi ý theo quy tắc',
-              style: AppTypography.bodyMedium(context).copyWith(color: AppColors.primary),
+              style: AppTypography.bodyMedium(context).copyWith(color: actionColor),
             ),
           ],
         ),
         const SizedBox(height: AppSpacing.sm),
         Text('Đây chỉ là gợi ý để bạn tham khảo. Dùng hay không là quyền của bạn.', style: AppTypography.caption(context)),
         const SizedBox(height: AppSpacing.lg),
-        _RecommendedCard(
-          title: 'Cách chính',
-          item: recommendation.primary,
-          fromAi: recommendation.fromAi,
-          applied: _applied.contains(recommendation.primary.method.code),
-          busy: _busy,
-          actionKey: const Key('apply_primary'),
-          actionLabel: 'Dùng làm cách chính',
-          onApply: () => _apply(recommendation.primary.method, 'primary'),
+        ZenvestHeroDeck(
+          peekBadgeText: 'AI',
+          child: _RecommendedCard(
+            title: 'Cách chính',
+            item: recommendation.primary,
+            fromAi: recommendation.fromAi,
+            applied: _applied.contains(recommendation.primary.method.code),
+            busy: _busy,
+            actionKey: const Key('apply_primary'),
+            actionLabel: 'Dùng làm cách chính',
+            onApply: () => _apply(recommendation.primary.method, 'primary'),
+          ),
         ),
         if (recommendation.support case final support?) ...[
           const SizedBox(height: AppSpacing.md),
@@ -207,8 +216,8 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
             key: const Key('done'),
             onPressed: _finish,
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
+              backgroundColor: actionColor,
+              foregroundColor: onActionColor,
               minimumSize: const Size.fromHeight(48),
               shape: const RoundedRectangleBorder(borderRadius: AppSpacing.roundedPill),
             ),
@@ -251,6 +260,8 @@ class _RecommendedCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final actionColor = AppColors.primaryAction(context);
+    final onActionColor = AppColors.onPrimaryAction(context);
     return FinanceCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -265,15 +276,16 @@ class _RecommendedCard extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.all(AppSpacing.md),
             decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.08),
+              color: actionColor.withValues(alpha: 0.08),
               borderRadius: AppSpacing.roundedSmall,
+              border: Border.all(color: actionColor.withValues(alpha: 0.16)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Icon(fromAi ? LucideIcons.sparkles : LucideIcons.listChecks, size: 14, color: AppColors.primary),
+                    Icon(fromAi ? LucideIcons.sparkles : LucideIcons.listChecks, size: 14, color: actionColor),
                     const SizedBox(width: AppSpacing.xs),
                     Text('Vì sao hợp với bạn', style: AppTypography.caption(context).copyWith(fontWeight: FontWeight.w700)),
                   ],
@@ -306,8 +318,8 @@ class _RecommendedCard extends StatelessWidget {
                     key: actionKey,
                     onPressed: busy ? null : onApply,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
+                      backgroundColor: actionColor,
+                      foregroundColor: onActionColor,
                       minimumSize: const Size.fromHeight(48),
                       shape: const RoundedRectangleBorder(borderRadius: AppSpacing.roundedPill),
                     ),

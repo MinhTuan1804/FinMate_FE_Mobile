@@ -64,7 +64,7 @@ class _ChooseMethodCard extends ConsumerWidget {
         children: [
           Row(
             children: [
-              const Icon(LucideIcons.compass, size: 20, color: AppColors.primary),
+              Icon(LucideIcons.compass, size: 20, color: AppColors.primaryAction(context)),
               const SizedBox(width: AppSpacing.sm),
               Expanded(child: Text('Chọn cách quản lý tài chính', style: AppTypography.h3(context))),
             ],
@@ -84,8 +84,8 @@ class _ChooseMethodCard extends ConsumerWidget {
                 key: const Key('start_finance_flow'),
                 onPressed: () => context.push(surveyDone ? '/finance-recommendation' : '/finance-survey'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
+                  backgroundColor: AppColors.primaryAction(context),
+                  foregroundColor: AppColors.onPrimaryAction(context),
                   minimumSize: const Size(0, 44),
                   shape: const RoundedRectangleBorder(borderRadius: AppSpacing.roundedPill),
                 ),
@@ -434,7 +434,7 @@ class _AllocationRow extends StatelessWidget {
                 value: (percent / 100).clamp(0.0, 1.0),
                 minHeight: 8,
                 borderRadius: AppSpacing.roundedPill,
-                color: AppColors.primary,
+                color: AppColors.primaryAction(context),
                 backgroundColor: isDark ? AppColors.surfaceDarkElevated : AppColors.surfaceLightSubtle,
               ),
             ],
@@ -585,7 +585,7 @@ class _GoalsBlock extends ConsumerWidget {
             ListTile(
               contentPadding: EdgeInsets.zero,
               minVerticalPadding: AppSpacing.sm,
-              leading: const Icon(LucideIcons.target, size: 20, color: AppColors.primary),
+              leading: Icon(LucideIcons.target, size: 20, color: AppColors.primaryAction(context)),
               title: Text(suggestion.name, style: AppTypography.bodyMedium(context)),
               subtitle: Text(suggestion.description, style: AppTypography.caption(context)),
               trailing: const Icon(LucideIcons.chevronRight, size: 18),
@@ -668,8 +668,8 @@ class _StarterStepsBlock extends StatelessWidget {
                   width: 24,
                   height: 24,
                   alignment: Alignment.center,
-                  decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.12), shape: BoxShape.circle),
-                  child: Text('${i + 1}', style: AppTypography.caption(context).copyWith(color: AppColors.primary, fontWeight: FontWeight.w700)),
+                  decoration: BoxDecoration(color: AppColors.primaryAction(context).withValues(alpha: 0.14), shape: BoxShape.circle),
+                  child: Text('${i + 1}', style: AppTypography.caption(context).copyWith(color: AppColors.primaryAction(context), fontWeight: FontWeight.w700)),
                 ),
                 const SizedBox(width: AppSpacing.md),
                 Expanded(child: Text(method.starterSteps[i], style: AppTypography.body(context))),

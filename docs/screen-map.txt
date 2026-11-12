@@ -1,0 +1,229 @@
+FINMATE MOBILE - DANH SÁCH MÀN HÌNH VÀ QUAN HỆ CHA/CON
+=======================================================
+
+Ký hiệu:
+  [CÓ]   đã có code FE
+  [MỚI]  chưa có FE, BE đã có API
+  [BE?]  chờ BE làm xong
+  [DÙNG CHUNG] một màn, nhiều lối vào, chỉ thiết kế một lần
+
+Kế hoạch dựng UI trên Stitch cho danh sách này: docs/stitch-ui-plan.md
+
+Tổng: khoảng 75 màn full-screen + khoảng 10 sheet/dialog.
+  - Đã có: 21
+  - Chưa có, BE sẵn sàng: khoảng 47
+  - Chờ BE: 7 (G9, G10, G11, H5, H6, H9, H10)
+
+
+-------------------------------------------------------
+A. XÁC THỰC VÀ KHỞI ĐẦU
+-------------------------------------------------------
+A1  Welcome                         [CÓ]   cha: gốc
+A2  Đăng nhập                       [CÓ]   cha: A1   API: auth/login, auth/google
+A3  Quên mật khẩu                   [MỚI]  cha: A2   API: auth/forgot-password
+A4  Đặt lại mật khẩu                [MỚI]  cha: A3   API: auth/reset-password
+A5  Đăng ký                         [CÓ]   cha: A1   API: auth/register
+A6  Xác thực OTP                    [CÓ]   cha: A5   API: auth/verify-email
+A7  Đồng ý Điều khoản               [CÓ]   cha: A6   API: users/me/consents
+A8  Đồng ý Training AI              [CÓ]   cha: A7   API: consent Training
+A9  Thiết lập ban đầu               [CÓ]   cha: A8   API: users/me
+
+
+-------------------------------------------------------
+B. TRANG CHỦ (TAB 1)
+-------------------------------------------------------
+B1  Trang chủ                       [CÓ]   cha: tab
+B2  Thông báo                       [MỚI]  cha: B1
+B3  Khảo sát cách quản lý           [CÓ]   cha: B1
+B4  Gợi ý cách quản lý              [CÓ]   cha: B3
+B5  Cách của tôi                    [CÓ]   cha: B1
+B6  Chi tiết một cách (tham số, hũ) [MỚI]  cha: B5
+B7  Ngưỡng cảnh báo                 [CÓ] [DÙNG CHUNG]  cha: B5 và H4
+
+
+-------------------------------------------------------
+C. CHUYỂN KHOẢN QR (NÚT GIỮA THANH NAV)
+-------------------------------------------------------
+C1  Quét QR                         [CÓ]   cha: nav
+C2  Xác nhận chuyển khoản           [CÓ]   cha: C1
+C3  Lịch sử QR                      [CÓ]   cha: C1
+C4  Người nhận đã lưu               [MỚI]  cha: C3   API: qr/counterparties
+C5  Sửa người nhận                  [MỚI]  cha: C4
+
+
+-------------------------------------------------------
+D. GIAO DỊCH (TAB 2)
+-------------------------------------------------------
+D1  Danh sách giao dịch             [CÓ]   cha: tab
+D2  Chi tiết / sửa giao dịch        [MỚI]  cha: D1
+D3  Chuyển tiền giữa ví             [MỚI]  cha: D1   API: transactions/transfer
+D4  Quét hóa đơn (camera, kết quả)  [MỚI]  cha: D1   API: transactions/scan-receipt
+
+
+-------------------------------------------------------
+E. TRỢ LÝ AI (TAB 3)
+-------------------------------------------------------
+E1  Chat trợ lý                     [CÓ]   cha: tab
+E2  Xem lại giao dịch AI trích xuất [CÓ]   cha: E1
+E3  Bộ nhớ AI                       [MỚI]  cha: E1   API: agent/memory
+
+
+-------------------------------------------------------
+F. PHÂN TÍCH (TAB 4)
+-------------------------------------------------------
+F1  Tổng quan phân tích             [CÓ]   cha: tab
+F2  Báo cáo theo danh mục           [MỚI]  cha: F1   API: reports
+F3  Dự báo dòng tiền                [MỚI]  cha: F1   API: forecast/cashflow
+F4  Cảnh báo và bất thường          [MỚI]  cha: F1   API: forecast/alerts, anomalies
+F5  Kiểm tra mua sắm                [MỚI]  cha: F1   API: forecast/purchase-check
+F6  Nhận xét của AI (insights)      [MỚI]  cha: F1   API: reports/insights
+
+
+-------------------------------------------------------
+G. KẾ HOẠCH (TAB 5)
+-------------------------------------------------------
+G1  Kế hoạch (hub)                  [CÓ]   cha: tab
+G2  Danh sách mục tiêu tiết kiệm    [MỚI]  cha: G1   API: saving-goals
+G3  Tạo/sửa mục tiêu (kèm khả thi)  [MỚI]  cha: G2
+G4  Chi tiết mục tiêu, đóng góp     [MỚI]  cha: G2
+G5  Danh sách ngân sách             [MỚI]  cha: G1   API: budgets
+G6  Tạo/sửa ngân sách               [MỚI]  cha: G5
+G7  Giao dịch định kỳ               [MỚI]  cha: G1   API: recurring-items
+G8  Tạo/sửa khoản định kỳ           [MỚI]  cha: G7
+G9  Danh sách khoản vay             [BE?]  cha: G1
+G10 Thêm/sửa khoản vay              [BE?]  cha: G9
+G11 Chi tiết khoản vay, lịch trả    [BE?]  cha: G9
+
+
+-------------------------------------------------------
+H. HỒ SƠ VÀ CÀI ĐẶT (TAB 6, MÀN "16" TRONG WIREFRAME)
+-------------------------------------------------------
+H1  Cá nhân và Cài đặt (hub)        [CÓ]   cha: tab    API: users/me
+H2  Sửa hồ sơ và thu nhập           [MỚI]  cha: H1     API: users/me
+H3  Giao diện và hiển thị (17)      [MỚI]  cha: H1     (lưu ở máy)
+H4  Ngưỡng cảnh báo (18)            [CÓ] [DÙNG CHUNG]  cha: H1   API: me/alert-thresholds
+H5  Sao lưu và Xuất dữ liệu (19)    [BE?]  cha: H1
+H6  Nhập dữ liệu (20)               [BE?]  cha: H1
+H7  Tài khoản và Nguồn tiền (21)    [MỚI]  cha: H1     API: financial-accounts
+H8  Thêm/sửa tài khoản              [MỚI]  cha: H7
+H9  Điều khoản sử dụng (22)         [BE?] [DÙNG CHUNG]  cha: H1 và A7
+H10 Chính sách bảo mật (23)         [BE?] [DÙNG CHUNG]  cha: H1 và A7
+H11 Quyền đồng ý                    [MỚI]  cha: H1     API: me/consents/{kind}
+H12 Danh mục                        [MỚI]  cha: H1     API: categories
+H13 Thêm/sửa danh mục               [MỚI]  cha: H12
+H14 Gói đăng ký                     [MỚI]  cha: H1     API: subscriptions
+H15 Lịch sử thanh toán              [MỚI]  cha: H14    API: subscriptions/orders
+H16 Hỗ trợ: danh sách ticket        [MỚI]  cha: H1     API: support/tickets
+H17 Tạo ticket                      [MỚI]  cha: H16
+H18 Chi tiết ticket và chat         [MỚI]  cha: H16
+H19 Duyệt quyền truy cập hỗ trợ     [MỚI]  cha: H18    API: support/access-requests
+H20 Đổi mật khẩu                    [MỚI]  cha: H1     API: auth/change-password
+H21 Xóa tài khoản                   [MỚI]  cha: H1     API: auth/account
+
+Toggle trong H1 (không phải màn riêng):
+  - Thông báo đẩy (Push Notifications)
+  - Cảnh báo ngân sách tự động
+  API: users/me/notification-prefs
+
+
+-------------------------------------------------------
+I. NHÓM CHI TIÊU CHUNG (cha lối vào: H1 hoặc B1, chưa chốt)
+-------------------------------------------------------
+I1  Danh sách nhóm                  [MỚI]  API: groups
+I2  Tạo nhóm                        [MỚI]  cha: I1
+I3  Chi tiết nhóm (giao dịch, ngân sách, mục tiêu, báo cáo)  [MỚI]  cha: I1
+I4  Thành viên                      [MỚI]  cha: I3
+I5  Mời thành viên                  [MỚI]  cha: I4
+I6  Nhận lời mời (xem trước)        [MỚI]  cha: deep link   API: group-invitations
+I7  Cài đặt nhóm (cảnh báo, luật chia, chuyển quyền, rời nhóm)  [MỚI]  cha: I3
+
+
+-------------------------------------------------------
+J. CỘNG ĐỒNG (cha lối vào chưa chốt)
+-------------------------------------------------------
+J1  Bảng tin                        [MỚI]  API: community/posts
+J2  Chi tiết bài viết, bình luận    [MỚI]  cha: J1
+J3  Đăng/sửa bài                    [MỚI]  cha: J1
+J4  Địa điểm: danh sách             [MỚI]  cha: J1   API: community/places
+J5  Chi tiết địa điểm               [MỚI]  cha: J4
+J6  Hồ sơ cộng đồng của tôi         [MỚI]  cha: J1   API: community/me
+
+
+-------------------------------------------------------
+K. WIDGET MÀN HÌNH CHÍNH (bề mặt riêng ngoài app, thiết kế ở lô L9)
+-------------------------------------------------------
+W1  Widget nhỏ 2x2: Chi an toàn hôm nay     [MỚI]  chạm: mở B1
+W2  Widget vừa 4x2: Số dư + Ghi chép/Hỏi FinMate  [MỚI]  chạm: mở sheet tạo giao dịch hoặc E1
+W3  Widget lớn 4x4: Dự báo + 3 giao dịch gần nhất + mic/quét  [MỚI]  chạm: mở màn tương ứng
+W4  Cấu hình widget + ảnh xem trước trong bộ chọn  [MỚI]  công tắc "Ẩn số dư" dùng chung với H3
+Dữ liệu: app đẩy ra widget (budgets, financial-accounts, reports/forecast, transactions).
+
+
+-------------------------------------------------------
+SHEET / DIALOG (không phải màn full-screen)
+-------------------------------------------------------
+- Tạo giao dịch                  (đã có)
+- Sửa nháp giao dịch             (đã có)
+- Chọn ngân hàng                 (đã có)
+- Bộ lọc giao dịch
+- Đóng góp vào mục tiêu
+- Ghi nhận trả nợ
+- Xác nhận xóa tài khoản
+- Phản hồi cảnh báo / bất thường
+- Đánh giá ticket hỗ trợ
+- Báo cáo bài viết / bình luận
+
+
+-------------------------------------------------------
+CÂY CHA/CON RÚT GỌN
+-------------------------------------------------------
+Welcome (A1)
+ |- Đăng nhập (A2) -> Quên mật khẩu (A3) -> Đặt lại mật khẩu (A4)
+ `- Đăng ký (A5) -> OTP (A6) -> Điều khoản (A7) -> Training AI (A8) -> Thiết lập ban đầu (A9)
+                                  `- liên kết: Đọc Điều khoản (H9), Chính sách bảo mật (H10)
+
+Tab Trang chủ (B1)
+ |- Thông báo (B2)
+ |- Cách của tôi (B5) -> Chi tiết cách (B6), Ngưỡng cảnh báo (B7)
+ |- Khảo sát (B3) -> Gợi ý (B4) -> Cách của tôi (B5)
+ `- QR (C1) -> Xác nhận (C2) | Lịch sử (C3) -> Người nhận đã lưu (C4) -> Sửa (C5)
+
+Tab Giao dịch (D1) -> Chi tiết (D2) | Chuyển ví (D3) | Quét hóa đơn (D4)
+
+Tab Trợ lý AI (E1) -> Xem lại giao dịch AI (E2) | Bộ nhớ AI (E3)
+
+Tab Phân tích (F1) -> Báo cáo (F2) | Dự báo (F3) | Cảnh báo (F4) | Kiểm tra mua sắm (F5) | Insights (F6)
+
+Tab Kế hoạch (G1)
+ |- Mục tiêu (G2) -> Tạo/sửa (G3) | Chi tiết (G4)
+ |- Ngân sách (G5) -> Tạo/sửa (G6)
+ |- Định kỳ (G7) -> Tạo/sửa (G8)
+ `- Khoản vay (G9) -> Thêm/sửa (G10) | Chi tiết (G11)
+
+Tab Hồ sơ / Cài đặt (H1)
+ |- Sửa hồ sơ (H2)
+ |- Giao diện (H3)
+ |- Ngưỡng cảnh báo (H4)
+ |- Sao lưu và xuất (H5)
+ |- Nhập dữ liệu (H6)
+ |- Tài khoản và nguồn tiền (H7) -> Thêm/sửa (H8)
+ |- Điều khoản (H9)
+ |- Chính sách bảo mật (H10)
+ |- Quyền đồng ý (H11)
+ |- Danh mục (H12) -> Thêm/sửa (H13)
+ |- Gói đăng ký (H14) -> Lịch sử thanh toán (H15)
+ |- Hỗ trợ (H16) -> Tạo ticket (H17) | Chi tiết ticket (H18) -> Duyệt quyền truy cập (H19)
+ |- Nhóm chung (I1) -> Tạo (I2) | Chi tiết (I3) -> Thành viên (I4) -> Mời (I5) | Cài đặt nhóm (I7)
+ |- Cộng đồng (J1) -> Chi tiết bài (J2) | Đăng bài (J3) | Địa điểm (J4) -> Chi tiết (J5) | Hồ sơ CĐ (J6)
+ |- Đổi mật khẩu (H20)
+ `- Xóa tài khoản (H21)
+
+
+-------------------------------------------------------
+VIỆC CẦN CHỐT
+-------------------------------------------------------
+1. Nhóm chung (I) và Cộng đồng (J) có nằm trong phạm vi bản mobile này không (13 màn).
+2. Lối vào của I và J: từ Cài đặt (H1) hay từ Trang chủ (B1).
+3. Điều khoản (H9), Chính sách (H10): chờ BE chốt endpoint và định dạng nội dung.
+4. Khoản vay (G9-G11), Sao lưu/Xuất (H5), Nhập dữ liệu (H6): chờ BE chốt contract.
+5. Thứ tự ưu tiên đề xuất: H (Cài đặt), G (Kế hoạch), D2-D4, F2-F5; I và J làm sau.

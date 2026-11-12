@@ -8,6 +8,7 @@ import 'package:finmate/core/network/api_exceptions.dart';
 import 'package:finmate/core/theme/app_colors.dart';
 import 'package:finmate/core/theme/app_spacing.dart';
 import 'package:finmate/core/theme/app_typography.dart';
+import 'package:finmate/core/widgets/glass/liquid_glass.dart';
 import 'package:finmate/features/accounts/domain/financial_account.dart';
 import 'package:finmate/features/accounts/presentation/controllers/accounts_controller.dart';
 import 'package:finmate/features/categories/presentation/categories_provider.dart';
@@ -15,7 +16,7 @@ import 'package:finmate/features/categories/presentation/category_icons.dart';
 import 'package:finmate/features/transactions/domain/entities/transaction_entity.dart';
 import 'package:finmate/features/transactions/presentation/controllers/transaction_controller.dart';
 
-/// Bottom Sheet nhập liệu giao dịch (BR-21 -> BR-24). Giọng nói và OCR chưa sẵn sàng nên bị vô hiệu.
+/// Bottom Sheet nhập liệu giao dịch (BR-21 -> BR-24) chuẩn Liquid Glass (Tầng 2 Floating).
 class CreateTransactionBottomSheet extends ConsumerStatefulWidget {
   final int initialTab;
 
@@ -31,12 +32,18 @@ class CreateTransactionBottomSheet extends ConsumerStatefulWidget {
   }
 
   @override
-  ConsumerState<CreateTransactionBottomSheet> createState() => _CreateTransactionBottomSheetState();
+  ConsumerState<CreateTransactionBottomSheet> createState() =>
+      _CreateTransactionBottomSheetState();
 }
 
-class _CreateTransactionBottomSheetState extends ConsumerState<CreateTransactionBottomSheet>
+class _CreateTransactionBottomSheetState
+    extends ConsumerState<CreateTransactionBottomSheet>
     with SingleTickerProviderStateMixin {
-  late final TabController _tabController = TabController(length: 4, vsync: this, initialIndex: widget.initialTab);
+  late final TabController _tabController = TabController(
+    length: 4,
+    vsync: this,
+    initialIndex: widget.initialTab,
+  );
 
   // Thủ công
   final _amountController = TextEditingController();
@@ -56,9 +63,14 @@ class _CreateTransactionBottomSheetState extends ConsumerState<CreateTransaction
     super.dispose();
   }
 
-  /// Tài khoản đang chọn (mặc định là tài khoản đầu tiên nếu chưa chọn hoặc không còn tồn tại)
-  String _effectiveId(String? selected, List<FinancialAccount> accounts, {int fallbackIndex = 0}) {
-    if (selected != null && accounts.any((a) => a.id == selected)) return selected;
+  String _effectiveId(
+    String? selected,
+    List<FinancialAccount> accounts, {
+    int fallbackIndex = 0,
+  }) {
+    if (selected != null && accounts.any((a) => a.id == selected)) {
+      return selected;
+    }
     return accounts[math.min(fallbackIndex, accounts.length - 1)].id;
   }
 
@@ -78,7 +90,9 @@ class _CreateTransactionBottomSheetState extends ConsumerState<CreateTransaction
       return;
     }
     if (isTransfer && from == to) {
-      setState(() => _classicError = 'Tài khoản nguồn và đích không được trùng nhau');
+      setState(
+        () => _classicError = 'Tài khoản nguồn và đích không được trùng nhau',
+      );
       return;
     }
 
@@ -112,7 +126,10 @@ class _CreateTransactionBottomSheetState extends ConsumerState<CreateTransaction
       }
       navigator.pop();
       messenger.showSnackBar(
-        const SnackBar(content: Text('Đã thêm giao dịch thành công!'), backgroundColor: AppColors.safe),
+        const SnackBar(
+          content: Text('Đã thêm giao dịch thành công!'),
+          backgroundColor: AppColors.safe,
+        ),
       );
     } catch (e) {
       if (mounted) setState(() => _classicError = errorMessage(e));
@@ -133,11 +150,16 @@ class _CreateTransactionBottomSheetState extends ConsumerState<CreateTransaction
           decoration: const InputDecoration(labelText: 'Số dư hiện có (VNĐ)'),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Hủy'),
+          ),
           ElevatedButton(
             onPressed: () {
               final text = balanceController.text.trim();
-              final value = text.isEmpty ? BigInt.zero : parseAmountInput(text, allowZero: true);
+              final value = text.isEmpty
+                  ? BigInt.zero
+                  : parseAmountInput(text, allowZero: true);
               if (value != null) Navigator.pop(ctx, value);
             },
             child: const Text('Tạo ví'),
@@ -161,69 +183,81 @@ class _CreateTransactionBottomSheetState extends ConsumerState<CreateTransaction
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final media = MediaQuery.of(context);
     final keyboard = media.viewInsets.bottom;
-    final height = math.min(media.size.height * 0.75, media.size.height - keyboard - media.padding.top - 16);
+    final height = math.min(
+      media.size.height * 0.78,
+      media.size.height - keyboard - media.padding.top - 16,
+    );
+    final actionColor = AppColors.primaryAction(context);
 
-    // Đẩy sheet lên trên bàn phím để không che ô nhập
     return Padding(
       padding: EdgeInsets.only(bottom: keyboard),
-      child: Container(
-        height: height,
-        decoration: BoxDecoration(
-          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Column(
-          children: [
-            Center(
-              child: Container(
-                margin: const EdgeInsets.only(top: 12, bottom: 8),
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.white24 : Colors.black12,
-                  borderRadius: BorderRadius.circular(2),
+      child: LiquidGlassCard(
+        variant: LiquidGlassVariant.floating,
+        borderRadius: AppSpacing.roundedTopSheet,
+        padding: EdgeInsets.zero,
+        child: SizedBox(
+          height: height,
+          child: Material(
+            type: MaterialType.transparency,
+            child: Column(
+              children: [
+                Center(
+                  child: Container(
+                    margin: const EdgeInsets.only(top: 12, bottom: 8),
+                    width: 42,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.textMuted(context).withValues(alpha: 0.45),
+                      borderRadius: AppSpacing.roundedPill,
+                    ),
+                  ),
                 ),
-              ),
-            ),
-            TabBar(
-              controller: _tabController,
-              labelColor: AppColors.primary,
-              unselectedLabelColor: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-              indicatorColor: AppColors.primary,
-              indicatorWeight: 3,
-              labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-              tabs: const [
-                Tab(icon: Icon(LucideIcons.sparkles, size: 18), text: 'AI Text'),
-                Tab(icon: Icon(LucideIcons.mic, size: 18), text: 'Giọng nói'),
-                Tab(icon: Icon(LucideIcons.scanLine, size: 18), text: 'Hóa đơn'),
-                Tab(icon: Icon(LucideIcons.pencil, size: 18), text: 'Thủ công'),
+                TabBar(
+                  controller: _tabController,
+                  labelColor: actionColor,
+                  unselectedLabelColor: AppColors.textSecondary(context),
+                  indicatorColor: actionColor,
+                  indicatorWeight: 2.5,
+                  dividerColor: AppColors.border(context),
+                  labelStyle: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
+                  tabs: const [
+                    Tab(icon: Icon(LucideIcons.sparkles, size: 18), text: 'AI Text'),
+                    Tab(icon: Icon(LucideIcons.mic, size: 18), text: 'Giọng nói'),
+                    Tab(icon: Icon(LucideIcons.scanLine, size: 18), text: 'Hóa đơn'),
+                    Tab(icon: Icon(LucideIcons.pencil, size: 18), text: 'Thủ công'),
+                  ],
+                ),
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildAssistantTab(),
+                      _buildAssistantTab(
+                        icon: LucideIcons.mic,
+                        description:
+                            'Nói tự nhiên, FinMate chuyển thành chữ để bạn kiểm tra rồi gửi cho trợ lý.',
+                        button: 'Nói để ghi chép',
+                        route: '/assistant?start=voice',
+                      ),
+                      _buildAssistantTab(
+                        icon: LucideIcons.scanLine,
+                        description:
+                            'Chụp hoặc chọn ảnh hóa đơn, FinMate đọc số tiền và cửa hàng để bạn kiểm tra rồi lưu.',
+                        button: 'Quét hóa đơn',
+                        route: '/assistant?start=scan',
+                      ),
+                      _buildClassicTab(),
+                    ],
+                  ),
+                ),
               ],
             ),
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildAssistantTab(),
-                  _buildAssistantTab(
-                    icon: LucideIcons.mic,
-                    description: 'Nói tự nhiên, FinMate chuyển thành chữ để bạn kiểm tra rồi gửi cho trợ lý.',
-                    button: 'Nói để ghi chép',
-                    route: '/assistant?start=voice',
-                  ),
-                  _buildAssistantTab(
-                    icon: LucideIcons.scanLine,
-                    description: 'Chụp hoặc chọn ảnh hóa đơn, FinMate đọc số tiền và cửa hàng để bạn kiểm tra rồi lưu.',
-                    button: 'Quét hóa đơn',
-                    route: '/assistant?start=scan',
-                  ),
-                  _buildClassicTab(isDark),
-                ],
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -238,39 +272,44 @@ class _CreateTransactionBottomSheetState extends ConsumerState<CreateTransaction
         ),
       );
 
-  // AI Text / Giọng nói / Hóa đơn: chuyển sang màn trợ lý (chat)
   Widget _buildAssistantTab({
     IconData icon = LucideIcons.sparkles,
-    String description = 'Nhắn tự nhiên như "ăn phở 45k", FinMate tự ghi chép hoặc trả lời câu hỏi chi tiêu của bạn.',
+    String description =
+        'Nhắn tự nhiên như "ăn phở 45k", FinMate tự ghi chép hoặc trả lời câu hỏi chi tiêu của bạn.',
     String button = 'Mở trợ lý',
     String route = '/assistant',
   }) {
+    final actionColor = AppColors.primaryAction(context);
     return Padding(
-      padding: const EdgeInsets.all(20.0),
+      padding: const EdgeInsets.all(24.0),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Icon(icon, size: 36, color: AppColors.primary),
+          Center(
+            child: Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                color: actionColor.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: 30, color: actionColor),
+            ),
+          ),
           const SizedBox(height: 16),
           Text(
             description,
             textAlign: TextAlign.center,
             style: AppTypography.body(context),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
           ElevatedButton(
             onPressed: () {
               final router = GoRouter.of(context);
               Navigator.of(context).pop();
               router.push(route);
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: const RoundedRectangleBorder(borderRadius: AppSpacing.roundedPill),
-            ),
             child: Text(button),
           ),
         ],
@@ -278,9 +317,7 @@ class _CreateTransactionBottomSheetState extends ConsumerState<CreateTransaction
     );
   }
 
-
-  // 4. Thủ công (BR-24, BR-26, BR-27)
-  Widget _buildClassicTab(bool isDark) {
+  Widget _buildClassicTab() {
     return ref.watch(accountsControllerProvider).when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(
@@ -291,38 +328,45 @@ class _CreateTransactionBottomSheetState extends ConsumerState<CreateTransaction
                 children: [
                   Text(errorMessage(e), textAlign: TextAlign.center),
                   TextButton(
-                    onPressed: () => ref.read(accountsControllerProvider.notifier).load(),
+                    onPressed: () =>
+                        ref.read(accountsControllerProvider.notifier).load(),
                     child: const Text('Thử lại'),
                   ),
                 ],
               ),
             ),
           ),
-          data: (accounts) => accounts.isEmpty ? _buildNoAccount() : _buildClassicForm(accounts),
+          data: (accounts) =>
+              accounts.isEmpty ? _buildNoAccount() : _buildClassicForm(accounts),
         );
   }
 
   Widget _buildNoAccount() {
+    final actionColor = AppColors.primaryAction(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(LucideIcons.wallet, size: 40, color: AppColors.primary),
+            Icon(LucideIcons.wallet, size: 40, color: actionColor),
             const SizedBox(height: 12),
-            Text('Bạn chưa có tài khoản nào', style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w600)),
+            Text(
+              'Bạn chưa có tài khoản nào',
+              style: AppTypography.body(context).copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
             const SizedBox(height: 4),
-            Text('Tạo một ví để bắt đầu ghi chép giao dịch.', style: AppTypography.caption(context), textAlign: TextAlign.center),
+            Text(
+              'Tạo một ví để bắt đầu ghi chép giao dịch.',
+              style: AppTypography.caption(context),
+              textAlign: TextAlign.center,
+            ),
             if (_classicError != null) _errorText(_classicError!),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: _createWallet,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                shape: const RoundedRectangleBorder(borderRadius: AppSpacing.roundedPill),
-              ),
               child: const Text('Tạo ví tiền mặt'),
             ),
           ],
@@ -342,8 +386,18 @@ class _CreateTransactionBottomSheetState extends ConsumerState<CreateTransaction
       key: ValueKey('$label-$value'),
       initialValue: value,
       isExpanded: true,
-      decoration: InputDecoration(labelText: label, prefixIcon: Icon(icon, size: 20)),
-      items: accounts.map((a) => DropdownMenuItem(value: a.id, child: Text(a.name, overflow: TextOverflow.ellipsis))).toList(),
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, size: 20),
+      ),
+      items: accounts
+          .map(
+            (a) => DropdownMenuItem(
+              value: a.id,
+              child: Text(a.name, overflow: TextOverflow.ellipsis),
+            ),
+          )
+          .toList(),
       onChanged: (v) {
         if (v != null) onChanged(v);
       },
@@ -409,11 +463,19 @@ class _CreateTransactionBottomSheetState extends ConsumerState<CreateTransaction
           ] else ...[
             DropdownButtonFormField<String?>(
               key: ValueKey('cat-$_categoryId-${categories.length}'),
-              initialValue: categories.any((c) => c.id == _categoryId) ? _categoryId : null,
+              initialValue: categories.any((c) => c.id == _categoryId)
+                  ? _categoryId
+                  : null,
               isExpanded: true,
-              decoration: const InputDecoration(labelText: 'Danh mục', prefixIcon: Icon(LucideIcons.tag, size: 20)),
+              decoration: const InputDecoration(
+                labelText: 'Danh mục',
+                prefixIcon: Icon(LucideIcons.tag, size: 20),
+              ),
               items: [
-                const DropdownMenuItem<String?>(value: null, child: Text('Chưa phân loại')),
+                const DropdownMenuItem<String?>(
+                  value: null,
+                  child: Text('Chưa phân loại'),
+                ),
                 ...categories.map(
                   (c) => DropdownMenuItem<String?>(
                     value: c.id,
@@ -421,7 +483,9 @@ class _CreateTransactionBottomSheetState extends ConsumerState<CreateTransaction
                       children: [
                         Icon(categoryIcon(c.slug), size: 18),
                         const SizedBox(width: 8),
-                        Flexible(child: Text(c.name, overflow: TextOverflow.ellipsis)),
+                        Flexible(
+                          child: Text(c.name, overflow: TextOverflow.ellipsis),
+                        ),
                       ],
                     ),
                   ),
@@ -441,23 +505,23 @@ class _CreateTransactionBottomSheetState extends ConsumerState<CreateTransaction
           const SizedBox(height: 16),
           TextField(
             controller: _descController,
-            decoration: const InputDecoration(labelText: 'Ghi chú', prefixIcon: Icon(LucideIcons.fileText, size: 20)),
+            decoration: const InputDecoration(
+              labelText: 'Ghi chú',
+              prefixIcon: Icon(LucideIcons.fileText, size: 20),
+            ),
           ),
           if (_classicError != null) _errorText(_classicError!),
           const SizedBox(height: 24),
           ElevatedButton(
             onPressed: _isSaving ? null : () => _handleClassicSave(accounts),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: const RoundedRectangleBorder(borderRadius: AppSpacing.roundedPill),
-            ),
             child: _isSaving
-                ? const SizedBox(
+                ? SizedBox(
                     width: 20,
                     height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.onPrimaryAction(context),
+                    ),
                   )
                 : const Text('Lưu giao dịch'),
           ),

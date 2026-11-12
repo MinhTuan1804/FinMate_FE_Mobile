@@ -11,6 +11,7 @@ import 'package:finmate/core/config/app_version.dart';
 import 'package:finmate/core/theme/app_colors.dart';
 import 'package:finmate/core/theme/app_spacing.dart';
 import 'package:finmate/core/theme/app_typography.dart';
+import 'package:finmate/core/widgets/glass/liquid_glass.dart';
 
 /// Chặn toàn app bằng một popup khi hệ thống đang bảo trì hoặc app quá cũ. Bảo trì được ưu tiên hơn cập nhật.
 /// Bản đang chặn thì phần app bên dưới không nhận chạm, không vào cây trợ năng và nút Back không thoát được khỏi popup.
@@ -89,7 +90,7 @@ class _NoticeFrame extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     return Material(
-      color: AppColors.backgroundDark.withValues(alpha: 0.88),
+      color: AppColors.backgroundDark.withValues(alpha: isDark ? 0.86 : 0.58),
       child: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -101,13 +102,9 @@ class _NoticeFrame extends StatelessWidget {
                 namesRoute: true,
                 explicitChildNodes: true,
                 label: title,
-                child: Container(
+                child: LiquidGlassCard(
+                  variant: LiquidGlassVariant.floating,
                   padding: const EdgeInsets.all(AppSpacing.xl),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surface,
-                    borderRadius: AppSpacing.roundedLarge,
-                    border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
-                  ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -116,8 +113,14 @@ class _NoticeFrame extends StatelessWidget {
                         child: Container(
                           width: 56,
                           height: 56,
-                          decoration: BoxDecoration(color: theme.colorScheme.primary.withValues(alpha: 0.15), borderRadius: AppSpacing.roundedMedium),
-                          child: ExcludeSemantics(child: Icon(icon, size: 28, color: theme.colorScheme.primary)),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primary.withValues(alpha: 0.14),
+                            borderRadius: AppSpacing.roundedMedium,
+                            border: Border.all(color: AppColors.glassBorder(context)),
+                          ),
+                          child: ExcludeSemantics(
+                            child: Icon(icon, size: 28, color: theme.colorScheme.primary),
+                          ),
                         ),
                       ),
                       const SizedBox(height: AppSpacing.lg),
@@ -126,7 +129,10 @@ class _NoticeFrame extends StatelessWidget {
                       Text(
                         message,
                         textAlign: TextAlign.center,
-                        style: AppTypography.body(context).copyWith(color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight, height: 1.4),
+                        style: AppTypography.body(context).copyWith(
+                          color: AppColors.textSecondary(context),
+                          height: 1.4,
+                        ),
                       ),
                       ...children,
                     ],

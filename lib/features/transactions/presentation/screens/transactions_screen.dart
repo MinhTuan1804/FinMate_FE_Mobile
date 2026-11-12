@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:finmate/core/network/api_exceptions.dart';
 import 'package:finmate/core/theme/app_colors.dart';
 import 'package:finmate/core/theme/app_spacing.dart';
 import 'package:finmate/core/theme/app_typography.dart';
+import 'package:finmate/core/widgets/glass/liquid_glass.dart';
+import 'package:finmate/features/dashboard/presentation/widgets/app_bottom_nav.dart';
 import 'package:finmate/features/notifications/presentation/notification_capture_scope.dart';
 import 'package:finmate/features/transactions/domain/entities/transaction_entity.dart';
 import 'package:finmate/features/transactions/presentation/controllers/transaction_controller.dart';
@@ -47,8 +50,6 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
   @override
   void dispose() {
     _scrollController.dispose();
-    // Chế độ nháp là trạng thái dùng chung của controller: rời màn mà không tắt thì lịch sử ở nơi khác vẫn hiện nháp.
-    // Hoãn một microtask vì dispose chạy giữa lúc cây widget đang dỡ, không được phát state mới ngay lúc đó.
     final controller = _controller;
     if (controller != null && controller.draftsOnly) {
       Future.microtask(() {
@@ -64,10 +65,19 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     final messenger = ScaffoldMessenger.of(context);
     try {
       await ref.read(transactionControllerProvider.notifier).confirmDraft(draft.id);
-      messenger.showSnackBar(const SnackBar(content: Text('Đã xác nhận giao dịch'), backgroundColor: AppColors.safe));
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Đã xác nhận giao dịch'),
+          backgroundColor: AppColors.safe,
+        ),
+      );
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text(errorMessage(e)), backgroundColor: AppColors.danger));
-      // Nháp có thể không còn hợp lệ ở BE (đã duyệt/bị xóa): tải lại để dòng cũ không nằm lại danh sách.
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(errorMessage(e)),
+          backgroundColor: AppColors.danger,
+        ),
+      );
       if (mounted) ref.read(transactionControllerProvider.notifier).loadTransactions();
     } finally {
       _busyDrafts.remove(draft.id);
@@ -79,7 +89,12 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final confirmed = await DraftEditSheet.show(context, draft);
     if (confirmed == true) {
-      messenger.showSnackBar(const SnackBar(content: Text('Đã xác nhận giao dịch'), backgroundColor: AppColors.safe));
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Đã xác nhận giao dịch'),
+          backgroundColor: AppColors.safe,
+        ),
+      );
     }
   }
 
@@ -92,144 +107,188 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
       ref.read(transactionControllerProvider.notifier).loadMore();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final txState = ref.watch(transactionControllerProvider);
     final controller = ref.read(transactionControllerProvider.notifier);
     _controller = controller;
     final drafts = controller.draftsOnly;
-    // Quay lại app: tải lại nháp SAU khi scope đã gọi xong flushQueue (tick), không chạy song song với nó.
-    // Hạn chế: flushQueue chỉ lên lịch đẩy hàng đợi, server còn cần vài giây để AI tạo nháp, nên nháp mới có thể
-    // chưa hiện ngay; kéo xuống hoặc "Tải lại" để lấy nốt.
     ref.listen(notificationFlushTickProvider, (_, __) {
       if (controller.draftsOnly) controller.loadTransactions();
     });
-    final accessOff = drafts && ref.watch(notificationAccessEnabledProvider).valueOrNull == false;
+    final accessOff =
+        drafts && ref.watch(notificationAccessEnabledProvider).valueOrNull == false;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Lịch sử giao dịch')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => CreateTransactionBottomSheet.show(context),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
+        backgroundColor: AppColors.primaryAction(context),
+        foregroundColor: AppColors.onPrimaryAction(context),
+        elevation: 2,
+        shape: const StadiumBorder(),
         icon: const Icon(LucideIcons.plus, size: 20),
-        label: const Text('Ghi chép mới'),
+        label: const Text(
+          'Ghi chép mới',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
       ),
-      body: Column(
-        children: [
-          const FailedSyncBanner(),
-          // Filter Chips (lọc phía server)
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: Row(
-              children: [
-                for (final (label, type) in _filters) ...[
-                  ChoiceChip(
-                    label: Text(label),
-                    selected: !drafts && controller.filter == type,
-                    onSelected: (_) {
-                      // Đang ở Chờ duyệt thì tắt chế độ nháp; chỉ đổi loại khi khác loại đang lưu để khỏi tải thừa
-                      if (drafts) controller.setDraftsOnly(false);
-                      if (!drafts || controller.filter != type) controller.setFilter(type);
-                      setState(() {});
-                    },
-                  ),
-                  const SizedBox(width: 8),
-                  // Ngay sau "Tất cả" để còn thấy được trên màn hình hẹp (hàng chip cuộn ngang)
-                  if (type == null && label == _filters.first.$1) ...[
+      body: AmbientGlassBackground(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const FailedSyncBanner(),
+            // Zenvest Filter Pill Bar
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.fromLTRB(18, 6, 18, 12),
+              child: Row(
+                children: [
+                  for (final (label, type) in _filters) ...[
                     ChoiceChip(
-                      label: const Text('Chờ duyệt'),
-                      selected: drafts,
+                      label: Text(label),
+                      selected: !drafts && controller.filter == type,
                       onSelected: (_) {
-                        if (!drafts) controller.setDraftsOnly(true);
+                        if (drafts) controller.setDraftsOnly(false);
+                        if (!drafts || controller.filter != type) {
+                          controller.setFilter(type);
+                        }
                         setState(() {});
                       },
                     ),
                     const SizedBox(width: 8),
+                    if (type == null && label == _filters.first.$1) ...[
+                      ChoiceChip(
+                        label: const Text('Chờ duyệt'),
+                        selected: drafts,
+                        onSelected: (_) {
+                          if (!drafts) controller.setDraftsOnly(true);
+                          setState(() {});
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                    ],
                   ],
                 ],
-              ],
+              ),
             ),
-          ),
 
-          const Divider(height: 1),
+            if (accessOff)
+              NotificationAccessCard(onOpenSettings: _openAccessSettings),
 
-          if (accessOff) NotificationAccessCard(onOpenSettings: _openAccessSettings),
-
-          Expanded(
-            child: txState.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, _) => Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(LucideIcons.alertCircle, size: 36, color: AppColors.danger),
-                      const SizedBox(height: 8),
-                      Text(errorMessage(err), textAlign: TextAlign.center),
-                      TextButton(
-                        onPressed: controller.loadTransactions,
-                        child: const Text('Thử lại'),
+            Expanded(
+              child: txState.when(
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (err, _) => Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: ZenvestSurfaceSheet(
+                      showDragHandle: false,
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            LucideIcons.alertCircle,
+                            size: 36,
+                            color: AppColors.danger,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(errorMessage(err), textAlign: TextAlign.center),
+                          TextButton(
+                            onPressed: controller.loadTransactions,
+                            child: const Text('Thử lại'),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
-              ),
-              data: (transactions) {
-                if (drafts) return _buildDrafts(context, transactions, controller);
-                if (transactions.isEmpty) return _buildEmpty(context, isDark);
+                data: (transactions) {
+                  if (drafts) {
+                    return _buildDrafts(context, transactions, controller);
+                  }
+                  if (transactions.isEmpty) return _buildEmpty(context);
 
-                // Nhóm theo ngày (giờ địa phương)
-                final grouped = <String, List<TransactionEntity>>{};
-                final dayFormatter = DateFormat('dd/MM/yyyy');
-                for (final tx in transactions) {
-                  grouped.putIfAbsent(dayFormatter.format(tx.date), () => []).add(tx);
-                }
+                  // Nhóm theo ngày (giờ địa phương)
+                  final grouped = <String, List<TransactionEntity>>{};
+                  final dayFormatter = DateFormat('dd/MM/yyyy');
+                  for (final tx in transactions) {
+                    grouped
+                        .putIfAbsent(dayFormatter.format(tx.date), () => [])
+                        .add(tx);
+                  }
 
-                return RefreshIndicator(
-                  onRefresh: controller.loadTransactions,
-                  child: ListView.builder(
-                    controller: _scrollController,
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.only(bottom: 80),
-                    itemCount: grouped.length,
-                    itemBuilder: (context, index) {
-                      final dayKey = grouped.keys.elementAt(index);
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            color: isDark ? AppColors.surfaceDarkElevated : AppColors.surfaceLightSubtle,
-                            child: Text(
-                              dayKey,
-                              style: AppTypography.caption(context).copyWith(fontWeight: FontWeight.w600),
+                  return RefreshIndicator(
+                    onRefresh: controller.loadTransactions,
+                    child: ListView.builder(
+                      controller: _scrollController,
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
+                      itemCount: grouped.length,
+                      itemBuilder: (context, index) {
+                        final dayKey = grouped.keys.elementAt(index);
+                        final dayTxs = grouped[dayKey]!;
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 14),
+                          child: ZenvestSurfaceSheet(
+                            showDragHandle: index == 0,
+                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                    vertical: 4,
+                                  ),
+                                  child: Text(
+                                    dayKey,
+                                    style: AppTypography.caption(context)
+                                        .copyWith(
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.textSecondary(context),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                for (var i = 0; i < dayTxs.length; i++) ...[
+                                  if (i > 0)
+                                    Divider(
+                                      height: 1,
+                                      color: AppColors.border(context)
+                                          .withValues(alpha: 0.55),
+                                    ),
+                                  _buildTransactionTile(context, dayTxs[i]),
+                                ],
+                              ],
                             ),
                           ),
-                          ...grouped[dayKey]!.map((tx) => _buildTransactionTile(context, tx, isDark)),
-                        ],
-                      );
-                    },
-                  ),
-                );
-              },
+                        );
+                      },
+                    ),
+                  );
+                },
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
+      bottomNavigationBar: const AppBottomNav(currentIndex: 1),
     );
   }
 
-  Widget _buildDrafts(BuildContext context, List<TransactionEntity> drafts, TransactionController controller) {
+  Widget _buildDrafts(
+    BuildContext context,
+    List<TransactionEntity> drafts,
+    TransactionController controller,
+  ) {
     return RefreshIndicator(
       onRefresh: controller.loadTransactions,
       child: drafts.isEmpty
@@ -241,10 +300,9 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                 Icon(
                   LucideIcons.inbox,
                   size: 48,
-                  color: Theme.of(context).brightness == Brightness.dark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                  color: AppColors.textSecondary(context),
                 ),
                 const SizedBox(height: AppSpacing.md),
-                // Offline cũng trả danh sách rỗng nên không khẳng định "không có nháp"
                 Text(
                   'Hiện chưa hiển thị giao dịch nào chờ duyệt. Kéo xuống hoặc bấm Tải lại để cập nhật (cần có kết nối mạng).',
                   textAlign: TextAlign.center,
@@ -263,7 +321,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
           : ListView.builder(
               controller: _scrollController,
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.only(bottom: 80),
+              padding: const EdgeInsets.only(bottom: 88),
               itemCount: drafts.length,
               itemBuilder: (context, index) {
                 final draft = drafts[index];
@@ -279,7 +337,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     );
   }
 
-  Widget _buildEmpty(BuildContext context, bool isDark) {
+  Widget _buildEmpty(BuildContext context) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -287,7 +345,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
           Icon(
             LucideIcons.receipt,
             size: 48,
-            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+            color: AppColors.textSecondary(context),
           ),
           const SizedBox(height: 12),
           Text('Chưa có giao dịch nào', style: AppTypography.caption(context)),
@@ -298,55 +356,28 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
 
   Widget _syncBadge(TransactionEntity tx) {
     if (tx.isSynced) return const SizedBox.shrink();
-    return const Padding(
-      padding: EdgeInsets.only(left: 6),
-      child: Icon(LucideIcons.cloudOff, size: 12, color: AppColors.warning),
-    );
+    return const Icon(LucideIcons.cloudOff, size: 13, color: AppColors.warning);
   }
 
-  Widget _buildTransactionTile(BuildContext context, TransactionEntity tx, bool isDark) {
+  Widget _buildTransactionTile(BuildContext context, TransactionEntity tx) {
+    final timeStr = DateFormat('HH:mm').format(tx.date);
+
     // 1. Chuyển khoản nội bộ (BR-26, BR-27: Không tính vào chi tiêu/ngân sách)
     if (tx.isInternalTransfer) {
-      return ListTile(
-        leading: Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: Colors.blueGrey.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: const Icon(LucideIcons.arrowLeftRight, size: 20, color: Colors.blueGrey),
-        ),
-        title: Text(
-          tx.description.isNotEmpty ? tx.description : 'Chuyển tiền nội bộ',
-          style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w600),
-        ),
-        subtitle: Row(
-          children: [
-            Container(
-              margin: const EdgeInsets.only(top: 4),
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: Colors.blueGrey.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: const Text(
-                'Nội bộ - Không tính chi tiêu',
-                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: Colors.blueGrey),
-              ),
-            ),
-            _syncBadge(tx),
-          ],
-        ),
-        trailing: Text(
-          tx.formattedAmount,
-          style: AppTypography.tabular(
-            AppTypography.bodyLarge(context).copyWith(
-              fontWeight: FontWeight.w600,
-              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-            ),
-          ),
-        ),
+      return ZenvestTransactionTile(
+        onTap: () => context.push('/transactions/detail', extra: tx),
+        icon: LucideIcons.arrowLeftRight,
+        iconColor: AppColors.transfer,
+        title: tx.description.isNotEmpty
+            ? tx.description
+            : 'Chuyển tiền nội bộ',
+        categoryLabel: 'Nội bộ - Không tính chi tiêu',
+        timeLabel: timeStr,
+        amountText: tx.formattedAmount,
+        amountColor: AppColors.textPrimary(context),
+        typeLabel: 'Chuyển khoản',
+        typeColor: AppColors.transfer,
+        badgeWidget: tx.isSynced ? null : _syncBadge(tx),
       );
     }
 
@@ -355,36 +386,20 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     final color = isExpense ? AppColors.expense : AppColors.income;
     final prefix = isExpense ? '-' : '+';
 
-    return ListTile(
-      leading: Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Icon(
-          isExpense ? LucideIcons.arrowDownLeft : LucideIcons.arrowUpRight,
-          size: 20,
-          color: color,
-        ),
-      ),
-      title: Text(
-        tx.description.isNotEmpty ? tx.description : (tx.categoryName ?? 'Giao dịch'),
-        style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w600),
-      ),
-      subtitle: Row(
-        children: [
-          Text(tx.categoryName ?? 'Không phân loại', style: AppTypography.caption(context)),
-          _syncBadge(tx),
-        ],
-      ),
-      trailing: Text(
-        '$prefix${tx.formattedAmount}',
-        style: AppTypography.tabular(
-          AppTypography.bodyLarge(context).copyWith(fontWeight: FontWeight.w700, color: color),
-        ),
-      ),
+    return ZenvestTransactionTile(
+      onTap: () => context.push('/transactions/detail', extra: tx),
+      icon: isExpense ? LucideIcons.arrowDownLeft : LucideIcons.arrowUpRight,
+      iconColor: color,
+      title: tx.description.isNotEmpty
+          ? tx.description
+          : (tx.categoryName ?? 'Giao dịch'),
+      categoryLabel: tx.categoryName ?? 'Không phân loại',
+      timeLabel: timeStr,
+      amountText: '$prefix${tx.formattedAmount}',
+      amountColor: AppColors.textPrimary(context),
+      typeLabel: isExpense ? 'Chi tiêu' : 'Thu nhập',
+      typeColor: color,
+      badgeWidget: tx.isSynced ? null : _syncBadge(tx),
     );
   }
 }

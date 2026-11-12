@@ -73,4 +73,22 @@ class SavingsGoalEntity {
 
   String get formattedTarget => formatVnd(targetAmountCents);
   String get formattedCurrent => formatVnd(currentAmountCents);
+
+  SavingsGoalEntity copyWith({
+    String? id,
+    String? title,
+    BigInt? targetAmountCents,
+    BigInt? currentAmountCents,
+    DateTime? targetDate,
+    String? status,
+  }) {
+    return SavingsGoalEntity(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      targetAmountCents: targetAmountCents ?? this.targetAmountCents,
+      currentAmountCents: currentAmountCents ?? this.currentAmountCents,
+      targetDate: targetDate ?? this.targetDate,
+      status: status ?? this.status,
+    );
+  }
 }

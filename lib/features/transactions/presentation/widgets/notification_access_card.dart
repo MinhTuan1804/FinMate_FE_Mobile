@@ -4,7 +4,7 @@ import 'package:finmate/core/theme/app_colors.dart';
 import 'package:finmate/core/theme/app_spacing.dart';
 import 'package:finmate/core/theme/app_typography.dart';
 
-/// Nhắc bật quyền đọc thông báo (hiện ở "Chờ duyệt" khi quyền đang tắt). Cùng kiểu khung cảnh báo với màn rà soát giao dịch.
+/// Nhắc bật quyền đọc thông báo (hiện ở "Chờ duyệt" khi quyền đang tắt).
 class NotificationAccessCard extends StatelessWidget {
   final VoidCallback onOpenSettings;
 
@@ -15,11 +15,16 @@ class NotificationAccessCard extends StatelessWidget {
     return Semantics(
       container: true,
       child: Container(
-        margin: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.sm),
+        margin: const EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          AppSpacing.sm,
+          AppSpacing.lg,
+          AppSpacing.sm,
+        ),
         padding: const EdgeInsets.all(AppSpacing.lg),
         decoration: BoxDecoration(
-          color: AppColors.warning.withValues(alpha: 0.1),
-          borderRadius: AppSpacing.roundedMedium,
+          color: AppColors.warning.withValues(alpha: 0.12),
+          borderRadius: AppSpacing.roundedLarge,
           border: Border.all(color: AppColors.warning.withValues(alpha: 0.5)),
         ),
         child: Row(
@@ -31,7 +36,12 @@ class NotificationAccessCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Chưa bật quyền đọc thông báo', style: AppTypography.bodyMedium(context).copyWith(fontWeight: FontWeight.w600)),
+                  Text(
+                    'Chưa bật quyền đọc thông báo',
+                    style: AppTypography.bodyMedium(context).copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
                     'FinMate cần quyền này để tự tạo nháp từ thông báo của ngân hàng và ví. Các nháp đã có vẫn xem được bên dưới.',

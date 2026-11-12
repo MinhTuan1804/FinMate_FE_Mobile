@@ -19,9 +19,9 @@ import 'package:finmate/features/transactions/domain/entities/transaction_entity
 BoxDecoration _cardDecoration(BuildContext context) {
   final isDark = Theme.of(context).brightness == Brightness.dark;
   return BoxDecoration(
-    color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-    borderRadius: AppSpacing.roundedMedium,
-    border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+    color: isDark ? AppColors.glassFillDark : AppColors.glassFillLight,
+    borderRadius: AppSpacing.roundedLarge,
+    border: Border.all(color: AppColors.glassBorder(context)),
   );
 }
 
@@ -33,6 +33,8 @@ class _Bubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final actionColor = AppColors.primaryAction(context);
+    final onActionColor = AppColors.onPrimaryAction(context);
     return Align(
       alignment: fromUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
@@ -40,15 +42,28 @@ class _Bubble extends StatelessWidget {
         margin: const EdgeInsets.symmetric(vertical: 4),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: fromUser ? AppColors.primary : (Theme.of(context).brightness == Brightness.dark ? AppColors.surfaceDarkElevated : AppColors.surfaceLightSubtle),
+          color: fromUser
+              ? actionColor
+              : (Theme.of(context).brightness == Brightness.dark
+                  ? AppColors.surfaceDarkElevated
+                  : AppColors.surfaceLight),
           borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(16),
-            topRight: const Radius.circular(16),
-            bottomLeft: Radius.circular(fromUser ? 16 : 4),
-            bottomRight: Radius.circular(fromUser ? 4 : 16),
+            topLeft: const Radius.circular(18),
+            topRight: const Radius.circular(18),
+            bottomLeft: Radius.circular(fromUser ? 18 : 4),
+            bottomRight: Radius.circular(fromUser ? 4 : 18),
+          ),
+          border: fromUser
+              ? null
+              : Border.all(color: AppColors.glassBorder(context)),
+        ),
+        child: Text(
+          text,
+          style: AppTypography.body(context).copyWith(
+            color: fromUser ? onActionColor : null,
+            height: 1.38,
           ),
         ),
-        child: Text(text, style: AppTypography.body(context).copyWith(color: fromUser ? Colors.white : null, height: 1.35)),
       ),
     );
   }
@@ -296,11 +311,6 @@ class DraftCardView extends ConsumerWidget {
             alignment: Alignment.centerRight,
             child: ElevatedButton(
               onPressed: () => context.push('/assistant/review', extra: ReviewArgs(draft, messageId: card.id)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                shape: const RoundedRectangleBorder(borderRadius: AppSpacing.roundedPill),
-              ),
               child: const Text('Xem và lưu'),
             ),
           ),
@@ -453,11 +463,6 @@ class DraftBatchCardView extends ConsumerWidget {
               ElevatedButton(
                 key: const ValueKey('batch-save'),
                 onPressed: sending ? null : () => controller.confirmBatch(card.id),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  shape: const RoundedRectangleBorder(borderRadius: AppSpacing.roundedPill),
-                ),
                 child: const Text('Lưu tất cả'),
               ),
             ],
@@ -573,11 +578,6 @@ class GoalDraftCardView extends ConsumerWidget {
             ElevatedButton(
               key: const ValueKey('goal-create'),
               onPressed: saving ? null : () => controller.confirmGoal(card.id),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                shape: const RoundedRectangleBorder(borderRadius: AppSpacing.roundedPill),
-              ),
               child: Text(saving ? 'Đang tạo...' : 'Tạo mục tiêu'),
             ),
           ]),

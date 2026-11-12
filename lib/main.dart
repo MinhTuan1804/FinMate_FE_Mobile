@@ -21,19 +21,36 @@ class FinMateApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeConfig = ref.watch(appConfigProvider.select((config) => config.theme));
+    final themeMode = ref.watch(themeModeProvider);
+    final reduceTransparency = ref.watch(reduceTransparencyProvider);
+
     return MaterialApp.router(
       title: 'FinMate',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.applyConfig(AppTheme.lightTheme, themeConfig),
-      darkTheme: AppTheme.applyConfig(AppTheme.darkTheme, themeConfig),
-      themeMode: ThemeMode.dark,
+      theme: AppTheme.applyConfig(
+        AppTheme.lightTheme,
+        themeConfig,
+        reduceTransparency: reduceTransparency,
+      ),
+      darkTheme: AppTheme.applyConfig(
+        AppTheme.darkTheme,
+        themeConfig,
+        reduceTransparency: reduceTransparency,
+      ),
+      themeMode: themeMode,
       routerConfig: ref.watch(routerProvider),
       builder: (context, child) {
         // Cỡ chữ admin đặt nhân với cỡ chữ người dùng chọn trong hệ điều hành: không ghi đè lựa chọn trợ năng của họ.
         final media = MediaQuery.of(context);
         return MediaQuery(
-          data: media.copyWith(textScaler: TextScaler.linear(media.textScaler.scale(1) * themeConfig.textScale)),
-          child: AppConfigGate(child: NotificationCaptureScope(child: child ?? const SizedBox.shrink())),
+          data: media.copyWith(
+            textScaler: TextScaler.linear(media.textScaler.scale(1) * themeConfig.textScale),
+          ),
+          child: AppConfigGate(
+            child: NotificationCaptureScope(
+              child: child ?? const SizedBox.shrink(),
+            ),
+          ),
         );
       },
     );

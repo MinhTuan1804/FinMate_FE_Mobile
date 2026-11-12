@@ -7,6 +7,7 @@ import 'package:finmate/core/network/api_exceptions.dart';
 import 'package:finmate/core/theme/app_colors.dart';
 import 'package:finmate/core/theme/app_spacing.dart';
 import 'package:finmate/core/theme/app_typography.dart';
+import 'package:finmate/core/widgets/glass/liquid_glass.dart';
 import 'package:finmate/features/categories/presentation/categories_provider.dart';
 import 'package:finmate/features/categories/presentation/category_icons.dart';
 import 'package:finmate/features/qr_transfer/data/qr_transfer_repository.dart';
@@ -19,14 +20,22 @@ class QrHistoryScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final actionColor = AppColors.primaryAction(context);
     return DefaultTabController(
       length: 2,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Lịch sử quét QR'),
-          bottom: const TabBar(tabs: [Tab(text: 'Đã quét'), Tab(text: 'Người nhận')]),
+          bottom: TabBar(
+            indicatorColor: actionColor,
+            labelColor: actionColor,
+            unselectedLabelColor: AppColors.textMuted(context),
+            tabs: const [Tab(text: 'Đã quét'), Tab(text: 'Người nhận')],
+          ),
         ),
-        body: const TabBarView(children: [_TransfersTab(), _OverridesTab()]),
+        body: const AmbientGlassBackground(
+          child: TabBarView(children: [_TransfersTab(), _OverridesTab()]),
+        ),
       ),
     );
   }
@@ -102,30 +111,28 @@ class _TransferTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final status = _status(context);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final when = DateFormat('dd/MM/yyyy HH:mm').format(item.scannedAt.toLocal());
     final title = '${item.senderBankName} → ${item.receiverBankName} • ${item.receiverAccountNumber}';
-    return Container(
-      margin: const EdgeInsets.only(bottom: AppSpacing.md),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-        borderRadius: AppSpacing.roundedMedium,
-        border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
-      ),
-      child: ListTile(
-        minVerticalPadding: AppSpacing.md,
-        leading: Icon(status.icon, color: status.color),
-        title: Text(title, maxLines: 2, overflow: TextOverflow.ellipsis),
-        subtitle: Text(
-          [
-            formatVnd(BigInt.from(item.amount)),
-            if (item.receiverName != null) item.receiverName!,
-            if (item.categoryName != null) item.categoryName!,
-            status.label,
-            when,
-          ].join(' • '),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+      child: ZenvestSurfaceSheet(
+        showDragHandle: false,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        child: ListTile(
+          minVerticalPadding: AppSpacing.md,
+          leading: Icon(status.icon, color: status.color),
+          title: Text(title, maxLines: 2, overflow: TextOverflow.ellipsis),
+          subtitle: Text(
+            [
+              formatVnd(BigInt.from(item.amount)),
+              if (item.receiverName != null) item.receiverName!,
+              if (item.categoryName != null) item.categoryName!,
+              status.label,
+              when,
+            ].join(' • '),
+          ),
+          trailing: item.status == QrTransferStatus.pending ? IconButton(tooltip: 'Hủy lần quét', icon: const Icon(LucideIcons.trash2, size: 20), onPressed: onCancel) : null,
         ),
-        trailing: item.status == QrTransferStatus.pending ? IconButton(tooltip: 'Hủy lần quét', icon: const Icon(LucideIcons.trash2, size: 20), onPressed: onCancel) : null,
       ),
     );
   }
@@ -194,7 +201,6 @@ class _OverridesTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final overrides = ref.watch(qrOverridesProvider);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return RefreshIndicator(
       onRefresh: () async => ref.refresh(qrOverridesProvider.future),
       child: overrides.when(
@@ -207,23 +213,22 @@ class _OverridesTab extends ConsumerWidget {
                 itemCount: items.length,
                 itemBuilder: (context, index) {
                   final item = items[index];
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: AppSpacing.md),
-                    decoration: BoxDecoration(
-                      color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-                      borderRadius: AppSpacing.roundedMedium,
-                      border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
-                    ),
-                    child: ListTile(
-                      minVerticalPadding: AppSpacing.md,
-                      title: Text('${item.bankName} • ${item.accountNumber}'),
-                      subtitle: Text([if (item.displayName != null) item.displayName!, 'Danh mục: ${item.categoryName}'].join(' • ')),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(tooltip: 'Đổi danh mục', icon: const Icon(LucideIcons.pencil, size: 20), onPressed: () => _edit(context, ref, item)),
-                          IconButton(tooltip: 'Bỏ danh mục đã nhớ', icon: const Icon(LucideIcons.trash2, size: 20), onPressed: () => _delete(context, ref, item)),
-                        ],
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                    child: LiquidGlassCard(
+                      enableBlur: false,
+                      padding: EdgeInsets.zero,
+                      child: ListTile(
+                        minVerticalPadding: AppSpacing.md,
+                        title: Text('${item.bankName} • ${item.accountNumber}'),
+                        subtitle: Text([if (item.displayName != null) item.displayName!, 'Danh mục: ${item.categoryName}'].join(' • ')),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(tooltip: 'Đổi danh mục', icon: const Icon(LucideIcons.pencil, size: 20), onPressed: () => _edit(context, ref, item)),
+                            IconButton(tooltip: 'Bỏ danh mục đã nhớ', icon: const Icon(LucideIcons.trash2, size: 20), onPressed: () => _delete(context, ref, item)),
+                          ],
+                        ),
                       ),
                     ),
                   );

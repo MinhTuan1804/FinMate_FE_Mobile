@@ -55,7 +55,13 @@ class _BankPickerSheetState extends State<_BankPickerSheet> {
               Padding(
                 padding: const EdgeInsets.all(AppSpacing.lg),
                 child: TextField(
-                  decoration: const InputDecoration(hintText: 'Tìm ngân hàng', prefixIcon: Icon(LucideIcons.search, size: 18)),
+                  decoration: const InputDecoration(
+                    hintText: 'Tìm ngân hàng',
+                    prefixIcon: Icon(LucideIcons.search, size: 18),
+                    border: OutlineInputBorder(borderRadius: AppSpacing.roundedPill),
+                    enabledBorder: OutlineInputBorder(borderRadius: AppSpacing.roundedPill),
+                    focusedBorder: OutlineInputBorder(borderRadius: AppSpacing.roundedPill),
+                  ),
                   onChanged: (value) => setState(() => _query = value),
                 ),
               ),

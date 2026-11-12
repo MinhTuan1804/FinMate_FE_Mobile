@@ -13,6 +13,7 @@ import 'package:finmate/core/network/api_exceptions.dart';
 import 'package:finmate/core/theme/app_colors.dart';
 import 'package:finmate/core/theme/app_spacing.dart';
 import 'package:finmate/core/theme/app_typography.dart';
+import 'package:finmate/core/widgets/glass/liquid_glass.dart';
 import 'package:finmate/features/categories/presentation/categories_provider.dart';
 import 'package:finmate/features/categories/presentation/category_icons.dart';
 import 'package:finmate/features/qr_transfer/data/qr_transfer_repository.dart';
@@ -196,17 +197,17 @@ class _QrTransferScreenState extends ConsumerState<QrTransferScreen> {
     final banksAsync = ref.watch(qrBanksProvider);
     return Scaffold(
       appBar: AppBar(title: Text(widget.scanned == null ? 'Nhập thông tin người nhận' : 'Chuyển tiền')),
-      body: banksAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, __) => _ErrorRetry(message: 'Không tải được danh sách ngân hàng.', onRetry: () => ref.invalidate(qrBanksProvider)),
-        data: (banks) => _buildForm(context, banks),
+      body: AmbientGlassBackground(
+        child: banksAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (_, __) => _ErrorRetry(message: 'Không tải được danh sách ngân hàng.', onRetry: () => ref.invalidate(qrBanksProvider)),
+          data: (banks) => _buildForm(context, banks),
+        ),
       ),
     );
   }
 
   Widget _buildForm(BuildContext context, List<QrBank> banks) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
     final receiver = banks.where((b) => b.bin == _receiverBin).firstOrNull;
     final sender = banks.where((b) => b.bin == _senderBin).firstOrNull;
     final scanned = widget.scanned;
@@ -227,116 +228,132 @@ class _QrTransferScreenState extends ConsumerState<QrTransferScreen> {
       child: ListView(
         padding: const EdgeInsets.all(AppSpacing.lg),
         children: [
-          _SectionTitle('Người nhận'),
-          if (scanned != null)
-            _InfoCard(
-              icon: LucideIcons.landmark,
-              title: receiver!.name,
-              lines: [scanned.accountNumber, if (scanned.beneficiaryName != null) scanned.beneficiaryName!],
-            )
-          else ...[
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              minTileHeight: 56,
-              leading: const Icon(LucideIcons.landmark, size: 20),
-              title: Text(receiver?.name ?? 'Chọn ngân hàng của người nhận'),
-              trailing: const Icon(LucideIcons.chevronRight, size: 18),
-              onTap: () => _pickReceiver(banks),
-            ),
-            TextField(
-              controller: _accountCtrl,
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9]')), LengthLimitingTextInputFormatter(32)],
-              decoration: const InputDecoration(labelText: 'Số tài khoản người nhận'),
-              onChanged: _onAccountChanged,
-            ),
-          ],
-          const SizedBox(height: AppSpacing.xl),
-          _SectionTitle('Số tiền và nội dung'),
-          TextField(
-            controller: _amountCtrl,
-            keyboardType: TextInputType.number,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(12)],
-            style: AppTypography.tabular(AppTypography.h3(context)),
-            decoration: InputDecoration(
-              labelText: 'Số tiền (VND)',
-              helperText: amount == null ? 'Bắt buộc: FinMate dùng số tiền này để khớp với thông báo ngân hàng thật.' : formatVnd(BigInt.from(amount)),
-              helperMaxLines: 2,
-            ),
-            onChanged: (_) => setState(() {}),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          TextField(
-            controller: _messageCtrl,
-            maxLength: _qr.maxMessageLength,
-            decoration: const InputDecoration(labelText: 'Nội dung chuyển khoản', helperText: 'Nên viết không dấu: nhiều ngân hàng không nhận dấu tiếng Việt.'),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          _SectionTitle('Danh mục'),
-          Text(
-            _remembered != null
-                ? 'Đã nhớ danh mục "${_remembered!.categoryName}" cho người nhận này. Đổi lại bên dưới nếu muốn.'
-                : 'Chọn một danh mục thì lần sau chuyển cho đúng người này FinMate tự gắn luôn. Không chọn thì để AI đoán.',
-            style: AppTypography.caption(context),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          categories.when(
-            loading: () => const LinearProgressIndicator(),
-            error: (_, __) => Text('Không tải được danh mục.', style: AppTypography.caption(context)),
-            data: (list) => Wrap(
-              spacing: AppSpacing.sm,
-              runSpacing: AppSpacing.sm,
+          ZenvestSurfaceSheet(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                ChoiceChip(label: const Text('Để AI đoán'), selected: _categoryId == null, onSelected: (_) => setState(() => _categoryId = null)),
-                for (final c in list)
-                  ChoiceChip(
-                    avatar: Icon(categoryIcon(c.slug), size: 16),
-                    label: Text(c.name),
-                    selected: _categoryId == c.id,
-                    onSelected: (_) => setState(() => _categoryId = c.id),
+                _SectionTitle('Người nhận'),
+                if (scanned != null)
+                  _InfoCard(
+                    icon: LucideIcons.landmark,
+                    title: receiver!.name,
+                    lines: [scanned.accountNumber, if (scanned.beneficiaryName != null) scanned.beneficiaryName!],
+                  )
+                else ...[
+                  LiquidGlassCard(
+                    enableBlur: false,
+                    padding: EdgeInsets.zero,
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                      minTileHeight: 56,
+                      leading: const Icon(LucideIcons.landmark, size: 20),
+                      title: Text(receiver?.name ?? 'Chọn ngân hàng của người nhận'),
+                      trailing: const Icon(LucideIcons.chevronRight, size: 18),
+                      onTap: () => _pickReceiver(banks),
+                    ),
                   ),
+                  const SizedBox(height: AppSpacing.md),
+                  TextField(
+                    controller: _accountCtrl,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9]')), LengthLimitingTextInputFormatter(32)],
+                    decoration: const InputDecoration(labelText: 'Số tài khoản người nhận'),
+                    onChanged: _onAccountChanged,
+                  ),
+                ],
+                const SizedBox(height: AppSpacing.xl),
+                _SectionTitle('Số tiền và nội dung'),
+                TextField(
+                  controller: _amountCtrl,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(12)],
+                  style: AppTypography.tabular(AppTypography.h3(context)),
+                  decoration: InputDecoration(
+                    labelText: 'Số tiền (VND)',
+                    helperText: amount == null ? 'Bắt buộc: FinMate dùng số tiền này để khớp với thông báo ngân hàng thật.' : formatVnd(BigInt.from(amount)),
+                    helperMaxLines: 2,
+                  ),
+                  onChanged: (_) => setState(() {}),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                TextField(
+                  controller: _messageCtrl,
+                  maxLength: _qr.maxMessageLength,
+                  decoration: const InputDecoration(labelText: 'Nội dung chuyển khoản', helperText: 'Nên viết không dấu: nhiều ngân hàng không nhận dấu tiếng Việt.'),
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                _SectionTitle('Danh mục'),
+                Text(
+                  _remembered != null
+                      ? 'Đã nhớ danh mục "${_remembered!.categoryName}" cho người nhận này. Đổi lại bên dưới nếu muốn.'
+                      : 'Chọn một danh mục thì lần sau chuyển cho đúng người này FinMate tự gắn luôn. Không chọn thì để AI đoán.',
+                  style: AppTypography.caption(context),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                categories.when(
+                  loading: () => const LinearProgressIndicator(),
+                  error: (_, __) => Text('Không tải được danh mục.', style: AppTypography.caption(context)),
+                  data: (list) => Wrap(
+                    spacing: AppSpacing.sm,
+                    runSpacing: AppSpacing.sm,
+                    children: [
+                      ChoiceChip(label: const Text('Để AI đoán'), selected: _categoryId == null, onSelected: (_) => setState(() => _categoryId = null)),
+                      for (final c in list)
+                        ChoiceChip(
+                          avatar: Icon(categoryIcon(c.slug), size: 16),
+                          label: Text(c.name),
+                          selected: _categoryId == c.id,
+                          onSelected: (_) => setState(() => _categoryId = c.id),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xl),
+                _SectionTitle('Mở bằng app ngân hàng của bạn'),
+                LiquidGlassCard(
+                  enableBlur: false,
+                  padding: EdgeInsets.zero,
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                    minTileHeight: 56,
+                    leading: const Icon(LucideIcons.landmark, size: 20),
+                    title: Text(sender?.name ?? 'Chọn app ngân hàng để chuyển'),
+                    trailing: const Icon(LucideIcons.chevronRight, size: 18),
+                    onTap: () => _pickSender(banks),
+                  ),
+                ),
+                if (sender != null && !sender.canMatchNotifications)
+                  Padding(
+                    padding: const EdgeInsets.only(top: AppSpacing.sm),
+                    child: _Notice(
+                      icon: LucideIcons.circleAlert,
+                      color: AppColors.warning,
+                      text: 'FinMate chưa đọc được thông báo của ${sender.name}, nên giao dịch sau khi chuyển sẽ không tự gắn người nhận. Bạn vẫn chuyển tiền bình thường.',
+                    ),
+                  ),
+                if (_error != null) ...[
+                  const SizedBox(height: AppSpacing.lg),
+                  _Notice(icon: LucideIcons.circleAlert, color: AppColors.danger, text: _error!, live: true),
+                  if (sender != null && receiver != null && amount != null)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton(onPressed: _busy ? null : () => _submit(banks, recordIntent: false), child: const Text('Vẫn mở app ngân hàng (không ghi nhận)')),
+                    ),
+                ],
+                const SizedBox(height: AppSpacing.xl),
+                FilledButton.icon(
+                  onPressed: ready ? () => _submit(banks) : null,
+                  icon: _busy ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(LucideIcons.externalLink, size: 18),
+                  label: Text(_busy ? 'Đang xử lý...' : 'Ghi nhận và mở app ngân hàng'),
+                  style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                Text(
+                  'Số tài khoản, số tiền và nội dung được chuyển tiếp qua dịch vụ ${_qr.deeplinkHost} để mở đúng app ngân hàng. FinMate không chuyển tiền thay bạn.',
+                  style: AppTypography.caption(context).copyWith(color: AppColors.textMuted(context)),
+                ),
               ],
             ),
-          ),
-          const SizedBox(height: AppSpacing.xl),
-          _SectionTitle('Mở bằng app ngân hàng của bạn'),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            minTileHeight: 56,
-            leading: const Icon(LucideIcons.landmark, size: 20),
-            title: Text(sender?.name ?? 'Chọn app ngân hàng để chuyển'),
-            trailing: const Icon(LucideIcons.chevronRight, size: 18),
-            onTap: () => _pickSender(banks),
-          ),
-          if (sender != null && !sender.canMatchNotifications)
-            Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.sm),
-              child: _Notice(
-                icon: LucideIcons.circleAlert,
-                color: AppColors.warning,
-                text: 'FinMate chưa đọc được thông báo của ${sender.name}, nên giao dịch sau khi chuyển sẽ không tự gắn người nhận. Bạn vẫn chuyển tiền bình thường.',
-              ),
-            ),
-          if (_error != null) ...[
-            const SizedBox(height: AppSpacing.lg),
-            _Notice(icon: LucideIcons.circleAlert, color: AppColors.danger, text: _error!, live: true),
-            if (sender != null && receiver != null && amount != null)
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton(onPressed: _busy ? null : () => _submit(banks, recordIntent: false), child: const Text('Vẫn mở app ngân hàng (không ghi nhận)')),
-              ),
-          ],
-          const SizedBox(height: AppSpacing.xl),
-          FilledButton.icon(
-            onPressed: ready ? () => _submit(banks) : null,
-            icon: _busy ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(LucideIcons.externalLink, size: 18),
-            label: Text(_busy ? 'Đang xử lý...' : 'Ghi nhận và mở app ngân hàng'),
-            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Text(
-            'Số tài khoản, số tiền và nội dung được chuyển tiếp qua dịch vụ ${_qr.deeplinkHost} để mở đúng app ngân hàng. FinMate không chuyển tiền thay bạn.',
-            style: AppTypography.caption(context).copyWith(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
           ),
         ],
       ),
@@ -365,14 +382,9 @@ class _InfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
+    return LiquidGlassCard(
+      enableBlur: false,
       padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-        borderRadius: AppSpacing.roundedMedium,
-        border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
-      ),
       child: Row(
         children: [
           Icon(icon, size: 22),
