@@ -48,3 +48,6 @@ app.*.map.json
 docs/dev-test-account.md
 # Widget Preview related
 .widget_preview/
+
+# Stitch design export reference (not app source, not for git)
+design_reference/

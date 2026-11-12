@@ -270,7 +270,7 @@ void main() {
 
   Future<void> loginFromWelcome(WidgetTester tester) async {
     // Màn Welcome không còn Checkbox: cam kết điều khoản đã dời sang màn /terms sau đăng nhập (BR-01/09/70).
-    await tester.tap(find.text('Đăng nhập với Email'));
+    await tester.tap(find.text('Đã có tài khoản? Đăng nhập'));
     await tester.pumpAndSettle();
 
     final fields = find.byType(TextFormField);
@@ -306,7 +306,7 @@ void main() {
     expect(storage.hasAccessToken(), completion(isTrue));
   });
 
-  testWidgets('chưa đồng ý điều khoản: đăng nhập xong bị giữ ở màn điều khoản, đồng ý rồi mới vào onboarding', (tester) async {
+  testWidgets('chưa đồng ý điều khoản: đăng nhập xong bị giữ ở màn điều khoản, đồng ý rồi qua màn AI mới vào onboarding', (tester) async {
     backend.termsAccepted = false;
     await launch(tester);
 
@@ -316,11 +316,16 @@ void main() {
 
     await tester.tap(find.byType(Checkbox));
     await tester.pump();
-    await tester.tap(find.text('Tiếp tục'));
+    await tester.tap(find.text('Đồng ý & Tiếp tục'));
     await tester.pumpAndSettle();
 
-    expect(backend.consentCalls, ['accept:terms:3']);
-    expect(backend.aiConsent, isTrue); // một lần đồng ý điều khoản là đủ để dùng AI
+    // Màn AI (a8) hiện ra sau Điều khoản; giữ mặc định (AI cá nhân hoá bật) rồi tiếp tục
+    expect(find.text('Trợ lý AI của bạn'), findsOneWidget);
+    await tester.tap(find.text('Đồng ý & Tiếp tục'));
+    await tester.pumpAndSettle();
+
+    expect(backend.consentCalls, ['accept:terms:4', 'accept:ai:3']);
+    expect(backend.aiConsent, isTrue);
     expect(find.textContaining('Thiết lập ban đầu'), findsOneWidget);
   });
 
@@ -405,7 +410,7 @@ void main() {
 
   testWidgets('đăng ký -> OTP -> (server không cấp token) -> về đăng nhập với email điền sẵn -> vào app', (tester) async {
     await launch(tester);
-    await tester.tap(find.text('Tạo tài khoản mới'));
+    await tester.tap(find.text('Bắt đầu ngay'));
     await tester.pumpAndSettle();
 
     final fields = find.byType(TextFormField);
@@ -413,12 +418,14 @@ void main() {
     await tester.enterText(fields.at(1), 'probe@example.com');
     await tester.enterText(fields.at(2), 'Password123!');
     await tester.enterText(fields.at(3), 'Password123!');
-    await tester.tap(find.text('Đăng ký tài khoản'));
+    await tester.tap(find.byType(Checkbox));
+    await tester.pump();
+    await tester.tap(find.text('Tiếp tục (Nhận mã OTP)'));
     await tester.pumpAndSettle();
     expect(find.text('Xác thực Email'), findsOneWidget);
 
     await tester.enterText(find.byType(TextField), '123456');
-    await tester.tap(find.text('Xác nhận'));
+    await tester.tap(find.text('Xác nhận & Tiếp tục'));
     await tester.pumpAndSettle();
 
     expect(find.text('Chào mừng trở lại'), findsOneWidget);
@@ -443,7 +450,7 @@ void main() {
     backend.sessionExpired = false;
 
     Future<void> openLogin() async {
-      await tester.tap(find.text('Đăng nhập với Email'));
+      await tester.tap(find.text('Đã có tài khoản? Đăng nhập'));
       await tester.pumpAndSettle();
     }
 

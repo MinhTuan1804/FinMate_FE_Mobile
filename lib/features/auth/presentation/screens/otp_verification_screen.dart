@@ -1,14 +1,15 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:finmate/core/network/api_exceptions.dart';
-import 'package:finmate/core/theme/app_colors.dart';
-import 'package:finmate/core/theme/app_spacing.dart';
-import 'package:finmate/core/theme/app_typography.dart';
+import 'package:finmate/core/theme/glass/glass_colors.dart';
+import 'package:finmate/core/theme/glass/glass_typography.dart';
 import 'package:finmate/features/auth/presentation/controllers/auth_controller.dart';
+import 'package:finmate/shared/widgets/glass/glass_background.dart';
+import 'package:finmate/shared/widgets/glass/glass_buttons.dart';
+import 'package:finmate/shared/widgets/glass/glass_otp_input.dart';
 
 class OtpVerificationScreen extends ConsumerStatefulWidget {
   final String email;
@@ -20,7 +21,8 @@ class OtpVerificationScreen extends ConsumerStatefulWidget {
 }
 
 class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
-  final _codeController = TextEditingController();
+  final _otpKey = GlobalKey<GlassOtpInputState>();
+  String _code = '';
   int _countdown = 60;
   Timer? _timer;
   bool _isLoading = false;
@@ -30,6 +32,18 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
   void initState() {
     super.initState();
     _startCountdown();
+    // Register không tự gửi OTP (backend chỉ tạo tài khoản) — màn này phải chủ động
+    // gửi mã lần đầu khi mở lên, nếu không người dùng sẽ không nhận được gì cho tới
+    // khi hết đếm ngược 60s và tự bấm "Gửi lại mã".
+    _sendInitialCode();
+  }
+
+  Future<void> _sendInitialCode() async {
+    try {
+      await ref.read(authControllerProvider.notifier).resendVerification(widget.email);
+    } catch (e) {
+      if (mounted) setState(() => _error = errorMessage(e));
+    }
   }
 
   void _startCountdown() {
@@ -47,14 +61,12 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
   @override
   void dispose() {
     _timer?.cancel();
-    _codeController.dispose();
     super.dispose();
   }
 
   Future<void> _verify() async {
-    final code = _codeController.text.trim();
     if (_isLoading) return;
-    if (code.length != 6) {
+    if (_code.length != 6) {
       setState(() => _error = 'Vui lòng nhập đủ mã 6 chữ số.');
       return;
     }
@@ -65,9 +77,9 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
     });
 
     try {
-      final loggedIn = await ref.read(authControllerProvider.notifier).verifyEmail(widget.email, code);
+      final loggedIn = await ref.read(authControllerProvider.notifier).verifyEmail(widget.email, _code);
       if (!mounted) return;
-      // Đã đăng nhập: router tự chuyển sang onboarding/home. Chưa có token: yêu cầu đăng nhập lại.
+      // Đã đăng nhập: router tự chuyển sang terms/onboarding/home. Chưa có token: yêu cầu đăng nhập lại.
       if (!loggedIn) {
         context.go('/login', extra: {
           'email': widget.email,
@@ -85,7 +97,10 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
     if (_countdown > 0) return;
     try {
       await ref.read(authControllerProvider.notifier).resendVerification(widget.email);
-      if (mounted) _startCountdown();
+      if (mounted) {
+        _otpKey.currentState?.clear();
+        _startCountdown();
+      }
     } catch (e) {
       if (mounted) setState(() => _error = errorMessage(e));
     }
@@ -94,102 +109,74 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
   @override
   Widget build(BuildContext context) {
     final isLoading = _isLoading;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(LucideIcons.arrowLeft, size: 20),
-          onPressed: () => context.canPop() ? context.pop() : context.go('/'),
+    return GlassBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(LucideIcons.arrowLeft, color: GlassColors.ink),
+            onPressed: () => context.canPop() ? context.pop() : context.go('/'),
+          ),
         ),
-      ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'Xác thực Email',
-                style: AppTypography.h1(context),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Mã xác nhận 6 chữ số đã được gửi tới:\n${widget.email}',
-                style: AppTypography.body(context).copyWith(
-                  color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                  height: 1.4,
-                ),
-              ),
-              const SizedBox(height: 36),
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text('Xác thực Email', style: GlassTypography.headlineLg()),
+                const SizedBox(height: 8),
+                Text('Mã xác nhận 6 chữ số đã được gửi tới:\n${widget.email}', style: GlassTypography.bodyMd()),
+                const SizedBox(height: 32),
 
-              // OTP Input Field
-              TextField(
-                controller: _codeController,
-                keyboardType: TextInputType.number,
-                textInputAction: TextInputAction.done,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                maxLength: 6,
-                textAlign: TextAlign.center,
-                style: AppTypography.moneyLarge.copyWith(letterSpacing: 12),
-                decoration: InputDecoration(
-                  counterText: '',
-                  hintText: '------',
-                  hintStyle: TextStyle(
-                    letterSpacing: 12,
-                    color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                  ),
+                GlassOtpInput(
+                  key: _otpKey,
+                  onChanged: (code) => setState(() {
+                    _code = code;
+                    _error = null;
+                  }),
+                  onCompleted: (code) => setState(() => _code = code),
                 ),
-                onSubmitted: (_) => _verify(),
-              ),
 
-              const SizedBox(height: 24),
-
-              if (_error != null) ...[
-                Text(
-                  _error!,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: AppColors.danger, fontSize: 13),
-                ),
-                const SizedBox(height: 16),
-              ],
-
-              ElevatedButton(
-                onPressed: isLoading ? null : _verify,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: const RoundedRectangleBorder(borderRadius: AppSpacing.roundedPill),
-                ),
-                child: isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                      )
-                    : const Text(
-                        'Xác nhận',
-                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    const Icon(LucideIcons.shieldCheck, size: 14, color: GlassColors.textMuted),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'FinMate không bao giờ yêu cầu bạn đọc mã OTP qua điện thoại.',
+                        style: GlassTypography.bodySm(),
                       ),
-              ),
+                    ),
+                  ],
+                ),
 
-              const SizedBox(height: 24),
+                if (_error != null) ...[
+                  const SizedBox(height: 16),
+                  Text(_error!, textAlign: TextAlign.center, style: GlassTypography.bodySm(color: GlassColors.danger)),
+                ],
 
-              // Countdown / Resend
-              Center(
-                child: TextButton(
-                  onPressed: _countdown == 0 ? _resend : null,
-                  child: Text(
-                    _countdown > 0 ? 'Gửi lại mã sau ${_countdown}s' : 'Gửi lại mã xác nhận',
-                    style: TextStyle(
-                      color: _countdown == 0 ? AppColors.primary : AppColors.textMutedDark,
-                      fontWeight: FontWeight.w600,
+                const SizedBox(height: 24),
+                GlassPrimaryButton(label: 'Xác nhận & Tiếp tục', onPressed: _verify, loading: isLoading),
+
+                const SizedBox(height: 20),
+                Center(
+                  child: TextButton(
+                    onPressed: _countdown == 0 ? _resend : null,
+                    child: Text(
+                      _countdown > 0 ? 'Gửi lại mã sau ${_countdown}s' : 'Gửi lại mã xác nhận',
+                      style: GlassTypography.bodyMd(
+                        color: _countdown == 0 ? GlassColors.slateAnchor : GlassColors.textMuted,
+                      ).copyWith(fontWeight: FontWeight.w600),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

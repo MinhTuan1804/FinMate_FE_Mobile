@@ -6,10 +6,14 @@ import 'package:finmate/features/assistant/presentation/screens/transaction_revi
 import 'package:finmate/features/auth/domain/entities/user_profile.dart';
 import 'package:finmate/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:finmate/features/auth/presentation/screens/terms_consent_screen.dart';
+import 'package:finmate/features/auth/presentation/screens/ai_consent_screen.dart';
 import 'package:finmate/features/auth/presentation/screens/welcome_screen.dart';
 import 'package:finmate/features/auth/presentation/screens/login_screen.dart';
 import 'package:finmate/features/auth/presentation/screens/register_screen.dart';
 import 'package:finmate/features/auth/presentation/screens/otp_verification_screen.dart';
+import 'package:finmate/features/auth/presentation/screens/forgot_password_screen.dart';
+import 'package:finmate/features/auth/presentation/screens/forgot_password_otp_screen.dart';
+import 'package:finmate/features/auth/presentation/screens/reset_password_screen.dart';
 import 'package:finmate/features/onboarding/presentation/screens/initial_setup_screen.dart';
 import 'package:finmate/features/dashboard/presentation/screens/home_screen.dart';
 import 'package:finmate/features/transactions/presentation/screens/transactions_screen.dart';
@@ -43,12 +47,30 @@ import 'package:finmate/features/finance_methods/presentation/screens/finance_me
 
 const _splashPath = '/splash';
 const _termsPath = '/terms';
+const _aiConsentPath = '/ai-consent';
 
 /// Các màn hình không cần đăng nhập
-const _publicPaths = {'/', '/login', '/register', '/verify-otp'};
+const _publicPaths = {
+  '/',
+  '/login',
+  '/register',
+  '/verify-otp',
+  '/forgot-password',
+  '/forgot-password-otp',
+  '/reset-password',
+};
 
 /// Các màn hình dành cho khách: người dùng đã đăng nhập sẽ được chuyển đi chỗ khác
-const _guestOnlyPaths = {_splashPath, '/', '/login', '/register', '/verify-otp'};
+const _guestOnlyPaths = {
+  _splashPath,
+  '/',
+  '/login',
+  '/register',
+  '/verify-otp',
+  '/forgot-password',
+  '/forgot-password-otp',
+  '/reset-password',
+};
 
 /// Hàm điều hướng có điều kiện theo trạng thái đăng nhập (tách riêng để dễ kiểm thử)
 String? authRedirect(AsyncValue<UserProfile?> auth, String location) {
@@ -63,6 +85,9 @@ String? authRedirect(AsyncValue<UserProfile?> auth, String location) {
 
   // Chưa đồng ý Điều khoản + Chính sách (hoặc chúng đã đổi phiên bản): không vào được chỗ nào khác
   if (!user.termsAccepted) return location == _termsPath ? null : _termsPath;
+
+  // Vừa đồng ý Điều khoản: để màn /ai-consent tự điều hướng tiếp, không ép đi trước khi hiện xong
+  if (location == _aiConsentPath) return null;
 
   if (_guestOnlyPaths.contains(location) || location == _termsPath) {
     final needsSetup = user.monthlyIncomeCents == null || user.monthlyIncomeCents == 0;
@@ -117,8 +142,30 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
+        path: '/forgot-password',
+        builder: (context, state) => const ForgotPasswordScreen(),
+      ),
+      GoRoute(
+        path: '/forgot-password-otp',
+        builder: (context, state) => ForgotPasswordOtpScreen(email: state.extra as String? ?? ''),
+      ),
+      GoRoute(
+        path: '/reset-password',
+        builder: (context, state) {
+          final extra = state.extra is Map ? state.extra as Map : const {};
+          return ResetPasswordScreen(
+            email: extra['email'] as String? ?? '',
+            code: extra['code'] as String? ?? '',
+          );
+        },
+      ),
+      GoRoute(
         path: _termsPath,
         builder: (context, state) => const TermsConsentScreen(),
+      ),
+      GoRoute(
+        path: _aiConsentPath,
+        builder: (context, state) => const AiConsentScreen(),
       ),
       GoRoute(
         path: '/onboarding',

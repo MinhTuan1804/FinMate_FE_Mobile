@@ -81,6 +81,19 @@ class FakeAuthRepository implements IAuthRepository {
   @override
   Future<void> resendVerification({required String email}) async {}
 
+  ApiException? forgotPasswordError;
+  ApiException? resetPasswordError;
+
+  @override
+  Future<void> forgotPassword({required String email}) async {
+    if (forgotPasswordError != null) throw forgotPasswordError!;
+  }
+
+  @override
+  Future<void> resetPassword({required String email, required String code, required String newPassword}) async {
+    if (resetPasswordError != null) throw resetPasswordError!;
+  }
+
   @override
   Future<UserProfile> googleLogin({required String idToken}) async {
     isAuthed = true;
@@ -242,12 +255,12 @@ void main() {
         ),
       );
 
-      expect(find.text('Tạo tài khoản mới'), findsOneWidget);
-      expect(find.text('HỌ VÀ TÊN'), findsOneWidget);
-      expect(find.text('ĐỊA CHỈ EMAIL'), findsOneWidget);
-      expect(find.text('MẬT KHẨU'), findsOneWidget);
-      expect(find.text('XÁC NHẬN MẬT KHẨU'), findsOneWidget);
-      expect(find.text('Đăng ký tài khoản'), findsOneWidget);
+      expect(find.text('Chào mừng bạn đến với FinMate'), findsOneWidget);
+      expect(find.text('Họ và tên'), findsOneWidget);
+      expect(find.text('Địa chỉ email'), findsOneWidget);
+      expect(find.text('Mật khẩu'), findsOneWidget);
+      expect(find.text('Nhập lại mật khẩu'), findsOneWidget);
+      expect(find.text('Tiếp tục (Nhận mã OTP)'), findsOneWidget);
       expect(find.text('Đăng nhập ngay'), findsOneWidget);
     });
 
@@ -443,7 +456,9 @@ void main() {
       await tester.enterText(fields.at(1), email);
       await tester.enterText(fields.at(2), 'Password123!');
       await tester.enterText(fields.at(3), 'Password123!');
-      await tester.tap(find.text('Đăng ký tài khoản'));
+      await tester.tap(find.byType(Checkbox));
+      await tester.pump();
+      await tester.tap(find.text('Tiếp tục (Nhận mã OTP)'));
       await tester.pump(const Duration(milliseconds: 300));
       await tester.pump(const Duration(milliseconds: 300));
     }
@@ -473,7 +488,7 @@ void main() {
       await tester.pump();
       expect(repo.verifyCalls, 0);
 
-      await tester.tap(find.text('Xác nhận'));
+      await tester.tap(find.text('Xác nhận & Tiếp tục'));
       await tester.pump();
       // Đang gửi: nút đổi thành spinner và bị vô hiệu hóa
       await tester.tap(find.byType(ElevatedButton), warnIfMissed: false);
@@ -506,7 +521,7 @@ void main() {
       await pumpScreen(tester, const OtpVerificationScreen(email: 'a@finmate.com'));
 
       await tester.enterText(find.byType(TextField), '000000');
-      await tester.tap(find.text('Xác nhận'));
+      await tester.tap(find.text('Xác nhận & Tiếp tục'));
       await tester.pump(const Duration(milliseconds: 300));
 
       expect(find.text('Mã xác thực không hợp lệ.'), findsOneWidget);

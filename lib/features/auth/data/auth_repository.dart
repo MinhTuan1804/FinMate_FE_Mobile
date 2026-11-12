@@ -10,6 +10,12 @@ abstract class IAuthRepository {
   /// Trả về true nếu server cấp token khi xác thực thành công (đã lưu vào TokenStorage)
   Future<bool> verifyEmail({required String email, required String code});
   Future<void> resendVerification({required String email});
+
+  /// POST /auth/forgot-password: luôn trả 204 dù email có tồn tại hay không (chống dò email)
+  Future<void> forgotPassword({required String email});
+
+  /// POST /auth/reset-password: sai email/mã sẽ ném lỗi, màn hình xử lý hiển thị lại
+  Future<void> resetPassword({required String email, required String code, required String newPassword});
   Future<UserProfile> googleLogin({required String idToken});
   Future<UserProfile> getMe();
   /// PATCH /users/me; [monthlyIncomeCents] null nghĩa là giữ nguyên
@@ -96,6 +102,24 @@ class AuthRepository implements IAuthRepository {
     await apiClient.post(
       '/api/v1/auth/resend-verification',
       data: {'email': email},
+      fromJsonT: (json) => json,
+    );
+  }
+
+  @override
+  Future<void> forgotPassword({required String email}) async {
+    await apiClient.post(
+      '/api/v1/auth/forgot-password',
+      data: {'email': email},
+      fromJsonT: (json) => json,
+    );
+  }
+
+  @override
+  Future<void> resetPassword({required String email, required String code, required String newPassword}) async {
+    await apiClient.post(
+      '/api/v1/auth/reset-password',
+      data: {'email': email, 'code': code, 'newPassword': newPassword},
       fromJsonT: (json) => json,
     );
   }

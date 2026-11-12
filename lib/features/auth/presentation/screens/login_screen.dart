@@ -3,10 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:finmate/core/network/api_exceptions.dart';
-import 'package:finmate/core/theme/app_colors.dart';
-import 'package:finmate/core/theme/app_spacing.dart';
-import 'package:finmate/core/theme/app_typography.dart';
+import 'package:finmate/core/theme/glass/glass_colors.dart';
+import 'package:finmate/core/theme/glass/glass_typography.dart';
 import 'package:finmate/features/auth/presentation/controllers/auth_controller.dart';
+import 'package:finmate/shared/widgets/glass/glass_background.dart';
+import 'package:finmate/shared/widgets/glass/glass_buttons.dart';
+import 'package:finmate/shared/widgets/glass/glass_card.dart';
+import 'package:finmate/shared/widgets/glass/glass_text_field.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   final String? initialEmail;
@@ -24,7 +27,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _emailController = TextEditingController(text: widget.initialEmail);
   final _passwordController = TextEditingController();
-  bool _obscurePassword = true;
   bool _isLoading = false;
   String? _error;
   String? _notice;
@@ -84,182 +86,144 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final isLoading = _isLoading;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(LucideIcons.arrowLeft, size: 20),
-          onPressed: () => context.canPop() ? context.pop() : context.go('/'),
+    return GlassBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(LucideIcons.arrowLeft, color: GlassColors.ink),
+            onPressed: () => context.canPop() ? context.pop() : context.go('/'),
+          ),
         ),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  'Chào mừng trở lại',
-                  style: AppTypography.h1(context),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Đăng nhập để tiếp tục quản lý chi tiêu cá nhân',
-                  style: AppTypography.body(context).copyWith(
-                    color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                  ),
-                ),
-                const SizedBox(height: 32),
+        body: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24.0),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text('Chào mừng trở lại', style: GlassTypography.headlineLg()),
+                  const SizedBox(height: 8),
+                  Text('Đăng nhập để tiếp tục quản lý chi tiêu cá nhân', style: GlassTypography.bodyMd()),
+                  const SizedBox(height: 28),
 
-                // Thông báo (ví dụ: đã xác thực email / phiên hết hạn)
-                if (_notice != null) ...[
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.1),
-                      borderRadius: AppSpacing.roundedMedium,
-                      border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(LucideIcons.info, color: AppColors.primary, size: 20),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            _notice!,
-                            style: const TextStyle(color: AppColors.primary, fontSize: 13),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                ],
-
-                // Error Banner if login fails
-                if (_error != null) ...[
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: AppColors.danger.withValues(alpha: 0.1),
-                      borderRadius: AppSpacing.roundedMedium,
-                      border: Border.all(color: AppColors.danger.withValues(alpha: 0.3)),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(LucideIcons.alertCircle, color: AppColors.danger, size: 20),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            _error!,
-                            style: const TextStyle(color: AppColors.danger, fontSize: 13),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                ],
-
-                // Email Field
-                Text('Email', style: AppTypography.bodyMedium(context)),
-                const SizedBox(height: 6),
-                TextFormField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    hintText: 'name@example.com',
-                    prefixIcon: Icon(LucideIcons.mail, size: 18),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) return 'Vui lòng nhập email.';
-                    if (!value.contains('@') || !value.contains('.')) return 'Email không hợp lệ.';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 20),
-
-                // Password Field
-                Text('Mật khẩu', style: AppTypography.bodyMedium(context)),
-                const SizedBox(height: 6),
-                TextFormField(
-                  controller: _passwordController,
-                  obscureText: _obscurePassword,
-                  decoration: InputDecoration(
-                    hintText: 'Nhập mật khẩu của bạn',
-                    prefixIcon: const Icon(LucideIcons.lock, size: 18),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword ? LucideIcons.eyeOff : LucideIcons.eye,
-                        size: 18,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _obscurePassword = !_obscurePassword;
-                        });
-                      },
-                    ),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) return 'Vui lòng nhập mật khẩu.';
-                    if (value.length < 8) return 'Mật khẩu tối thiểu 8 ký tự.';
-                    return null;
-                  },
-                ),
-
-                const SizedBox(height: 32),
-
-                // Submit Button
-                ElevatedButton(
-                  onPressed: isLoading ? null : _submit,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: const RoundedRectangleBorder(borderRadius: AppSpacing.roundedPill),
-                  ),
-                  child: isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                        )
-                      : const Text(
-                          'Đăng nhập',
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-                        ),
-                ),
-
-                const SizedBox(height: 24),
-
-                // Register Link
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      'Chưa có tài khoản? ',
-                      style: AppTypography.caption(context),
-                    ),
-                    GestureDetector(
-                      onTap: () => context.push('/register'),
-                      child: Text(
-                        'Đăng ký ngay',
-                        style: AppTypography.caption(context).copyWith(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w600,
-                        ),
+                  if (_notice != null) ...[
+                    GlassCard(
+                      padding: const EdgeInsets.all(14),
+                      child: Row(
+                        children: [
+                          const Icon(LucideIcons.info, color: GlassColors.slateAnchor, size: 20),
+                          const SizedBox(width: 10),
+                          Expanded(child: Text(_notice!, style: GlassTypography.bodySm(color: GlassColors.textPrimary))),
+                        ],
                       ),
                     ),
+                    const SizedBox(height: 20),
                   ],
-                ),
-              ],
+
+                  if (_error != null) ...[
+                    GlassCard(
+                      padding: const EdgeInsets.all(14),
+                      child: Row(
+                        children: [
+                          const Icon(LucideIcons.alertCircle, color: GlassColors.danger, size: 20),
+                          const SizedBox(width: 10),
+                          Expanded(child: Text(_error!, style: GlassTypography.bodySm(color: GlassColors.danger))),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+
+                  GlassTextField(
+                    label: 'Email',
+                    controller: _emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    hintText: 'name@example.com',
+                    prefixIcon: LucideIcons.mail,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) return 'Vui lòng nhập email.';
+                      if (!value.contains('@') || !value.contains('.')) return 'Email không hợp lệ.';
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 20),
+
+                  GlassTextField(
+                    label: 'Mật khẩu',
+                    controller: _passwordController,
+                    isPassword: true,
+                    hintText: 'Nhập mật khẩu của bạn',
+                    prefixIcon: LucideIcons.lock,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) return 'Vui lòng nhập mật khẩu.';
+                      if (value.length < 8) return 'Mật khẩu tối thiểu 8 ký tự.';
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () => context.push('/forgot-password'),
+                      child: Text(
+                        'Quên mật khẩu?',
+                        style: GlassTypography.bodyMd(color: GlassColors.slateAnchor).copyWith(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+                  GlassPrimaryButton(label: 'Đăng nhập', onPressed: _submit, loading: isLoading),
+
+                  const SizedBox(height: 20),
+                  _socialDivider(),
+                  const SizedBox(height: 16),
+                  GlassSecondaryButton(
+                    label: 'Đăng nhập với Google',
+                    onPressed: () {
+                      // Luồng Google Sign-In (lấy idToken) nằm ngoài phạm vi màn hình này.
+                    },
+                  ),
+
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text('Chưa có tài khoản? ', style: GlassTypography.bodySm()),
+                      GestureDetector(
+                        onTap: () => context.push('/register'),
+                        child: Text(
+                          'Đăng ký ngay',
+                          style: GlassTypography.bodySm(color: GlassColors.ink).copyWith(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                ],
+              ),
             ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _socialDivider() {
+    return Row(
+      children: [
+        const Expanded(child: Divider(color: GlassColors.secondarySurface, thickness: 1)),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Text('Hoặc đăng nhập với', style: GlassTypography.bodySm()),
+        ),
+        const Expanded(child: Divider(color: GlassColors.secondarySurface, thickness: 1)),
+      ],
     );
   }
 }
