@@ -712,6 +712,7 @@ class _BudgetDialogState extends State<_BudgetDialog> {
             TextField(
               controller: _limit,
               keyboardType: TextInputType.number,
+              inputFormatters: [ThousandsSeparatorInputFormatter()],
               decoration: InputDecoration(labelText: 'Hạn mức chi tiêu (VNĐ)', errorText: _error),
             ),
           ],
@@ -796,6 +797,7 @@ class _TransferDialogState extends State<_TransferDialog> {
               key: const ValueKey('transfer-amount'),
               controller: _amount,
               keyboardType: TextInputType.number,
+              inputFormatters: [ThousandsSeparatorInputFormatter()],
               decoration: InputDecoration(labelText: 'Số tiền chuyển (VNĐ)', errorText: _error),
             ),
           ],
@@ -828,7 +830,7 @@ class _GoalDialog extends StatefulWidget {
 
 class _GoalDialogState extends State<_GoalDialog> {
   late final _name = TextEditingController(text: widget.editing?.title ?? '');
-  late final _target = TextEditingController(text: widget.editing?.targetAmountCents.toString() ?? '');
+  late final _target = TextEditingController(text: widget.editing == null ? '' : formatAmountDigits(widget.editing!.targetAmountCents));
   late DateTime? _deadline = widget.editing?.targetDate;
   String? _error;
   GoalFeasibilityEntity? _feasibility;
@@ -897,6 +899,7 @@ class _GoalDialogState extends State<_GoalDialog> {
             TextField(
               controller: _target,
               keyboardType: TextInputType.number,
+              inputFormatters: [ThousandsSeparatorInputFormatter()],
               decoration: const InputDecoration(labelText: 'Mục tiêu tích lũy (VNĐ)'),
             ),
             const SizedBox(height: 12),
@@ -974,6 +977,7 @@ class _AmountDialogState extends State<_AmountDialog> {
       content: TextField(
         controller: _amount,
         keyboardType: TextInputType.number,
+        inputFormatters: [ThousandsSeparatorInputFormatter()],
         autofocus: true,
         decoration: InputDecoration(labelText: 'Số tiền (VNĐ)', errorText: _error),
       ),

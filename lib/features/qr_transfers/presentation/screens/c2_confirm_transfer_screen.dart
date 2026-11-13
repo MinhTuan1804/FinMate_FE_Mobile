@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -62,7 +63,7 @@ class _C2ConfirmTransferScreenState extends ConsumerState<C2ConfirmTransferScree
     _receiverBankBin = widget.initialReceiverBankBin;
     _accountController = TextEditingController(text: widget.initialAccountNumber ?? '');
     _nameController = TextEditingController(text: widget.initialReceiverName ?? '');
-    _amountController = TextEditingController(text: widget.initialAmountCents?.toString() ?? '');
+    _amountController = TextEditingController(text: widget.initialAmountCents == null ? '' : formatAmountDigits(widget.initialAmountCents!));
     _messageController = TextEditingController(text: widget.initialMessage ?? '');
     if (_receiverBankBin != null && widget.initialAccountNumber != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _lookupCounterparty());
@@ -247,12 +248,14 @@ class _C2ConfirmTransferScreenState extends ConsumerState<C2ConfirmTransferScree
     required String label,
     TextInputType? keyboardType,
     ValueChanged<String>? onChanged,
+    List<TextInputFormatter>? inputFormatters,
   }) {
     return TextField(
       key: key,
       controller: controller,
       keyboardType: keyboardType,
       onChanged: onChanged,
+      inputFormatters: inputFormatters,
       decoration: InputDecoration(
         labelText: label,
         filled: true,
@@ -363,6 +366,7 @@ class _C2ConfirmTransferScreenState extends ConsumerState<C2ConfirmTransferScree
                               controller: _amountController,
                               label: 'Số tiền (₫)',
                               keyboardType: TextInputType.number,
+                              inputFormatters: [ThousandsSeparatorInputFormatter()],
                             ),
                           ],
                         ),

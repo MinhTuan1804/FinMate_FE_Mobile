@@ -21,6 +21,10 @@ import 'package:finmate/shared/widgets/glass/glass_card.dart';
 import 'package:finmate/shared/widgets/glass/glass_circular_progress.dart';
 import 'package:finmate/shared/widgets/glass/glass_transaction_row.dart';
 
+/// Ví đang được chọn qua chip trên Trang chủ; null = "Tất cả" (tổng mọi ví, hành vi mặc định
+/// trước đây). Issue D (2026-11-13): trước đây chip chỉ trang trí, không đổi số liệu nào cả.
+final homeSelectedAccountProvider = StateProvider.autoDispose<String?>((ref) => null);
+
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
@@ -124,10 +128,14 @@ class HomeScreen extends ConsumerWidget {
 
   Widget _buildBalanceCard(BuildContext context, WidgetRef ref) {
     final accounts = ref.watch(accountsControllerProvider);
-    final summary = ref.watch(monthlySummaryProvider);
+    final selectedAccountId = ref.watch(homeSelectedAccountProvider);
+    final summary = ref.watch(monthlySummaryForAccountProvider(selectedAccountId));
 
+    final selectedAccount = accounts.valueOrNull?.where((a) => a.id == selectedAccountId).firstOrNull;
     final balanceText = accounts.when(
-      data: (list) => formatVnd(list.fold(BigInt.zero, (sum, a) => sum + a.balanceCents)),
+      data: (list) => formatVnd(
+        selectedAccount?.balanceCents ?? list.fold(BigInt.zero, (sum, a) => sum + a.balanceCents),
+      ),
       loading: () => '...',
       error: (_, __) => '—',
     );
@@ -143,7 +151,10 @@ class HomeScreen extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('TỔNG TÀI SẢN KHẢ DỤNG', style: GlassTypography.labelCaps()),
+          Text(
+            selectedAccount == null ? 'TỔNG TÀI SẢN KHẢ DỤNG' : 'SỐ DƯ · ${selectedAccount.name.toUpperCase()}',
+            style: GlassTypography.labelCaps(),
+          ),
           const SizedBox(height: 8),
           Text(balanceText, style: GlassTypography.displayHero()),
           if (hasNoAccount) ...[
@@ -164,7 +175,7 @@ class HomeScreen extends ConsumerWidget {
               alignment: Alignment.centerLeft,
               child: TextButton(
                 onPressed: () {
-                  ref.invalidate(monthlySummaryProvider);
+                  ref.invalidate(monthlySummaryForAccountProvider);
                   ref.read(accountsControllerProvider.notifier).load();
                 },
                 child: Text('Thử lại', style: GlassTypography.bodyMd(color: GlassColors.accentSkyBlue)),
@@ -357,55 +368,69 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-/// Dãy chip tài khoản — chỉ trang trí (hiển thị tên + số dư mỗi tài khoản), không đổi dữ liệu
-/// Balance Card (vẫn luôn tổng tất cả tài khoản).
-class _AccountChipRow extends ConsumerStatefulWidget {
+/// Dãy chip tài khoản — bấm một ví để lọc Số dư + Thu nhập/Chi tiêu ở Balance Card theo đúng ví
+/// đó (Issue D, 2026-11-13: trước đây chỉ trang trí, bấm không đổi số liệu gì). Chip "Tất cả" đưa
+/// về hành vi mặc định (tổng mọi ví).
+class _AccountChipRow extends ConsumerWidget {
   @override
-  ConsumerState<_AccountChipRow> createState() => _AccountChipRowState();
-}
-
-class _AccountChipRowState extends ConsumerState<_AccountChipRow> {
-  int _selected = 0;
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final accounts = ref.watch(accountsControllerProvider);
     final list = accounts.valueOrNull ?? const <FinancialAccount>[];
     if (list.isEmpty) return const SizedBox.shrink();
+
+    final selected = ref.watch(homeSelectedAccountProvider);
+
+    Widget chip({required VoidCallback onTap, required Widget child, required bool isSelected}) => GestureDetector(
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: isSelected ? GlassColors.ink : GlassColors.glassFill,
+              borderRadius: GlassRadius.roundedPill,
+              border: Border.all(color: isSelected ? GlassColors.ink : GlassColors.glassBorder),
+            ),
+            child: child,
+          ),
+        );
 
     return SizedBox(
       height: 44,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        itemCount: list.length,
+        itemCount: list.length + 1,
         separatorBuilder: (_, __) => const SizedBox(width: 8),
         itemBuilder: (context, i) {
-          final account = list[i];
-          final isSelected = i == _selected;
-          return GestureDetector(
-            onTap: () => setState(() => _selected = i),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: isSelected ? GlassColors.ink : GlassColors.glassFill,
-                borderRadius: GlassRadius.roundedPill,
-                border: Border.all(color: isSelected ? GlassColors.ink : GlassColors.glassBorder),
+          if (i == 0) {
+            final isSelected = selected == null;
+            return chip(
+              onTap: () => ref.read(homeSelectedAccountProvider.notifier).state = null,
+              isSelected: isSelected,
+              child: Text(
+                'Tất cả',
+                style: GlassTypography.bodySm(color: isSelected ? Colors.white : GlassColors.textSecondary)
+                    .copyWith(fontWeight: FontWeight.w600),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    account.name,
-                    style: GlassTypography.bodySm(color: isSelected ? Colors.white : GlassColors.textSecondary)
-                        .copyWith(fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    formatVnd(account.balanceCents),
-                    style: GlassTypography.labelNumeric(color: isSelected ? Colors.white : GlassColors.textPrimary),
-                  ),
-                ],
-              ),
+            );
+          }
+          final account = list[i - 1];
+          final isSelected = account.id == selected;
+          return chip(
+            onTap: () => ref.read(homeSelectedAccountProvider.notifier).state = isSelected ? null : account.id,
+            isSelected: isSelected,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  account.name,
+                  style: GlassTypography.bodySm(color: isSelected ? Colors.white : GlassColors.textSecondary)
+                      .copyWith(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  formatVnd(account.balanceCents),
+                  style: GlassTypography.labelNumeric(color: isSelected ? Colors.white : GlassColors.textPrimary),
+                ),
+              ],
             ),
           );
         },

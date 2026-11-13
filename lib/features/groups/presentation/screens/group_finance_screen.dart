@@ -808,6 +808,7 @@ class _BudgetDialogState extends State<_BudgetDialog> {
               key: const ValueKey('budget-limit'),
               controller: _limit,
               keyboardType: TextInputType.number,
+              inputFormatters: [ThousandsSeparatorInputFormatter()],
               decoration: const InputDecoration(labelText: 'Hạn mức (₫)'),
             ),
           ],
@@ -888,6 +889,7 @@ class _GroupGoalDialogState extends State<_GroupGoalDialog> {
           TextField(
             controller: _target,
             keyboardType: TextInputType.number,
+            inputFormatters: [ThousandsSeparatorInputFormatter()],
             decoration: const InputDecoration(labelText: 'Số tiền mục tiêu (₫)'),
           ),
           const SizedBox(height: 12),
@@ -950,6 +952,7 @@ class _ContributeDialogState extends State<_ContributeDialog> {
           TextField(
             controller: _amount,
             keyboardType: TextInputType.number,
+            inputFormatters: [ThousandsSeparatorInputFormatter()],
             decoration: const InputDecoration(labelText: 'Số tiền (₫)'),
           ),
           const SizedBox(height: 12),

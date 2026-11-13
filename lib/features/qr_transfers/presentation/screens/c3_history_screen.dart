@@ -11,7 +11,6 @@ import 'package:finmate/features/qr_transfers/domain/qr_transfer.dart';
 import 'package:finmate/features/qr_transfers/presentation/controllers/qr_transfer_controller.dart';
 import 'package:finmate/shared/widgets/glass/glass_background.dart';
 import 'package:finmate/shared/widgets/glass/glass_badge.dart';
-import 'package:finmate/shared/widgets/glass/glass_bottom_nav.dart';
 import 'package:finmate/shared/widgets/glass/glass_card.dart';
 import 'package:finmate/shared/widgets/glass/glass_filter_chip.dart';
 
@@ -63,21 +62,6 @@ class C3HistoryScreen extends ConsumerStatefulWidget {
 class _C3HistoryScreenState extends ConsumerState<C3HistoryScreen> {
   _HistoryPill _pill = _HistoryPill.all;
 
-  void _onNavSelected(BuildContext context, int idx) {
-    switch (idx) {
-      case 0:
-        context.go('/home');
-      case 1:
-        context.push('/transactions');
-      case -1:
-        context.push('/qr-transfers/scan');
-      case 2:
-        context.push('/planning');
-      case 3:
-        context.push('/analytics');
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final async = ref.watch(qrTransfersControllerProvider);
@@ -109,7 +93,6 @@ class _C3HistoryScreenState extends ConsumerState<C3HistoryScreen> {
             data: (transfers) => _buildContent(context, transfers),
           ),
         ),
-        bottomNavigationBar: GlassBottomNav(currentIndex: 1, onDestinationSelected: (idx) => _onNavSelected(context, idx)),
       ),
     );
   }

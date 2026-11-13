@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:finmate/core/native/notification_bridge.dart';
 import 'package:finmate/features/accounts/domain/financial_account.dart';
 import 'package:finmate/features/accounts/presentation/controllers/accounts_controller.dart';
+import 'package:finmate/features/analytics/presentation/reports_providers.dart';
 import 'package:finmate/features/auth/presentation/controllers/auth_controller.dart';
+import 'package:finmate/features/planning/presentation/controllers/planning_controller.dart';
 
 final notificationBridgeProvider = Provider<NotificationBridge>((ref) => sharedNotificationBridge);
 
@@ -67,6 +69,18 @@ class _NotificationCaptureScopeState extends ConsumerState<NotificationCaptureSc
         // Native bị từ chối refresh lúc app đóng: dọn gói theo dõi/baseUrl còn sót TRƯỚC khi báo hết phiên.
         await bridge.clearSession();
         if (mounted) ref.read(sessionExpiredProvider.notifier).state = true;
+      } else if (mounted) {
+        // Issue D: flushQueue có thể vừa khiến BE Auto-commit (Flow 1) hoặc gộp Transfer một giao
+        // dịch mới — không ai gọi onDataChanged cho đường này (chỉ createTransaction/confirmDraft ở
+        // transaction_controller.dart mới gọi), nên số dư/Thu nhập/Chi tiêu ở Trang chủ bị đứng im
+        // cho tới khi có thao tác khác vô tình invalidate. Gọi lại bất kể có gì mới hay không — cũng
+        // rẻ như mọi lần mở/quay lại app khác, đúng những gì refreshDerivedData() làm ở nơi khác
+        // (không gọi lại được hàm đó thẳng: nó nhận Ref của notifier, không nhận WidgetRef ở đây).
+        ref.read(accountsControllerProvider.notifier).load();
+        ref.read(planningControllerProvider.notifier).loadPlanningData(silent: true);
+        ref.invalidate(monthlySummaryProvider);
+        ref.invalidate(categoryBreakdownProvider);
+        ref.invalidate(forecastProvider);
       }
     } catch (_) {
       // Lỗi cầu nối không được làm hỏng giao diện; lần resume sau sẽ thử lại.

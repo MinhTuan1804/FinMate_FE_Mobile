@@ -290,7 +290,7 @@ class _RecurringDialog extends StatefulWidget {
 class _RecurringDialogState extends State<_RecurringDialog> {
   late final _name = TextEditingController(text: widget.editing?.name ?? '');
   late final _counterparty = TextEditingController(text: widget.editing?.counterpartyKey ?? '');
-  late final _amount = TextEditingController(text: widget.editing?.amountCents.toString() ?? '');
+  late final _amount = TextEditingController(text: widget.editing == null ? '' : formatAmountDigits(widget.editing!.amountCents));
   late RecurringDirection _direction = widget.editing?.direction ?? RecurringDirection.outflow;
   late RecurringCadence _cadence = widget.editing?.cadence ?? RecurringCadence.monthly;
   late DateTime? _nextDueDate = widget.editing?.nextDueDate;
@@ -368,6 +368,7 @@ class _RecurringDialogState extends State<_RecurringDialog> {
             TextField(
               controller: _amount,
               keyboardType: TextInputType.number,
+              inputFormatters: [ThousandsSeparatorInputFormatter()],
               decoration: const InputDecoration(labelText: 'Số tiền (VNĐ)'),
             ),
             const SizedBox(height: 12),

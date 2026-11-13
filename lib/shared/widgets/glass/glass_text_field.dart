@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:finmate/core/theme/glass/glass_colors.dart';
 import 'package:finmate/core/theme/glass/glass_radius.dart';
@@ -20,6 +21,7 @@ class GlassTextField extends StatefulWidget {
   final void Function(String)? onSubmitted;
   final Widget? suffixIcon;
   final bool enabled;
+  final List<TextInputFormatter>? inputFormatters;
 
   const GlassTextField({
     super.key,
@@ -35,6 +37,7 @@ class GlassTextField extends StatefulWidget {
     this.onSubmitted,
     this.suffixIcon,
     this.enabled = true,
+    this.inputFormatters,
   });
 
   @override
@@ -55,6 +58,7 @@ class _GlassTextFieldState extends State<GlassTextField> {
       onChanged: widget.onChanged,
       onFieldSubmitted: widget.onSubmitted,
       enabled: widget.enabled,
+      inputFormatters: widget.inputFormatters,
       style: GlassTypography.bodyLg(),
       decoration: InputDecoration(
         isDense: false,

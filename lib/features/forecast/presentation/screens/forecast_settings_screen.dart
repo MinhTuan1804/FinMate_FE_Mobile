@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:finmate/core/format/money.dart';
 import 'package:finmate/core/network/api_exceptions.dart';
 import 'package:finmate/core/theme/app_colors.dart';
 import 'package:finmate/core/theme/app_spacing.dart';
@@ -56,9 +57,9 @@ class _ForecastSettingsScreenState extends ConsumerState<ForecastSettingsScreen>
     if (_initialized) return;
     _initialized = true;
     _useDefaultReserve = settings.usesDefaultReserve;
-    _reserveController.text = settings.reserveCents?.toString() ?? '';
+    _reserveController.text = settings.reserveCents == null ? '' : formatAmountDigits(settings.reserveCents!);
     _lowBalanceAlertOn = settings.lowBalanceAlertEnabled;
-    _lowBalanceController.text = settings.lowBalanceThresholdCents?.toString() ?? '';
+    _lowBalanceController.text = settings.lowBalanceThresholdCents == null ? '' : formatAmountDigits(settings.lowBalanceThresholdCents!);
     _useDefaultQuietHours = settings.usesDefaultQuietHours;
     _quietStartController.text = settings.quietHoursStart ?? '';
     _quietEndController.text = settings.quietHoursEnd ?? '';
@@ -159,6 +160,7 @@ class _ForecastSettingsScreenState extends ConsumerState<ForecastSettingsScreen>
               key: const ValueKey('forecast-settings-reserve-amount'),
               controller: _reserveController,
               keyboardType: TextInputType.number,
+              inputFormatters: [ThousandsSeparatorInputFormatter()],
               decoration: const InputDecoration(labelText: 'Dự phòng tự đặt (₫)'),
             ),
         ],
@@ -184,6 +186,7 @@ class _ForecastSettingsScreenState extends ConsumerState<ForecastSettingsScreen>
               key: const ValueKey('forecast-settings-low-balance-amount'),
               controller: _lowBalanceController,
               keyboardType: TextInputType.number,
+              inputFormatters: [ThousandsSeparatorInputFormatter()],
               decoration: const InputDecoration(labelText: 'Ngưỡng cảnh báo (₫)'),
             ),
         ],

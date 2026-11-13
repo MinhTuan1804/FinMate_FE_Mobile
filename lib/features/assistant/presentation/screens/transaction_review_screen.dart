@@ -53,7 +53,8 @@ class TransactionReviewScreen extends ConsumerStatefulWidget {
 }
 
 class _TransactionReviewScreenState extends ConsumerState<TransactionReviewScreen> {
-  late final TextEditingController _amount = TextEditingController(text: widget.args.draft.amountCents?.toString() ?? '');
+  late final TextEditingController _amount =
+      TextEditingController(text: widget.args.draft.amountCents == null ? '' : formatAmountDigits(widget.args.draft.amountCents!));
   late final TextEditingController _merchant = TextEditingController(text: widget.args.draft.merchantName ?? '');
   late final TextEditingController _note = TextEditingController(text: widget.args.draft.description ?? '');
   late TransactionType _type = _initialType();
@@ -400,6 +401,7 @@ class _TransactionReviewScreenState extends ConsumerState<TransactionReviewScree
                 TextField(
                   controller: _amount,
                   keyboardType: TextInputType.number,
+                  inputFormatters: [ThousandsSeparatorInputFormatter()],
                   style: AppTypography.tabular(AppTypography.h2(context).copyWith(fontWeight: FontWeight.w700)),
                   decoration: InputDecoration(prefixIcon: const Icon(LucideIcons.coins, size: 20), suffixText: '₫', suffixStyle: AppTypography.body(context)),
                 ),
