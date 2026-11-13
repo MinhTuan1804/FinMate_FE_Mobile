@@ -6,6 +6,8 @@ import 'package:finmate/core/network/api_exceptions.dart';
 import 'package:finmate/core/theme/glass/glass_colors.dart';
 import 'package:finmate/core/theme/glass/glass_radius.dart';
 import 'package:finmate/core/theme/glass/glass_typography.dart';
+import 'package:finmate/features/categories/presentation/categories_provider.dart';
+import 'package:finmate/features/categories/presentation/category_icons.dart';
 import 'package:finmate/features/finance_methods/domain/finance_method.dart';
 import 'package:finmate/features/finance_methods/presentation/controllers/finance_methods_controller.dart';
 import 'package:finmate/features/finance_methods/presentation/controllers/jar_detail_controller.dart';
@@ -80,11 +82,15 @@ class JarDetailScreen extends ConsumerWidget {
                   const SizedBox(height: 16),
                   _buildHero(jar),
                   const SizedBox(height: 20),
-                  Text('Danh mục liên kết', style: GlassTypography.headlineSm()),
-                  const SizedBox(height: 10),
-                  _CategoryBudgetsSection(jarKeyValue: key),
+                  _CategoryBudgetsSection(jarKeyValue: key, jarLabel: jar.label),
                   const SizedBox(height: 20),
-                  Text('Giao dịch gần đây', style: GlassTypography.headlineSm()),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Giao dịch gần đây', style: GlassTypography.headlineSm()),
+                      Text('Tháng ${DateTime.now().month}', style: GlassTypography.bodySm()),
+                    ],
+                  ),
                   const SizedBox(height: 10),
                   _RecentTransactionsSection(jarKeyValue: key),
                 ],
@@ -108,43 +114,93 @@ class JarDetailScreen extends ConsumerWidget {
 
   Widget _buildHero(JarEntity jar) {
     final percent = jar.usedPct?.toDouble() ?? 0;
+    final now = DateTime.now();
+    final lastDayOfMonth = DateTime(now.year, now.month + 1, 0).day;
+    final daysRemaining = lastDayOfMonth - now.day + 1;
+    final perDay = jar.remainingCents != null && daysRemaining > 0
+        ? jar.remainingCents! ~/ BigInt.from(daysRemaining)
+        : null;
+
     return GlassCard(
       level: 2,
       borderRadius: GlassRadius.roundedCardLarge,
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('NGÂN SÁCH THÁNG NÀY', style: GlassTypography.labelCaps(color: GlassColors.accentSkyBlue)),
-                const SizedBox(height: 8),
-                Text(
-                  jar.allocatedCents == null ? 'Chưa biết' : formatVnd(jar.allocatedCents!),
-                  style: GlassTypography.displayHero(),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('NGÂN SÁCH THÁNG NÀY', style: GlassTypography.labelCaps(color: GlassColors.accentSkyBlue)),
+                    const SizedBox(height: 8),
+                    Text(
+                      jar.allocatedCents == null ? 'Chưa biết' : formatVnd(jar.allocatedCents!),
+                      style: GlassTypography.displayHero(),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 12),
-                Text('Đã chi tiêu: ${formatVnd(jar.spentCents)}', style: GlassTypography.bodyMd()),
-                const SizedBox(height: 4),
-                Text(
-                  jar.remainingCents == null ? 'Chưa biết còn lại' : 'Còn ${formatVnd(jar.remainingCents!)}',
-                  style: GlassTypography.bodySm(),
+              ),
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.7), shape: BoxShape.circle),
+                child: const Icon(LucideIcons.wallet, size: 22, color: GlassColors.slateAnchor),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Đã chi tiêu: ${formatVnd(jar.spentCents)}', style: GlassTypography.bodyMd()),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.5), borderRadius: GlassRadius.roundedPill),
+                      child: Text(
+                        jar.remainingCents == null
+                            ? 'Chưa biết còn lại'
+                            : 'Còn ${formatVnd(jar.remainingCents!)} • $daysRemaining ngày tới',
+                        style: GlassTypography.bodySm(color: GlassColors.textSecondary),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              GlassCircularProgress(
+                size: 96,
+                percent: percent,
+                center: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('${percent.round()}%', style: GlassTypography.headlineSm()),
+                    Text('định mức', style: GlassTypography.bodySm()),
+                  ],
+                ),
+              ),
+            ],
           ),
-          GlassCircularProgress(
-            size: 96,
-            percent: percent,
-            center: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('${percent.round()}%', style: GlassTypography.headlineSm()),
-                Text('định mức', style: GlassTypography.bodySm()),
-              ],
+          if (perDay != null) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.4), borderRadius: GlassRadius.roundedInput),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Tiến độ chi tiêu an toàn', style: GlassTypography.bodySm()),
+                  Text('~${formatVnd(perDay)} / ngày', style: GlassTypography.bodySm(color: GlassColors.textPrimary).copyWith(fontWeight: FontWeight.w600)),
+                ],
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );
@@ -153,36 +209,78 @@ class JarDetailScreen extends ConsumerWidget {
 
 class _CategoryBudgetsSection extends ConsumerWidget {
   final JarKey jarKeyValue;
+  final String jarLabel;
 
-  const _CategoryBudgetsSection({required this.jarKeyValue});
+  const _CategoryBudgetsSection({required this.jarKeyValue, required this.jarLabel});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(jarCategoryBudgetsProvider(jarKeyValue));
-    return async.when(
-      loading: () => const Padding(padding: EdgeInsets.all(8), child: CircularProgressIndicator()),
-      error: (e, __) => Text(errorMessage(e), style: GlassTypography.bodySm(color: GlassColors.danger)),
-      data: (budgets) {
-        if (budgets.isEmpty) {
-          return GlassCard(child: Text('Chưa khai hạn mức cho danh mục trong hũ này.', style: GlassTypography.bodyMd()));
-        }
-        return Column(
+    final categoriesAsync = ref.watch(categoriesProvider);
+    final slugById = categoriesAsync.maybeWhen(
+      data: (categories) => {for (final c in categories) c.id: c.slug},
+      orElse: () => const <String, String>{},
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            for (final b in budgets) ...[
-              _CategoryBudgetRow(budget: b),
-              const SizedBox(height: 10),
-            ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Danh mục liên kết', style: GlassTypography.headlineSm()),
+                  const SizedBox(height: 2),
+                  async.maybeWhen(
+                    data: (budgets) => Text('${budgets.length} hạn mức con thuộc hũ $jarLabel', style: GlassTypography.bodySm()),
+                    orElse: () => Text('Thuộc hũ $jarLabel', style: GlassTypography.bodySm()),
+                  ),
+                ],
+              ),
+            ),
+            TextButton(
+              onPressed: () {},
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Chi tiết', style: GlassTypography.bodyMd(color: GlassColors.accentSkyBlue)),
+                  const Icon(Icons.chevron_right, size: 16, color: GlassColors.accentSkyBlue),
+                ],
+              ),
+            ),
           ],
-        );
-      },
+        ),
+        const SizedBox(height: 6),
+        async.when(
+          loading: () => const Padding(padding: EdgeInsets.all(8), child: CircularProgressIndicator()),
+          error: (e, __) => Text(errorMessage(e), style: GlassTypography.bodySm(color: GlassColors.danger)),
+          data: (budgets) {
+            if (budgets.isEmpty) {
+              return GlassCard(child: Text('Chưa khai hạn mức cho danh mục trong hũ này.', style: GlassTypography.bodyMd()));
+            }
+            return Column(
+              children: [
+                for (final b in budgets) ...[
+                  _CategoryBudgetRow(budget: b, slug: slugById[b.categoryId]),
+                  const SizedBox(height: 10),
+                ],
+              ],
+            );
+          },
+        ),
+      ],
     );
   }
 }
 
 class _CategoryBudgetRow extends StatelessWidget {
   final BudgetEntity budget;
+  final String? slug;
 
-  const _CategoryBudgetRow({required this.budget});
+  const _CategoryBudgetRow({required this.budget, required this.slug});
 
   @override
   Widget build(BuildContext context) {
@@ -194,7 +292,7 @@ class _CategoryBudgetRow extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(color: GlassColors.accentWarmPeach.withValues(alpha: 0.3), shape: BoxShape.circle),
-            child: const Icon(LucideIcons.tag, size: 18, color: GlassColors.slateAnchor),
+            child: Icon(categoryIcon(slug), size: 18, color: GlassColors.slateAnchor),
           ),
           const SizedBox(width: 12),
           Expanded(

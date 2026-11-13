@@ -348,7 +348,7 @@ class HomeScreen extends ConsumerWidget {
       case 1:
         context.push('/transactions');
       case -1:
-        context.push('/qr-transfers');
+        context.push('/qr-transfers/scan');
       case 2:
         context.push('/planning');
       case 3:

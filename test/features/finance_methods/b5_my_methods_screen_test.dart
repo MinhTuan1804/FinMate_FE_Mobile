@@ -35,21 +35,21 @@ Future<void> _pump(WidgetTester tester, RouteAdapter adapter) async {
 
 void main() {
   group('MyMethodsScreen (B5)', () {
-    testWidgets('chưa có cách đang dùng, tiền khả dụng, hũ', (tester) async {
+    testWidgets('chưa có cách đang dùng: hiện trạng thái trống, vẫn thấy hũ của phương pháp khác', (tester) async {
       await _pump(tester, _adapter());
 
       expect(find.text('Chưa dùng cách quản lý nào.'), findsOneWidget);
-
-      expect(find.byKey(const ValueKey('spendable-amount')), findsOneWidget);
-      expect(find.textContaining('10.000.000'), findsOneWidget);
 
       expect(find.byKey(const ValueKey('jar-set-um-2')), findsOneWidget);
       expect(find.text('Vượt hạn mức'), findsOneWidget);
     });
 
-    testWidgets('chỉnh tham số: mở hộp thoại, lưu thì PATCH đúng body', (tester) async {
+    testWidgets('chỉnh tham số: mở sheet từ icon bút, lưu thì PATCH đúng body', (tester) async {
       final adapter = _adapter(myMethodsFixture: 'my_methods');
       await _pump(tester, adapter);
+
+      await tester.tap(find.byKey(const ValueKey('open-edit-methods')));
+      await tester.pumpAndSettle();
 
       expect(find.byKey(const ValueKey('my-method-um-1')), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('my-method-edit-params-um-1')));
@@ -64,9 +64,12 @@ void main() {
       expect((patchReq.data['params'] as Map)['t1_pct'], 60);
     });
 
-    testWidgets('kết thúc một cách đang dùng: gửi DELETE và mục biến mất khỏi danh sách', (tester) async {
+    testWidgets('kết thúc một cách đang dùng: gửi DELETE và mục biến mất khỏi sheet', (tester) async {
       final adapter = _adapter(myMethodsFixture: 'my_methods');
       await _pump(tester, adapter);
+
+      await tester.tap(find.byKey(const ValueKey('open-edit-methods')));
+      await tester.pumpAndSettle();
 
       await tester.tap(find.byKey(const ValueKey('my-method-end-um-1')));
       await tester.pumpAndSettle();

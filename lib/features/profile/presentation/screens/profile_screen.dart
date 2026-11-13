@@ -257,7 +257,7 @@ class ProfileScreen extends ConsumerWidget {
             const SizedBox(height: 12),
             OutlinedButton.icon(
               key: const ValueKey('open-qr-transfers'),
-              onPressed: () => context.push('/qr-transfers'),
+              onPressed: () => context.push('/qr-transfers/scan'),
               icon: const Icon(Icons.qr_code, size: 18, color: AppColors.primary),
               label: const Text('QR chuyển khoản', style: TextStyle(color: AppColors.primary)),
               style: OutlinedButton.styleFrom(

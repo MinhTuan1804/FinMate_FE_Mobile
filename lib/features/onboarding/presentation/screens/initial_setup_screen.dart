@@ -86,9 +86,9 @@ class _InitialSetupScreenState extends ConsumerState<InitialSetupScreen> {
                   .toList(),
             ),
           );
-      // Nối tiếp luồng: setup xong thì sang thẳng khảo sát đầu vào (B3) để có dữ liệu cho
-      // gợi ý phương pháp quản lý (B4), thay vì về Home rồi người dùng phải tự tìm trong Hồ sơ.
-      if (mounted) context.go('/survey');
+      // Cuối chuỗi onboarding bắt buộc: hỏi quyền đọc thông báo 1 lần (§16.4) trước khi sang
+      // khảo sát đầu vào (B3) — không đi thẳng '/survey' nữa.
+      if (mounted) context.go('/onboarding/notification-permission');
     } catch (e) {
       if (mounted) _showError(errorMessage(e));
     } finally {

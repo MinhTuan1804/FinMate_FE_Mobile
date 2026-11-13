@@ -58,5 +58,12 @@
         <intent>
             <action android:name="android.speech.RecognitionService"/>
         </intent>
+        <!-- Android 11+ ẩn danh sách app nếu không khai báo: cần để url_launcher thấy được app
+             ngân hàng nào xử lý được liên kết sâu https://dl.vietqr.io/pay (C2 — mở app ngân hàng
+             sau khi tạo ý định chuyển tiền). -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="https"/>
+        </intent>
     </queries>
 </manifest>
