@@ -147,8 +147,8 @@ void main() {
 
       expect(find.text('01/10/2026'), findsOneWidget);
       expect(find.text('30/09/2026'), findsOneWidget);
-      expect(find.text('Ăn uống'), findsOneWidget);
-      expect(find.text('Không phân loại'), findsOneWidget);
+      expect(find.textContaining('Ăn uống'), findsOneWidget);
+      expect(find.textContaining('Không phân loại'), findsOneWidget);
       expect(find.byIcon(Icons.cloud_off), findsNothing); // dùng icon Lucide, không phải Material
     });
 

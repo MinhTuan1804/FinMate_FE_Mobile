@@ -58,7 +58,7 @@ class AppBottomNav extends StatelessWidget {
               Expanded(
                 child: Center(
                   child: _CenterScanButton(
-                    onPressed: () => context.push('/qr-scan'),
+                    onPressed: () => context.push('/qr-transfers/scan'),
                   ),
                 ),
               ),

@@ -9,7 +9,6 @@ import 'package:finmate/core/network/api_exceptions.dart';
 import 'package:finmate/core/theme/app_colors.dart';
 import 'package:finmate/core/theme/app_spacing.dart';
 import 'package:finmate/core/theme/app_typography.dart';
-import 'package:finmate/core/widgets/glass/liquid_glass.dart';
 import 'package:finmate/features/assistant/data/assistant_repository.dart';
 import 'package:finmate/features/assistant/data/receipt_image_source.dart';
 import 'package:finmate/features/assistant/domain/assistant_models.dart';
@@ -22,7 +21,8 @@ class ReceiptScannerScreen extends ConsumerStatefulWidget {
   const ReceiptScannerScreen({super.key});
 
   @override
-  ConsumerState<ReceiptScannerScreen> createState() => _ReceiptScannerScreenState();
+  ConsumerState<ReceiptScannerScreen> createState() =>
+      _ReceiptScannerScreenState();
 }
 
 class _ReceiptScannerScreenState extends ConsumerState<ReceiptScannerScreen> {
@@ -31,7 +31,9 @@ class _ReceiptScannerScreenState extends ConsumerState<ReceiptScannerScreen> {
   ReceiptScan? _scan;
   String? _error;
 
-  Future<void> _pick(Future<String?> Function(ReceiptImageSource) choose) async {
+  Future<void> _pick(
+    Future<String?> Function(ReceiptImageSource) choose,
+  ) async {
     final String? path;
     try {
       path = await choose(ref.read(receiptImageSourceProvider));
@@ -51,7 +53,9 @@ class _ReceiptScannerScreenState extends ConsumerState<ReceiptScannerScreen> {
       _error = null;
     });
     try {
-      final scan = await ref.read(assistantRepositoryProvider).scanReceipt(path);
+      final scan = await ref
+          .read(assistantRepositoryProvider)
+          .scanReceipt(path);
       if (!mounted) return;
       setState(() => _scan = scan);
     } on Object catch (e) {
@@ -62,53 +66,33 @@ class _ReceiptScannerScreenState extends ConsumerState<ReceiptScannerScreen> {
   }
 
   void _reset() => setState(() {
-        _imagePath = null;
-        _scan = null;
-        _error = null;
-      });
+    _imagePath = null;
+    _scan = null;
+    _error = null;
+  });
 
-  void _review(DraftTransaction draft) => context.push('/assistant/review', extra: ReviewArgs(draft));
+  void _review(DraftTransaction draft) =>
+      context.push('/assistant/review', extra: ReviewArgs(draft));
 
   @override
   Widget build(BuildContext context) {
-    final scan = _scan;
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Quét hóa đơn'),
-        leading: IconButton(
-          icon: const Icon(LucideIcons.arrowLeft),
-          tooltip: 'Quay lại',
-          onPressed: () => context.pop(),
+      backgroundColor: AppColors.cameraBackdrop,
+      body: DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [AppColors.cameraBackdrop, AppColors.surfaceDark],
+          ),
         ),
-      ),
-      body: AmbientGlassBackground(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+        child: SafeArea(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (_imagePath == null) _pickerCard(context) else _preview(),
-              if (_error != null && _imagePath == null) ...[
-                const SizedBox(height: 14),
-                Text(_error!, textAlign: TextAlign.center, style: AppTypography.caption(context).copyWith(color: AppColors.danger)),
-              ],
-              if (_isProcessing) ...[
-                const SizedBox(height: 24),
-                LiquidGlassCard(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    children: [
-                      const CircularProgressIndicator(),
-                      const SizedBox(height: 16),
-                      Text('AI đang đọc và phân tích hóa đơn...', style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w600)),
-                      const SizedBox(height: 4),
-                      Text('Có thể mất vài giây', style: AppTypography.caption(context)),
-                    ],
-                  ),
-                ),
-              ],
-              if (_error != null && _imagePath != null && !_isProcessing) _failure(context, _error!),
-              if (scan != null && !_isProcessing) ..._result(context, scan),
+              _header(context),
+              Expanded(child: _viewfinder(context)),
+              _hint(context),
+              _bottomPanel(context),
             ],
           ),
         ),
@@ -116,253 +100,694 @@ class _ReceiptScannerScreenState extends ConsumerState<ReceiptScannerScreen> {
     );
   }
 
-  Widget _pickerCard(BuildContext context) {
-    return LiquidGlassCard(
-      variant: LiquidGlassVariant.standard,
-      padding: const EdgeInsets.all(28),
-      child: Column(
+  Widget _header(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      child: Row(
         children: [
-          Container(
-            width: 72,
-            height: 72,
-            decoration: BoxDecoration(color: AppColors.secondary.withValues(alpha: 0.15), shape: BoxShape.circle),
-            child: const Center(child: Icon(LucideIcons.scanLine, size: 36, color: AppColors.secondary)),
+          _cameraButton(
+            icon: LucideIcons.arrowLeft,
+            tooltip: 'Quay lại',
+            onPressed: () => context.pop(),
           ),
-          const SizedBox(height: 18),
-          Text(
-            'Chụp hoặc tải ảnh hóa đơn',
-            textAlign: TextAlign.center,
-            style: AppTypography.h2(context).copyWith(fontSize: 18, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'AI FinMate sẽ trích xuất tên cửa hàng, ngày giờ và tổng số tiền. Bạn rà soát rồi mới lưu.',
-            textAlign: TextAlign.center,
-            style: AppTypography.caption(context).copyWith(fontSize: 13.5),
-          ),
-          const SizedBox(height: 24),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  icon: const Icon(LucideIcons.image, size: 18),
-                  label: const Text('Thư viện'),
-                  style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14), shape: const StadiumBorder()),
-                  onPressed: () => _pick((s) => s.pickFromGallery()),
+          Expanded(
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton.icon(
-                  icon: const Icon(LucideIcons.camera, size: 18),
-                  label: const Text('Chụp ảnh'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryAction(context),
-                    foregroundColor: AppColors.onPrimaryAction(context),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: const StadiumBorder(),
+                decoration: BoxDecoration(
+                  color: AppColors.cameraControl,
+                  borderRadius: AppSpacing.roundedPill,
+                  border: Border.all(
+                    color: AppColors.onCamera.withValues(alpha: 0.18),
                   ),
-                  onPressed: () => _pick((s) => s.scanBill()),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: AppColors.onCamera,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Flexible(
+                      child: Text(
+                        'Quét hóa đơn AI',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: AppColors.onCamera,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
+            ),
           ),
+          if (_imagePath != null)
+            _cameraButton(
+              icon: LucideIcons.rotateCcw,
+              tooltip: 'Chọn ảnh khác',
+              onPressed: _isProcessing ? null : _reset,
+            )
+          else
+            const SizedBox(width: AppSpacing.minTouchTarget),
         ],
       ),
     );
   }
 
-  Widget _preview() {
-    return Stack(
-      children: [
-        ClipRRect(
-          borderRadius: AppSpacing.roundedLarge,
-          child: Container(
-            height: 220,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              border: Border.all(color: AppColors.glassBorder(context)),
-              borderRadius: AppSpacing.roundedLarge,
-            ),
-            child: Image.file(
-              File(_imagePath!),
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => const Center(child: Icon(LucideIcons.imageOff)),
+  Widget _cameraButton({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback? onPressed,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: AppColors.cameraControl,
+        shape: CircleBorder(
+          side: BorderSide(color: AppColors.onCamera.withValues(alpha: 0.18)),
+        ),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onPressed,
+          child: SizedBox(
+            width: AppSpacing.minTouchTarget,
+            height: AppSpacing.minTouchTarget,
+            child: Icon(
+              icon,
+              size: 20,
+              color: onPressed == null
+                  ? AppColors.onCameraDisabled
+                  : AppColors.onCamera,
             ),
           ),
         ),
-        Positioned(
-          top: 10,
-          right: 10,
-          child: LiquidGlassIconButton(icon: LucideIcons.rotateCcw, size: 38, tooltip: 'Chọn ảnh khác', onPressed: _reset),
-        ),
-      ],
+      ),
     );
   }
 
-  Widget _failure(BuildContext context, String message) {
+  /// Khung ngắm: ảnh hóa đơn trong bốn góc quét, kèm các nhãn AI đọc được đè lên ảnh
+  Widget _viewfinder(BuildContext context) {
+    final scan = _scan;
+    final draft =
+        scan != null &&
+            scan.success &&
+            scan.draft.amountCents != null &&
+            scan.orders.length <= 1
+        ? scan.draft
+        : null;
     return Padding(
-      padding: const EdgeInsets.only(top: 18),
-      child: LiquidGlassCard(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          children: [
-            Text(message, textAlign: TextAlign.center, style: AppTypography.body(context)),
-            const SizedBox(height: 12),
-            OutlinedButton(onPressed: () => _scanImage(_imagePath!), child: const Text('Thử lại')),
-          ],
-        ),
-      ),
-    );
-  }
-
-  List<Widget> _result(BuildContext context, ReceiptScan scan) {
-    if (!scan.success || scan.draft.amountCents == null) {
-      return [
-        Padding(
-          padding: const EdgeInsets.only(top: 18),
-          child: LiquidGlassCard(
-            padding: const EdgeInsets.all(18),
-            child: Column(
-              children: [
-                Text(
-                  'Không đọc được hóa đơn. Bạn thử chụp rõ hơn hoặc nhập giao dịch bằng tay.',
-                  textAlign: TextAlign.center,
-                  style: AppTypography.body(context),
-                ),
-                const SizedBox(height: 12),
-                OutlinedButton(onPressed: _reset, child: const Text('Chọn ảnh khác')),
-              ],
-            ),
-          ),
-        ),
-      ];
-    }
-    final orders = scan.orders;
-    if (orders.length > 1) return [const SizedBox(height: 18), _ordersCard(context, scan)];
-
-    final draft = scan.draft;
-    final categories = ref.watch(categoriesProvider).valueOrNull ?? const [];
-    final category = categories.where((c) => c.slug == draft.categorySlug).firstOrNull;
-    final items = [for (final g in draft.receiptGroups) ...g.items];
-    return [
-      const SizedBox(height: 18),
-      ZenvestHeroDeck(
-        peekBadgeText: 'OCR',
-        child: LiquidGlassCard(
-          variant: LiquidGlassVariant.iridescentHero,
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+      padding: const EdgeInsets.fromLTRB(28, 16, 28, 8),
+      child: Center(
+        child: AspectRatio(
+          aspectRatio: 0.78,
+          child: Stack(
+            fit: StackFit.expand,
             children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(color: AppColors.safe.withValues(alpha: 0.15), shape: BoxShape.circle),
-                    child: const Icon(LucideIcons.checkCheck, color: AppColors.safe, size: 20),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          draft.merchantName ?? 'Hóa đơn',
-                          style: AppTypography.h2(context).copyWith(fontSize: 18, fontWeight: FontWeight.w800),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: _imagePath == null
+                    ? DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: AppColors.cameraScrim.withValues(alpha: 0.5),
                         ),
-                        if (draft.transactedAt != null)
-                          Text(DateFormat('HH:mm - dd/MM/yyyy').format(draft.transactedAt!), style: AppTypography.caption(context)),
-                        if (category != null) Text(category.name, style: AppTypography.caption(context)),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const Divider(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Tổng tiền', style: AppTypography.caption(context)),
-                  Text(
-                    formatVnd(draft.amountCents!),
-                    style: AppTypography.displayBalance(context).copyWith(fontSize: 24, color: AppColors.danger, fontWeight: FontWeight.w800),
-                  ),
-                ],
-              ),
-              if (draft.needsReview) ...[
-                const SizedBox(height: 8),
-                Text(
-                  'AI chưa chắc chắn về một số chi tiết, bạn kiểm tra kỹ ở bước rà soát.',
-                  style: AppTypography.caption(context).copyWith(color: AppColors.warning),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-      if (items.isNotEmpty) ...[
-        const SizedBox(height: 18),
-        ZenvestSurfaceSheet(
-          title: 'Chi tiết các món hàng',
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-          child: Column(
-            children: [
-              for (final item in items) ...[
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Row(
-                    children: [
-                      const Icon(LucideIcons.circleDot, size: 10, color: AppColors.secondary),
-                      const SizedBox(width: 10),
-                      Expanded(child: Text(item.name, style: AppTypography.body(context).copyWith(fontSize: 13.5))),
-                      Text(
-                        formatVnd(item.amountCents),
-                        style: AppTypography.tabular(
-                          AppTypography.caption(context).copyWith(fontWeight: FontWeight.w700, color: AppColors.textPrimary(context)),
+                        child: const Center(
+                          child: Icon(
+                            LucideIcons.scanLine,
+                            size: 48,
+                            color: AppColors.onCameraMuted,
+                          ),
+                        ),
+                      )
+                    : Image.file(
+                        File(_imagePath!),
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => const Center(
+                          child: Icon(
+                            LucideIcons.imageOff,
+                            color: AppColors.onCameraMuted,
+                          ),
                         ),
                       ),
-                    ],
+              ),
+              const Positioned.fill(
+                child: IgnorePointer(
+                  child: CustomPaint(
+                    painter: _CornersPainter(AppColors.onCamera),
                   ),
                 ),
-                const Divider(height: 1),
-              ],
+              ),
+              if (draft != null && !_isProcessing) ..._tags(draft),
+              if (_isProcessing)
+                Positioned.fill(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: ColoredBox(
+                      color: AppColors.cameraScrim,
+                      child: Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const CircularProgressIndicator(
+                                color: AppColors.onCamera,
+                              ),
+                              const SizedBox(height: 16),
+                              const Text(
+                                'AI đang đọc và phân tích hóa đơn...',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: AppColors.onCamera,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Có thể mất vài giây',
+                                style: TextStyle(
+                                  color: AppColors.onCamera.withValues(
+                                    alpha: 0.7,
+                                  ),
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
-      ],
-      const SizedBox(height: 24),
-      LiquidGlassPillButton(
-        label: 'Rà soát và lưu giao dịch',
-        icon: LucideIcons.arrowRight,
-        isFullWidth: true,
-        onPressed: () => _review(draft),
+      ),
+    );
+  }
+
+  /// Nhãn kính nhỏ đè lên ảnh: cửa hàng, ngày, tổng tiền (đọc từ kết quả quét thật)
+  List<Widget> _tags(DraftTransaction draft) {
+    Widget tag(IconData icon, String text, {bool strong = false}) => Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: strong
+            ? AppColors.secondary.withValues(alpha: 0.92)
+            : AppColors.cameraControl,
+        borderRadius: AppSpacing.roundedPill,
+        border: Border.all(color: AppColors.onCamera.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 13,
+            color: strong ? AppColors.primary : AppColors.onCamera,
+          ),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              text,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: strong ? AppColors.primary : AppColors.onCamera,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    return [
+      Positioned(
+        left: 12,
+        right: 12,
+        top: 12,
+        child: ExcludeSemantics(
+          child: Row(
+            children: [
+              if (draft.merchantName != null)
+                Flexible(child: tag(LucideIcons.store, draft.merchantName!)),
+              const Spacer(),
+              if (draft.transactedAt != null)
+                tag(
+                  LucideIcons.calendar,
+                  DateFormat('dd/MM/yyyy').format(draft.transactedAt!),
+                ),
+            ],
+          ),
+        ),
+      ),
+      Positioned(
+        left: 12,
+        right: 12,
+        bottom: 16,
+        child: ExcludeSemantics(
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: tag(
+              LucideIcons.banknote,
+              'Tổng tiền: ${formatVnd(draft.amountCents!)}',
+              strong: true,
+            ),
+          ),
+        ),
       ),
     ];
   }
 
-  Widget _ordersCard(BuildContext context, ReceiptScan scan) {
-    final cut = scan.incompleteOrders > 0 ? ' Còn ${scan.incompleteOrders} đơn bị cắt ở mép ảnh, hãy chụp thêm phần đó.' : '';
-    return ZenvestSurfaceSheet(
-      title: 'Tìm thấy ${scan.orders.length} đơn trong ảnh',
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Rà soát và lưu từng đơn.$cut', style: AppTypography.caption(context)),
-          const SizedBox(height: 8),
-          for (final order in scan.orders) ...[
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(order.merchantName ?? 'Đơn hàng', maxLines: 1, overflow: TextOverflow.ellipsis),
-              subtitle: order.description == null ? null : Text(order.description!, maxLines: 1, overflow: TextOverflow.ellipsis),
-              trailing: Text(order.amountCents == null ? 'Chưa đọc được' : formatVnd(order.amountCents!)),
-              onTap: order.amountCents == null ? null : () => _review(order),
+  Widget _hint(BuildContext context) {
+    final error = _error;
+    final isError = error != null && _imagePath == null;
+    final text = isError
+        ? error
+        : (_imagePath == null
+              ? 'Căn chỉnh hóa đơn vào khung hình để AI tự động trích xuất thông tin.'
+              : null);
+    if (text == null) return const SizedBox(height: 8);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppColors.cameraControl,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isError
+                ? AppColors.danger
+                : AppColors.onCamera.withValues(alpha: 0.18),
+          ),
+        ),
+        child: Text(
+          text,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: isError ? AppColors.onCamera : AppColors.onCameraMuted,
+            fontSize: 13,
+            height: 1.4,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _bottomPanel(BuildContext context) {
+    if (_isProcessing) return const SizedBox(height: 16);
+    if (_imagePath == null) return _controls();
+    if (_error != null) {
+      return _sheet(
+        context,
+        _messageBody(
+          context,
+          _error!,
+          'Thử lại',
+          () => _scanImage(_imagePath!),
+        ),
+      );
+    }
+    final scan = _scan;
+    if (scan == null) return const SizedBox(height: 16);
+    if (!scan.success || scan.draft.amountCents == null) {
+      return _sheet(
+        context,
+        _messageBody(
+          context,
+          'Không đọc được hóa đơn. Bạn thử chụp rõ hơn hoặc nhập giao dịch bằng tay.',
+          'Chọn ảnh khác',
+          _reset,
+        ),
+      );
+    }
+    if (scan.orders.length > 1) {
+      return _sheet(context, _ordersBody(context, scan));
+    }
+    return _sheet(context, _resultBody(context, scan.draft));
+  }
+
+  /// Hàng nút chọn nguồn ảnh khi chưa có ảnh: thư viện và nút tròn lớn (quét/chụp)
+  Widget _controls() {
+    Widget labelled(Widget button, String label, VoidCallback onTap) => InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            button,
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: const TextStyle(
+                color: AppColors.onCamera,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
             ),
-            const Divider(height: 1),
           ],
+        ),
+      ),
+    );
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 4, 24, 20),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          labelled(
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: AppColors.cameraControl,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: AppColors.onCamera.withValues(alpha: 0.18),
+                ),
+              ),
+              child: const Icon(
+                LucideIcons.image,
+                size: 22,
+                color: AppColors.onCamera,
+              ),
+            ),
+            'Thư viện',
+            () => _pick((s) => s.pickFromGallery()),
+          ),
+          const SizedBox(width: 28),
+          labelled(
+            Container(
+              width: 76,
+              height: 76,
+              padding: const EdgeInsets.all(5),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.onCamera, width: 3),
+              ),
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: AppColors.onCamera,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  LucideIcons.camera,
+                  size: 28,
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
+            'Chụp ảnh',
+            () => _pick((s) => s.scanBill()),
+          ),
         ],
       ),
     );
   }
+
+  /// Bảng kết quả sáng trượt từ đáy (Figma D4)
+  Widget _sheet(BuildContext context, Widget body) {
+    final maxHeight = MediaQuery.sizeOf(context).height * 0.5;
+    return Container(
+      width: double.infinity,
+      constraints: BoxConstraints(maxHeight: maxHeight),
+      decoration: BoxDecoration(
+        color: AppColors.surface(context),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        border: Border.all(color: AppColors.glassBorder(context)),
+      ),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+        child: body,
+      ),
+    );
+  }
+
+  Widget _messageBody(
+    BuildContext context,
+    String message,
+    String actionLabel,
+    VoidCallback onAction,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          message,
+          textAlign: TextAlign.center,
+          style: AppTypography.body(context),
+        ),
+        const SizedBox(height: 14),
+        OutlinedButton(
+          onPressed: onAction,
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size.fromHeight(48),
+            shape: const StadiumBorder(),
+          ),
+          child: Text(actionLabel),
+        ),
+      ],
+    );
+  }
+
+  Widget _resultBody(BuildContext context, DraftTransaction draft) {
+    final categories = ref.watch(categoriesProvider).valueOrNull ?? const [];
+    final category = categories
+        .where((c) => c.slug == draft.categorySlug)
+        .firstOrNull;
+    final itemCount = [for (final g in draft.receiptGroups) ...g.items].length;
+    final secondary = AppTypography.caption(context);
+
+    Widget row(IconData icon, String label, Widget value) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: secondary.color),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: AppTypography.body(context).copyWith(color: secondary.color),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Align(alignment: Alignment.centerRight, child: value),
+          ),
+        ],
+      ),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            const Icon(
+              LucideIcons.scanText,
+              size: 16,
+              color: AppColors.slateAction,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'TRÍCH XUẤT SƠ BỘ',
+              style: secondary.copyWith(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.8,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        row(
+          LucideIcons.store,
+          'Cửa hàng',
+          Text(
+            draft.merchantName ?? 'Hóa đơn',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.end,
+            style: AppTypography.bodyLarge(
+              context,
+            ).copyWith(fontWeight: FontWeight.w700),
+          ),
+        ),
+        row(
+          LucideIcons.banknote,
+          'Số tiền',
+          Text(
+            formatVnd(draft.amountCents!),
+            style: AppTypography.tabular(
+              AppTypography.h2(
+                context,
+              ).copyWith(fontSize: 20, fontWeight: FontWeight.w800),
+            ),
+          ),
+        ),
+        if (category != null)
+          row(
+            LucideIcons.layoutGrid,
+            'Danh mục đề xuất',
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppColors.secondary.withValues(alpha: 0.22),
+                borderRadius: AppSpacing.roundedPill,
+              ),
+              child: Text(
+                category.name,
+                style: AppTypography.bodyMedium(
+                  context,
+                ).copyWith(fontWeight: FontWeight.w600),
+              ),
+            ),
+          ),
+        if (draft.transactedAt != null)
+          row(
+            LucideIcons.clock,
+            'Thời gian',
+            Text(
+              DateFormat('HH:mm - dd/MM/yyyy').format(draft.transactedAt!),
+              style: AppTypography.bodyMedium(context),
+            ),
+          ),
+        if (itemCount > 0)
+          Text(
+            'Gồm $itemCount món hàng, bạn xem chi tiết ở bước rà soát.',
+            style: secondary,
+          ),
+        if (draft.needsReview) ...[
+          const SizedBox(height: 8),
+          Text(
+            'AI chưa chắc chắn về một số chi tiết, bạn kiểm tra kỹ ở bước rà soát.',
+            style: secondary.copyWith(color: AppColors.warning),
+          ),
+        ],
+        const SizedBox(height: 16),
+        ElevatedButton(
+          onPressed: () => _review(draft),
+          style: ElevatedButton.styleFrom(
+            minimumSize: const Size.fromHeight(52),
+            shape: const StadiumBorder(),
+            backgroundColor: AppColors.primaryAction(context),
+            foregroundColor: AppColors.onPrimaryAction(context),
+          ),
+          child: const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Flexible(
+                child: Text(
+                  'Tiếp tục với kết quả này',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                ),
+              ),
+              SizedBox(width: 8),
+              Icon(LucideIcons.arrowRight, size: 18),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _ordersBody(BuildContext context, ReceiptScan scan) {
+    final cut = scan.incompleteOrders > 0
+        ? ' Còn ${scan.incompleteOrders} đơn bị cắt ở mép ảnh, hãy chụp thêm phần đó.'
+        : '';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Tìm thấy ${scan.orders.length} đơn trong ảnh',
+          style: AppTypography.bodyLarge(
+            context,
+          ).copyWith(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Rà soát và lưu từng đơn.$cut',
+          style: AppTypography.caption(context),
+        ),
+        const SizedBox(height: 8),
+        for (final order in scan.orders) ...[
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(
+              order.merchantName ?? 'Đơn hàng',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            subtitle: order.description == null
+                ? null
+                : Text(
+                    order.description!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+            trailing: Text(
+              order.amountCents == null
+                  ? 'Chưa đọc được'
+                  : formatVnd(order.amountCents!),
+            ),
+            onTap: order.amountCents == null ? null : () => _review(order),
+          ),
+          const Divider(height: 1),
+        ],
+      ],
+    );
+  }
+}
+
+/// Bốn góc khung quét
+class _CornersPainter extends CustomPainter {
+  const _CornersPainter(this.color);
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const len = 28.0;
+    const r = 20.0;
+    final p = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3
+      ..strokeCap = StrokeCap.round;
+    final w = size.width, h = size.height;
+    final path = Path()
+      ..moveTo(0, len + r)
+      ..lineTo(0, r)
+      ..arcToPoint(const Offset(r, 0), radius: const Radius.circular(r))
+      ..lineTo(len + r, 0)
+      ..moveTo(w - len - r, 0)
+      ..lineTo(w - r, 0)
+      ..arcToPoint(Offset(w, r), radius: const Radius.circular(r))
+      ..lineTo(w, len + r)
+      ..moveTo(w, h - len - r)
+      ..lineTo(w, h - r)
+      ..arcToPoint(Offset(w - r, h), radius: const Radius.circular(r))
+      ..lineTo(w - len - r, h)
+      ..moveTo(len + r, h)
+      ..lineTo(r, h)
+      ..arcToPoint(Offset(0, h - r), radius: const Radius.circular(r))
+      ..lineTo(0, h - len - r);
+    canvas.drawPath(path, p);
+  }
+
+  @override
+  bool shouldRepaint(_CornersPainter old) => old.color != color;
 }

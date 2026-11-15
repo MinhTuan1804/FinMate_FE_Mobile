@@ -13,7 +13,7 @@ GoRouter _router({int currentIndex = 0}) => GoRouter(
         GoRoute(path: '/transactions', builder: (_, __) => const Scaffold(body: Text('SO THU CHI'))),
         GoRoute(path: '/planning', builder: (_, __) => const Scaffold(body: Text('KE HOACH'))),
         GoRoute(path: '/profile', builder: (_, __) => const Scaffold(body: Text('CA NHAN'))),
-        GoRoute(path: '/qr-scan', builder: (_, __) => const Scaffold(body: Text('QUET QR'))),
+        GoRoute(path: '/qr-transfers/scan', builder: (_, __) => const Scaffold(body: Text('QUET QR'))),
       ],
     );
 

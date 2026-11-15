@@ -55,7 +55,7 @@ class AppearanceSettingsScreen extends ConsumerWidget {
                   child: _ThemeCard(
                     key: const ValueKey('theme-light'),
                     title: 'Sáng',
-                    subtitle: 'Mặc định',
+                    subtitle: 'Luôn sáng',
                     mode: ThemeMode.light,
                     selected: currentTheme == ThemeMode.light,
                     onSelect: () => select(ThemeMode.light),
@@ -77,7 +77,7 @@ class AppearanceSettingsScreen extends ConsumerWidget {
                   child: _ThemeCard(
                     key: const ValueKey('theme-system'),
                     title: 'Hệ thống',
-                    subtitle: 'Tự động',
+                    subtitle: 'Mặc định',
                     mode: ThemeMode.system,
                     selected: currentTheme == ThemeMode.system,
                     onSelect: () => select(ThemeMode.system),
@@ -100,21 +100,21 @@ class AppearanceSettingsScreen extends ConsumerWidget {
                   _lockedTile(
                     context,
                     LucideIcons.eyeOff,
-                    'Ẩn số dư trên màn hình chính',
+                    'Ẩn số dư trang chủ',
                     'Chống nhìn trộm nơi công cộng',
                   ),
                   const Divider(height: 1),
                   _lockedTile(
                     context,
                     LucideIcons.ban,
-                    'Giảm hiệu ứng chuyển động',
-                    'Hạn chế hoạt ảnh khi chuyển màn',
+                    'Giảm chuyển động',
+                    'Bớt hoạt ảnh khi chuyển màn',
                   ),
                   const Divider(height: 1),
                   _lockedTile(
                     context,
                     LucideIcons.contrast,
-                    'Tăng độ tương phản (High Contrast)',
+                    'Tăng tương phản',
                     'Chữ và viền đậm hơn',
                   ),
                   const Divider(height: 1),
@@ -136,12 +136,14 @@ class AppearanceSettingsScreen extends ConsumerWidget {
                     ),
                     title: Text(
                       'Giảm hiệu ứng trong suốt',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: AppTypography.body(
                         context,
                       ).copyWith(fontSize: 14.5, fontWeight: FontWeight.w700),
                     ),
                     subtitle: Text(
-                      'Chuyển nền kính mờ sang màu đặc để tăng độ tương phản và tiết kiệm pin.',
+                      'Dùng nền đặc thay kính mờ, dễ đọc và tiết kiệm pin.',
                       style: AppTypography.caption(
                         context,
                       ).copyWith(fontSize: 12),
@@ -271,6 +273,8 @@ Widget _lockedTile(
         Flexible(
           child: Text(
             title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: AppTypography.body(
               context,
             ).copyWith(fontSize: 14.5, fontWeight: FontWeight.w700),
@@ -296,6 +300,8 @@ Widget _lockedTile(
     ),
     subtitle: Text(
       subtitle,
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
       style: AppTypography.caption(context).copyWith(fontSize: 12),
     ),
     value: false,

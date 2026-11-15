@@ -96,6 +96,47 @@ void main() {
       expect(find.text('Đã chọn cách quản lý.'), findsOneWidget);
     });
 
+    testWidgets('Áp dụng gợi ý: chọn đúng cách chính AI gợi ý, kèm recommendationId để backend ghi là đã nhận', (tester) async {
+      final adapter = _adapter(latestRecommendationFixture: 'finance_recommendation');
+      await _pump(tester, adapter);
+
+      expect(find.byKey(const ValueKey('method-apply-recommendation')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('method-apply-recommendation')));
+      await tester.pumpAndSettle();
+
+      final chooseReqs = adapter.requests.where((r) => r.method == 'POST' && r.path.endsWith('/me/methods')).toList();
+      expect(chooseReqs, hasLength(1));
+      expect(chooseReqs.single.data, {'methodCode': 'category_budget', 'role': 'primary', 'recommendationId': 'rec-1'});
+      expect(find.text('Đã áp dụng gợi ý.'), findsOneWidget);
+    });
+
+    testWidgets('Áp dụng gợi ý có cả cách bổ trợ: chọn cách chính trước rồi cách bổ trợ, cùng recommendationId', (tester) async {
+      final rec = Map<String, dynamic>.from(fixtureData('finance_recommendation') as Map);
+      final primary = Map<String, dynamic>.from(rec['primary'] as Map);
+      final supportMethod = {...Map<String, dynamic>.from(primary['method'] as Map), 'code': 'debt_repayment', 'name': 'Trả nợ trước', 'role': 'supporting'};
+      rec['support'] = {'method': supportMethod, 'reason': 'Bạn đang có khoản nợ cần ưu tiên.'};
+      final adapter = RouteAdapter((o) {
+        if (o.path.contains('/recommendations/latest')) return respondJson({'success': true, 'data': rec});
+        return _adapter().handler(o);
+      });
+      await _pump(tester, adapter);
+
+      await tester.tap(find.byKey(const ValueKey('method-apply-recommendation')));
+      await tester.pumpAndSettle();
+
+      final chooseReqs = adapter.requests.where((r) => r.method == 'POST' && r.path.endsWith('/me/methods')).map((r) => r.data).toList();
+      expect(chooseReqs, [
+        {'methodCode': 'category_budget', 'role': 'primary', 'recommendationId': 'rec-1'},
+        {'methodCode': 'debt_repayment', 'role': 'supporting', 'recommendationId': 'rec-1'},
+      ]);
+    });
+
+    testWidgets('gợi ý đã xử lý (skipped): không còn nút Áp dụng', (tester) async {
+      await _pump(tester, _adapter(latestRecommendationFixture: 'finance_recommendation_skipped'));
+
+      expect(find.byKey(const ValueKey('method-apply-recommendation')), findsNothing);
+    });
+
     testWidgets('tạo gợi ý khi chưa làm khảo sát (422) hiện lỗi, không crash', (tester) async {
       await _pump(
         tester,

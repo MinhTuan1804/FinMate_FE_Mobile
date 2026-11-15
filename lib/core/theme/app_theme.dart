@@ -6,8 +6,8 @@ import 'package:finmate/core/theme/app_colors.dart';
 import 'package:finmate/core/theme/app_spacing.dart';
 import 'package:finmate/core/theme/app_typography.dart';
 
-/// Chế độ giao diện toàn cục: mặc định Light (Serene Glass FinTech / Zenvest), hỗ trợ chuyển Dark / System.
-final themeModeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.light);
+/// Chế độ giao diện toàn cục: mặc định theo hệ thống (Serene Glass FinTech / Zenvest), người dùng chọn lại Sáng / Tối trong Giao diện & Hiển thị.
+final themeModeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.system);
 
 /// Tùy chọn trợ năng "Giảm độ trong suốt" (Reduce Transparency fallback sang bề mặt đặc cùng tông).
 final reduceTransparencyProvider = StateProvider<bool>((ref) => false);

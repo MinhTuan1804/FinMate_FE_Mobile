@@ -7,12 +7,8 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:finmate/features/qr_transfers/domain/vietqr_payload.dart';
 
-enum _ScanMode { qr, invoice }
-
-/// C1 — Quét QR. Camera thật (mobile_scanner), đèn pin, chọn ảnh từ thư viện để giải mã, và
-/// toggle "Quét QR"/"Quét hoá đơn" theo quyết định sản phẩm đã ghi trong
-/// NAVIGATION_FLOW_AND_ROADMAP.md (không có trong thiết kế Stitch của C1). "Quét hoá đơn" chưa
-/// có luồng thật (D4, thuộc Luồng 3) nên chỉ hiện trạng thái "Sắp có", không dẫn tới màn chết.
+/// C1 — Quét QR. Camera thật (mobile_scanner), đèn pin (nút ở góc trên) và chọn ảnh từ thư viện để giải mã.
+/// Quét hoá đơn là luồng riêng (D4) nên không nằm ở màn này.
 class C1ScanQrScreen extends StatefulWidget {
   const C1ScanQrScreen({super.key});
 
@@ -23,7 +19,6 @@ class C1ScanQrScreen extends StatefulWidget {
 class _C1ScanQrScreenState extends State<C1ScanQrScreen> {
   final MobileScannerController _controller = MobileScannerController(detectionSpeed: DetectionSpeed.noDuplicates);
   final ImagePicker _imagePicker = ImagePicker();
-  _ScanMode _mode = _ScanMode.qr;
   bool _torchOn = false;
   bool _handled = false;
 
@@ -78,10 +73,7 @@ class _C1ScanQrScreenState extends State<C1ScanQrScreen> {
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          if (_mode == _ScanMode.qr)
-            MobileScanner(controller: _controller, onDetect: _onDetect)
-          else
-            const ColoredBox(color: Colors.black),
+          MobileScanner(controller: _controller, onDetect: _onDetect),
           Positioned.fill(
             child: DecoratedBox(
               decoration: BoxDecoration(
@@ -97,12 +89,8 @@ class _C1ScanQrScreenState extends State<C1ScanQrScreen> {
             child: Column(
               children: [
                 _header(context),
-                const SizedBox(height: 8),
-                _modeToggle(),
-                Expanded(
-                  child: _mode == _ScanMode.qr ? _viewfinder() : _invoiceComingSoon(),
-                ),
-                if (_mode == _ScanMode.qr) _quickActions(),
+                Expanded(child: _viewfinder()),
+                _quickActions(),
                 const SizedBox(height: 16),
               ],
             ),
@@ -167,41 +155,6 @@ class _C1ScanQrScreenState extends State<C1ScanQrScreen> {
     );
   }
 
-  Widget _modeToggle() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: _glassPill(
-        padding: const EdgeInsets.all(4),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _modeSegment('Quét QR', _ScanMode.qr),
-            _modeSegment('Quét hoá đơn', _ScanMode.invoice),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _modeSegment(String label, _ScanMode mode) {
-    final selected = _mode == mode;
-    return GestureDetector(
-      key: ValueKey('c1-mode-${mode.name}'),
-      onTap: () => setState(() => _mode = mode),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
-        decoration: BoxDecoration(
-          color: selected ? Colors.white : Colors.transparent,
-          borderRadius: BorderRadius.circular(999),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(color: selected ? Colors.black : Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
-        ),
-      ),
-    );
-  }
-
   Widget _viewfinder() {
     return Center(
       child: Column(
@@ -229,43 +182,13 @@ class _C1ScanQrScreenState extends State<C1ScanQrScreen> {
     );
   }
 
-  Widget _invoiceComingSoon() {
-    // TODO(Luồng 3 D4): thay bằng luồng quét hoá đơn thật khi D4 có — hiện BE/FE chưa có.
-    return Center(
-      child: _glassPill(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
-        child: const Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(LucideIcons.receipt, color: Colors.white, size: 32),
-            SizedBox(height: 10),
-            Text('Sắp có', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16)),
-            SizedBox(height: 4),
-            Text(
-              'Quét hoá đơn giấy đang được phát triển.',
-              style: TextStyle(color: Colors.white70, fontSize: 12),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _quickActions() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _quickActionButton(key: const ValueKey('c1-torch'), icon: _torchOn ? LucideIcons.zap : LucideIcons.zapOff, label: 'Đèn Flash', onTap: _toggleTorch),
           _quickActionButton(key: const ValueKey('c1-gallery'), icon: LucideIcons.images, label: 'Chọn từ ảnh', onTap: _pickFromGallery),
-          _quickActionButton(
-            key: const ValueKey('c1-my-qr'),
-            icon: LucideIcons.qrCode,
-            label: 'Mã QR của tôi',
-            onTap: () {}, // Chưa có màn hiển thị QR nhận tiền của chính mình — để chỗ, không làm gì.
-          ),
         ],
       ),
     );

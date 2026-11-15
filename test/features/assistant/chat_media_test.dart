@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:finmate/features/accounts/domain/financial_account.dart';
 import 'package:finmate/features/accounts/presentation/controllers/accounts_controller.dart';
 import 'package:finmate/features/assistant/data/assistant_repository.dart';
@@ -204,7 +205,12 @@ void main() {
           receiptImageSourceProvider.overrideWithValue(images),
           authControllerProvider.overrideWith((ref) => auth),
         ],
-        child: MaterialApp(home: AssistantScreen(startWith: startWith)),
+        child: MaterialApp.router(
+          routerConfig: GoRouter(routes: [
+            GoRoute(path: '/', builder: (_, __) => AssistantScreen(startWith: startWith)),
+            GoRoute(path: '/scan-receipt', builder: (_, __) => const Text('SCAN PAGE')),
+          ]),
+        ),
       ));
       await tester.pumpAndSettle();
     }
@@ -344,35 +350,35 @@ void main() {
       expect(assistant.scanned, [_image]);
     });
 
-    testWidgets('"Quét bill" mở bộ quét tự động, "Chụp ảnh" chỉ mở camera thường', (tester) async {
+    testWidgets('"Quét bill" mở màn quét hóa đơn, "Chụp ảnh" chỉ mở camera thường', (tester) async {
       await pumpChat(tester);
 
       await tester.tap(find.byKey(const ValueKey('scan-button')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Quét bill'));
       await tester.pumpAndSettle();
-      expect((images.scanCalls, images.cameraCalls), (1, 0));
+      expect(find.text('SCAN PAGE'), findsOneWidget);
+      expect((images.scanCalls, images.cameraCalls), (0, 0));
+
+      tester.state<NavigatorState>(find.byType(Navigator).first).pop();
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('scan-button')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Chụp ảnh'));
+      await tester.pumpAndSettle();
+      expect((images.scanCalls, images.cameraCalls), (0, 1));
+    });
+
+    testWidgets('ảnh từ "Chụp ảnh" được gửi vào chat', (tester) async {
+      images.cameraPath = '/tmp/photo.jpg';
+      await pumpChat(tester);
 
       await tester.tap(find.byKey(const ValueKey('scan-button')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Chụp ảnh'));
       await tester.pumpAndSettle();
-      expect((images.scanCalls, images.cameraCalls), (1, 1));
-    });
 
-    testWidgets('ảnh từ "Quét bill" và từ "Chụp ảnh" đều được gửi vào chat', (tester) async {
-      images.scanPath = '/tmp/scanned.jpg';
-      images.cameraPath = '/tmp/photo.jpg';
-      await pumpChat(tester);
-
-      for (final label in ['Quét bill', 'Chụp ảnh']) {
-        await tester.tap(find.byKey(const ValueKey('scan-button')));
-        await tester.pumpAndSettle();
-        await tester.tap(find.text(label));
-        await tester.pumpAndSettle();
-      }
-
-      expect(assistant.scanned, ['/tmp/scanned.jpg', '/tmp/photo.jpg']);
+      expect(assistant.scanned, ['/tmp/photo.jpg']);
     });
 
     testWidgets('đã tắt AI trong Hồ sơ: bấm quét mở thẳng chọn ảnh, không hỏi đồng ý, và vẫn gửi ảnh', (tester) async {

@@ -7,6 +7,11 @@ import 'package:finmate/core/network/api_exceptions.dart';
 import 'package:finmate/core/theme/app_colors.dart';
 import 'package:finmate/core/theme/app_spacing.dart';
 import 'package:finmate/core/theme/app_typography.dart';
+import 'package:finmate/core/format/money.dart';
+import 'package:finmate/core/widgets/glass/liquid_glass.dart';
+import 'package:finmate/features/accounts/presentation/controllers/accounts_controller.dart';
+import 'package:finmate/features/categories/presentation/categories_provider.dart';
+import 'package:finmate/features/categories/presentation/category_icons.dart';
 import 'package:finmate/features/notifications/presentation/notification_capture_scope.dart';
 import 'package:finmate/features/groups/presentation/controllers/groups_controller.dart';
 import 'package:finmate/features/transactions/domain/entities/transaction_entity.dart';
@@ -66,12 +71,25 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     setState(() {});
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await ref.read(transactionControllerProvider.notifier).confirmDraft(draft.id);
-      messenger.showSnackBar(const SnackBar(content: Text('Đã xác nhận giao dịch'), backgroundColor: AppColors.safe));
+      await ref
+          .read(transactionControllerProvider.notifier)
+          .confirmDraft(draft.id);
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Đã xác nhận giao dịch'),
+          backgroundColor: AppColors.safe,
+        ),
+      );
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text(errorMessage(e)), backgroundColor: AppColors.danger));
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(errorMessage(e)),
+          backgroundColor: AppColors.danger,
+        ),
+      );
       // Nháp có thể không còn hợp lệ ở BE (đã duyệt/bị xóa): tải lại để dòng cũ không nằm lại danh sách.
-      if (mounted) ref.read(transactionControllerProvider.notifier).loadTransactions();
+      if (mounted)
+        ref.read(transactionControllerProvider.notifier).loadTransactions();
     } finally {
       _busyDrafts.remove(draft.id);
       if (mounted) setState(() {});
@@ -82,7 +100,12 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final confirmed = await DraftEditSheet.show(context, draft);
     if (confirmed == true) {
-      messenger.showSnackBar(const SnackBar(content: Text('Đã xác nhận giao dịch'), backgroundColor: AppColors.safe));
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Đã xác nhận giao dịch'),
+          backgroundColor: AppColors.safe,
+        ),
+      );
     }
   }
 
@@ -96,23 +119,40 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
       if (picked == null || !mounted) return;
       final messenger = ScaffoldMessenger.of(context);
       try {
-        await ref.read(transactionControllerProvider.notifier).shareToGroup(
+        await ref
+            .read(transactionControllerProvider.notifier)
+            .shareToGroup(
               id: tx.id,
               groupId: picked.$1,
               groupCategoryId: picked.$2,
             );
-        messenger.showSnackBar(const SnackBar(content: Text('Đã chia sẻ giao dịch vào nhóm'), backgroundColor: AppColors.safe));
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Đã chia sẻ giao dịch vào nhóm'),
+            backgroundColor: AppColors.safe,
+          ),
+        );
       } catch (e) {
-        messenger.showSnackBar(SnackBar(content: Text(errorMessage(e)), backgroundColor: AppColors.danger));
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(errorMessage(e)),
+            backgroundColor: AppColors.danger,
+          ),
+        );
       }
     } else {
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(
           title: const Text('Bỏ chia sẻ giao dịch'),
-          content: const Text('Giao dịch sẽ không còn hiển thị trong nhóm. Bạn có chắc chắn?'),
+          content: const Text(
+            'Giao dịch sẽ không còn hiển thị trong nhóm. Bạn có chắc chắn?',
+          ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Hủy')),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Hủy'),
+            ),
             TextButton(
               key: const ValueKey('confirm-unshare-group'),
               onPressed: () => Navigator.pop(dialogContext, true),
@@ -124,24 +164,39 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
       if (confirmed != true || !mounted) return;
       final messenger = ScaffoldMessenger.of(context);
       try {
-        await ref.read(transactionControllerProvider.notifier).unshareFromGroup(tx.id);
-        messenger.showSnackBar(const SnackBar(content: Text('Đã bỏ chia sẻ giao dịch'), backgroundColor: AppColors.safe));
+        await ref
+            .read(transactionControllerProvider.notifier)
+            .unshareFromGroup(tx.id);
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Đã bỏ chia sẻ giao dịch'),
+            backgroundColor: AppColors.safe,
+          ),
+        );
       } catch (e) {
-        messenger.showSnackBar(SnackBar(content: Text(errorMessage(e)), backgroundColor: AppColors.danger));
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(errorMessage(e)),
+            backgroundColor: AppColors.danger,
+          ),
+        );
       }
     }
   }
 
   Future<void> _openAccessSettings() async {
     try {
-      await ref.read(notificationBridgeProvider).openNotificationAccessSettings();
+      await ref
+          .read(notificationBridgeProvider)
+          .openNotificationAccessSettings();
     } catch (_) {
       // Không mở được màn cài đặt thì người dùng tự vào; không có gì để báo thêm
     }
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
       ref.read(transactionControllerProvider.notifier).loadMore();
     }
   }
@@ -159,10 +214,13 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     ref.listen(notificationFlushTickProvider, (_, __) {
       if (controller.draftsOnly) controller.loadTransactions();
     });
-    final accessOff = drafts && ref.watch(notificationAccessEnabledProvider).valueOrNull == false;
+    final accessOff =
+        drafts &&
+        ref.watch(notificationAccessEnabledProvider).valueOrNull == false;
 
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
         title: const Text('Lịch sử giao dịch'),
         actions: [
           IconButton(
@@ -187,115 +245,123 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
         icon: const Icon(LucideIcons.plus, size: 20),
         label: const Text('Ghi chép mới'),
       ),
-      body: Column(
-        children: [
-          const FailedSyncBanner(),
-          // Filter Chips (lọc phía server)
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: Row(
-              children: [
-                for (final (label, type) in _filters) ...[
-                  ChoiceChip(
-                    label: Text(label),
-                    selected: !drafts && controller.filter == type,
-                    onSelected: (_) {
-                      // Đang ở Chờ duyệt thì tắt chế độ nháp; chỉ đổi loại khi khác loại đang lưu để khỏi tải thừa
-                      if (drafts) controller.setDraftsOnly(false);
-                      if (!drafts || controller.filter != type) controller.setFilter(type);
-                      setState(() {});
-                    },
-                  ),
-                  const SizedBox(width: 8),
-                  // Ngay sau "Tất cả" để còn thấy được trên màn hình hẹp (hàng chip cuộn ngang)
-                  if (type == null && label == _filters.first.$1) ...[
-                    ChoiceChip(
-                      label: const Text('Chờ duyệt'),
-                      selected: drafts,
-                      onSelected: (_) {
-                        if (!drafts) controller.setDraftsOnly(true);
+      body: AmbientGlassBackground(
+        child: Column(
+          children: [
+            const FailedSyncBanner(),
+            // Filter Chips (lọc phía server)
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16.0,
+                vertical: 8.0,
+              ),
+              child: Row(
+                children: [
+                  for (final (label, type) in _filters) ...[
+                    _filterChip(
+                      context,
+                      label,
+                      !drafts && controller.filter == type,
+                      () {
+                        // Đang ở Chờ duyệt thì tắt chế độ nháp; chỉ đổi loại khi khác loại đang lưu để khỏi tải thừa
+                        if (drafts) controller.setDraftsOnly(false);
+                        if (!drafts || controller.filter != type)
+                          controller.setFilter(type);
                         setState(() {});
                       },
                     ),
                     const SizedBox(width: 8),
+                    // Ngay sau "Tất cả" để còn thấy được trên màn hình hẹp (hàng chip cuộn ngang)
+                    if (type == null && label == _filters.first.$1) ...[
+                      _filterChip(context, 'Chờ duyệt', drafts, () {
+                        if (!drafts) controller.setDraftsOnly(true);
+                        setState(() {});
+                      }),
+                      const SizedBox(width: 8),
+                    ],
                   ],
                 ],
-              ],
+              ),
             ),
-          ),
 
-          const Divider(height: 1),
+            if (accessOff)
+              NotificationAccessCard(onOpenSettings: _openAccessSettings),
 
-          if (accessOff) NotificationAccessCard(onOpenSettings: _openAccessSettings),
-
-          Expanded(
-            child: txState.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, _) => Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(LucideIcons.alertCircle, size: 36, color: AppColors.danger),
-                      const SizedBox(height: 8),
-                      Text(errorMessage(err), textAlign: TextAlign.center),
-                      TextButton(
-                        onPressed: controller.loadTransactions,
-                        child: const Text('Thử lại'),
-                      ),
-                    ],
+            Expanded(
+              child: txState.when(
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (err, _) => Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          LucideIcons.alertCircle,
+                          size: 36,
+                          color: AppColors.danger,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(errorMessage(err), textAlign: TextAlign.center),
+                        TextButton(
+                          onPressed: controller.loadTransactions,
+                          child: const Text('Thử lại'),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              data: (transactions) {
-                if (drafts) return _buildDrafts(context, transactions, controller);
-                if (transactions.isEmpty) return _buildEmpty(context, isDark);
+                data: (transactions) {
+                  if (drafts)
+                    return _buildDrafts(context, transactions, controller);
+                  if (transactions.isEmpty) return _buildEmpty(context, isDark);
 
-                // Nhóm theo ngày (giờ địa phương)
-                final grouped = <String, List<TransactionEntity>>{};
-                final dayFormatter = DateFormat('dd/MM/yyyy');
-                for (final tx in transactions) {
-                  grouped.putIfAbsent(dayFormatter.format(tx.date), () => []).add(tx);
-                }
+                  // Nhóm theo ngày (giờ địa phương)
+                  final grouped = <String, List<TransactionEntity>>{};
+                  final dayFormatter = DateFormat('dd/MM/yyyy');
+                  for (final tx in transactions) {
+                    grouped
+                        .putIfAbsent(dayFormatter.format(tx.date), () => [])
+                        .add(tx);
+                  }
 
-                return RefreshIndicator(
-                  onRefresh: controller.loadTransactions,
-                  child: ListView.builder(
-                    controller: _scrollController,
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.only(bottom: 80),
-                    itemCount: grouped.length,
-                    itemBuilder: (context, index) {
-                      final dayKey = grouped.keys.elementAt(index);
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            color: isDark ? AppColors.surfaceDarkElevated : AppColors.surfaceLightSubtle,
-                            child: Text(
-                              dayKey,
-                              style: AppTypography.caption(context).copyWith(fontWeight: FontWeight.w600),
+                  return RefreshIndicator(
+                    onRefresh: controller.loadTransactions,
+                    child: ListView.builder(
+                      controller: _scrollController,
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.only(bottom: 80),
+                      itemCount: grouped.length,
+                      itemBuilder: (context, index) {
+                        final dayKey = grouped.keys.elementAt(index);
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _dayHeader(context, grouped[dayKey]!),
+                            ...grouped[dayKey]!.map(
+                              (tx) =>
+                                  _buildTransactionTile(context, tx, isDark),
                             ),
-                          ),
-                          ...grouped[dayKey]!.map((tx) => _buildTransactionTile(context, tx, isDark)),
-                        ],
-                      );
-                    },
-                  ),
-                );
-              },
+                          ],
+                        );
+                      },
+                    ),
+                  );
+                },
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildDrafts(BuildContext context, List<TransactionEntity> drafts, TransactionController controller) {
+  Widget _buildDrafts(
+    BuildContext context,
+    List<TransactionEntity> drafts,
+    TransactionController controller,
+  ) {
     return RefreshIndicator(
       onRefresh: controller.loadTransactions,
       child: drafts.isEmpty
@@ -307,7 +373,9 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                 Icon(
                   LucideIcons.inbox,
                   size: 48,
-                  color: Theme.of(context).brightness == Brightness.dark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? AppColors.textSecondaryDark
+                      : AppColors.textSecondaryLight,
                 ),
                 const SizedBox(height: AppSpacing.md),
                 // Offline cũng trả danh sách rỗng nên không khẳng định "không có nháp"
@@ -353,7 +421,9 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
           Icon(
             LucideIcons.receipt,
             size: 48,
-            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+            color: isDark
+                ? AppColors.textSecondaryDark
+                : AppColors.textSecondaryLight,
           ),
           const SizedBox(height: 12),
           Text('Chưa có giao dịch nào', style: AppTypography.caption(context)),
@@ -370,98 +440,234 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     );
   }
 
-  Widget _buildTransactionTile(BuildContext context, TransactionEntity tx, bool isDark) {
-    // 1. Chuyển khoản nội bộ (BR-26, BR-27: Không tính vào chi tiêu/ngân sách)
-    if (tx.isInternalTransfer) {
-      return ListTile(
-        onTap: () => context.push('/transaction-detail', extra: tx),
-        leading: Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: Colors.blueGrey.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: const Icon(LucideIcons.arrowLeftRight, size: 20, color: Colors.blueGrey),
-        ),
-        title: Text(
-          tx.description.isNotEmpty ? tx.description : 'Chuyển tiền nội bộ',
-          style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w600),
-        ),
-        subtitle: Row(
-          children: [
-            Container(
-              margin: const EdgeInsets.only(top: 4),
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: Colors.blueGrey.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: const Text(
-                'Nội bộ - Không tính chi tiêu',
-                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: Colors.blueGrey),
-              ),
-            ),
-            _syncBadge(tx),
-          ],
-        ),
-        trailing: Text(
-          tx.formattedAmount,
-          style: AppTypography.tabular(
-            AppTypography.bodyLarge(context).copyWith(
-              fontWeight: FontWeight.w600,
-              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-            ),
-          ),
-        ),
-      );
+  Widget _filterChip(
+    BuildContext context,
+    String label,
+    bool selected,
+    VoidCallback onTap,
+  ) {
+    final action = AppColors.primaryAction(context);
+    return ChoiceChip(
+      label: Text(label),
+      selected: selected,
+      showCheckmark: false,
+      onSelected: (_) => onTap(),
+      shape: const StadiumBorder(),
+      selectedColor: action,
+      backgroundColor: AppColors.surfaceSubtle(context).withValues(alpha: 0.5),
+      side: BorderSide(color: AppColors.glassBorder(context)),
+      labelStyle: AppTypography.caption(context).copyWith(
+        fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+        color: selected
+            ? AppColors.onPrimaryAction(context)
+            : AppColors.textSecondary(context),
+      ),
+    );
+  }
+
+  /// Nhãn ngày + tổng ròng của ngày (thu trừ chi, bỏ chuyển nội bộ)
+  Widget _dayHeader(BuildContext context, List<TransactionEntity> day) {
+    final now = DateTime.now();
+    final d = day.first.date;
+    final isToday =
+        d.year == now.year && d.month == now.month && d.day == now.day;
+    final y = now.subtract(const Duration(days: 1));
+    final isYesterday =
+        d.year == y.year && d.month == y.month && d.day == y.day;
+    final dayMonth = '${d.day.toString().padLeft(2, '0')} Th${d.month}';
+    final label = isToday
+        ? 'Hôm nay, $dayMonth'
+        : (isYesterday
+              ? 'Hôm qua, $dayMonth'
+              : DateFormat('dd/MM/yyyy').format(d));
+    var net = BigInt.zero;
+    for (final tx in day) {
+      if (tx.isInternalTransfer) continue;
+      net += tx.type == TransactionType.income
+          ? tx.amountCents
+          : -tx.amountCents;
     }
-
-    // 2. Giao dịch Thu / Chi thông thường
-    final isExpense = tx.type == TransactionType.expense;
-    final color = isExpense ? AppColors.expense : AppColors.income;
-    final prefix = isExpense ? '-' : '+';
-
-    return ListTile(
-      onTap: () => context.push('/transaction-detail', extra: tx),
-      leading: Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Icon(
-          isExpense ? LucideIcons.arrowDownLeft : LucideIcons.arrowUpRight,
-          size: 20,
-          color: color,
-        ),
-      ),
-      title: Text(
-        tx.description.isNotEmpty ? tx.description : (tx.categoryName ?? 'Giao dịch'),
-        style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w600),
-      ),
-      subtitle: Row(
+    final sign = net > BigInt.zero ? '+' : (net < BigInt.zero ? '-' : '');
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+      child: Row(
         children: [
-          Text(tx.categoryName ?? 'Không phân loại', style: AppTypography.caption(context)),
-          _syncBadge(tx),
-          IconButton(
-            key: ValueKey('share-group-${tx.id}'),
-            icon: Icon(
-              LucideIcons.users,
-              size: 16,
-              color: tx.groupId != null ? AppColors.primaryAction(context) : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
+          Expanded(
+            child: Text(
+              label,
+              style: AppTypography.caption(
+                context,
+              ).copyWith(fontWeight: FontWeight.w600, letterSpacing: 0.3),
             ),
-            tooltip: tx.groupId != null ? 'Đã chia sẻ vào nhóm' : 'Chia sẻ vào nhóm',
-            visualDensity: VisualDensity.compact,
-            onPressed: () => _openShareSheet(tx),
+          ),
+          Text(
+            '$sign${formatVnd(net.abs())}',
+            style: AppTypography.tabular(
+              AppTypography.caption(context).copyWith(
+                fontWeight: FontWeight.w700,
+                color: net < BigInt.zero
+                    ? AppColors.expense
+                    : (net > BigInt.zero ? AppColors.income : null),
+              ),
+            ),
           ),
         ],
       ),
-      trailing: Text(
-        '$prefix${tx.formattedAmount}',
-        style: AppTypography.tabular(
-          AppTypography.bodyLarge(context).copyWith(fontWeight: FontWeight.w700, color: color),
+    );
+  }
+
+  Widget _buildTransactionTile(
+    BuildContext context,
+    TransactionEntity tx,
+    bool isDark,
+  ) {
+    final accounts =
+        ref.watch(accountsControllerProvider).valueOrNull ?? const [];
+    final accountName = accounts
+        .where((a) => a.id == tx.accountId)
+        .map((a) => a.name)
+        .firstOrNull;
+    final categories = ref.watch(categoriesProvider).valueOrNull ?? const [];
+    final slug = categories
+        .where((c) => c.id == tx.categoryId)
+        .map((c) => c.slug)
+        .firstOrNull;
+    final secondary = AppTypography.caption(context);
+    final isTransfer = tx.isInternalTransfer;
+    final isExpense = tx.type == TransactionType.expense;
+    final color = isTransfer
+        ? AppColors.transfer
+        : (isExpense ? AppColors.expense : AppColors.income);
+    final prefix = isTransfer ? '' : (isExpense ? '-' : '+');
+    final title = tx.description.isNotEmpty
+        ? tx.description
+        : (isTransfer
+              ? 'Chuyển tiền nội bộ'
+              : (tx.categoryName ?? 'Giao dịch'));
+    final time = DateFormat('HH:mm').format(tx.date);
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.glassFillDark : AppColors.glassFillLight,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppColors.glassBorder(context)),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(24),
+        onTap: () => context.push('/transaction-detail', extra: tx),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 12, 14, 12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: AppColors.secondary.withValues(alpha: 0.22),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.glassBorder(context)),
+                ),
+                child: Icon(
+                  isTransfer ? LucideIcons.arrowLeftRight : categoryIcon(slug),
+                  size: 20,
+                  color: AppColors.slateAction,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.bodyMedium(
+                        context,
+                      ).copyWith(fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            isTransfer
+                                ? 'Nội bộ - Không tính chi tiêu'
+                                : '${tx.categoryName ?? 'Không phân loại'} • $time',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: secondary,
+                          ),
+                        ),
+                        _syncBadge(tx),
+                        if (!isTransfer)
+                          SizedBox(
+                            width: 32,
+                            height: 24,
+                            child: IconButton(
+                              key: ValueKey('share-group-${tx.id}'),
+                              padding: EdgeInsets.zero,
+                              icon: Icon(
+                                LucideIcons.users,
+                                size: 16,
+                                color: tx.groupId != null
+                                    ? AppColors.primaryAction(context)
+                                    : (isDark
+                                          ? AppColors.textSecondaryDark
+                                          : AppColors.textSecondaryLight),
+                              ),
+                              tooltip: tx.groupId != null
+                                  ? 'Đã chia sẻ vào nhóm'
+                                  : 'Chia sẻ vào nhóm',
+                              visualDensity: VisualDensity.compact,
+                              onPressed: () => _openShareSheet(tx),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '$prefix${tx.formattedAmount}',
+                    style: AppTypography.tabular(
+                      AppTypography.bodyLarge(
+                        context,
+                      ).copyWith(fontWeight: FontWeight.w700, color: color),
+                    ),
+                  ),
+                  if (accountName != null)
+                    Container(
+                      margin: const EdgeInsets.only(top: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.secondary.withValues(alpha: 0.25),
+                        borderRadius: AppSpacing.roundedPill,
+                      ),
+                      child: Text(
+                        accountName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: secondary.copyWith(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.slateAction,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -475,7 +681,8 @@ class _ShareToGroupDialog extends ConsumerStatefulWidget {
   const _ShareToGroupDialog();
 
   @override
-  ConsumerState<_ShareToGroupDialog> createState() => _ShareToGroupDialogState();
+  ConsumerState<_ShareToGroupDialog> createState() =>
+      _ShareToGroupDialogState();
 }
 
 class _ShareToGroupDialogState extends ConsumerState<_ShareToGroupDialog> {
@@ -489,7 +696,10 @@ class _ShareToGroupDialogState extends ConsumerState<_ShareToGroupDialog> {
     return AlertDialog(
       title: const Text('Chia sẻ vào nhóm'),
       content: groupsAsync.when(
-        loading: () => const SizedBox(height: 56, child: Center(child: CircularProgressIndicator())),
+        loading: () => const SizedBox(
+          height: 56,
+          child: Center(child: CircularProgressIndicator()),
+        ),
         error: (e, __) => Text(errorMessage(e)),
         data: (groups) => groups.isEmpty
             ? const Text('Bạn chưa tham gia nhóm nào.')
@@ -502,7 +712,10 @@ class _ShareToGroupDialogState extends ConsumerState<_ShareToGroupDialog> {
                       key: const ValueKey('share-group-select'),
                       initialValue: _groupId,
                       decoration: const InputDecoration(labelText: 'Nhóm'),
-                      items: [for (final g in groups) DropdownMenuItem(value: g.id, child: Text(g.name))],
+                      items: [
+                        for (final g in groups)
+                          DropdownMenuItem(value: g.id, child: Text(g.name)),
+                      ],
                       onChanged: (v) => setState(() {
                         _groupId = v;
                         _groupCategoryId = null;
@@ -510,13 +723,24 @@ class _ShareToGroupDialogState extends ConsumerState<_ShareToGroupDialog> {
                     ),
                     const SizedBox(height: 12),
                     if (_groupId != null)
-                      ref.watch(groupCategoriesProvider(_groupId!)).when(
+                      ref
+                          .watch(groupCategoriesProvider(_groupId!))
+                          .when(
                             data: (cats) => DropdownButtonFormField<String>(
                               key: const ValueKey('share-category-select'),
                               initialValue: _groupCategoryId,
-                              decoration: const InputDecoration(labelText: 'Danh mục nhóm (tùy chọn)'),
-                              items: [for (final c in cats) DropdownMenuItem(value: c.id, child: Text(c.name))],
-                              onChanged: (v) => setState(() => _groupCategoryId = v),
+                              decoration: const InputDecoration(
+                                labelText: 'Danh mục nhóm (tùy chọn)',
+                              ),
+                              items: [
+                                for (final c in cats)
+                                  DropdownMenuItem(
+                                    value: c.id,
+                                    child: Text(c.name),
+                                  ),
+                              ],
+                              onChanged: (v) =>
+                                  setState(() => _groupCategoryId = v),
                             ),
                             loading: () => const SizedBox(
                               height: 48,
@@ -529,10 +753,15 @@ class _ShareToGroupDialogState extends ConsumerState<_ShareToGroupDialog> {
               ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Hủy')),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Hủy'),
+        ),
         TextButton(
           key: const ValueKey('confirm-share-group'),
-          onPressed: _groupId == null ? null : () => Navigator.pop(context, (_groupId!, _groupCategoryId)),
+          onPressed: _groupId == null
+              ? null
+              : () => Navigator.pop(context, (_groupId!, _groupCategoryId)),
           child: const Text('Chia sẻ'),
         ),
       ],

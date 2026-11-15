@@ -104,31 +104,36 @@ class _RowTile extends StatelessWidget {
                       row.label,
                       style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w600, fontSize: 14.5, color: color),
                     ),
-                    if (row.subtitle != null) ...[
-                      const SizedBox(height: 2),
-                      Text(row.subtitle!, style: AppTypography.caption(context).copyWith(fontSize: 12)),
+                    // Chip và mô tả nằm ở dòng phụ (Wrap tự xuống dòng khi hẹp) để không tranh chỗ với tiêu đề
+                    if (row.subtitle != null || row.trailingText != null) ...[
+                      const SizedBox(height: 3),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          if (row.trailingText != null)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: AppColors.secondary.withValues(alpha: 0.14),
+                                borderRadius: AppSpacing.roundedPill,
+                              ),
+                              child: Text(
+                                row.trailingText!,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.slateOn(context)),
+                              ),
+                            ),
+                          if (row.subtitle != null)
+                            Text(row.subtitle!, style: AppTypography.caption(context).copyWith(fontSize: 12)),
+                        ],
+                      ),
                     ],
                   ],
                 ),
               ),
-              if (row.trailingText != null) ...[
-                const SizedBox(width: 8),
-                Flexible(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: AppColors.secondary.withValues(alpha: 0.14),
-                      borderRadius: AppSpacing.roundedPill,
-                    ),
-                    child: Text(
-                      row.trailingText!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.slateOn(context)),
-                    ),
-                  ),
-                ),
-              ],
               const SizedBox(width: 8),
               Icon(
                 row.external ? LucideIcons.externalLink : LucideIcons.chevronRight,
@@ -257,7 +262,6 @@ class ProfileScreen extends ConsumerWidget {
                   icon: LucideIcons.landmark,
                   label: 'Tài khoản và nguồn tiền',
                   subtitle: '${accounts.length} tài khoản đã liên kết',
-                  trailingText: accounts.isEmpty ? null : accounts.take(3).map((a) => a.name).join(', '),
                   route: '/profile/financial-accounts',
                 ),
                 const _Row(

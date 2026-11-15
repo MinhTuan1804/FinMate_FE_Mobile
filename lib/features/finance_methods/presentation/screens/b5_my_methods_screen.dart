@@ -17,13 +17,14 @@ import 'package:finmate/shared/widgets/glass/glass_loading_spinner.dart';
 import 'package:finmate/shared/widgets/glass/glass_progress_bar.dart';
 
 String _roleLabel(String role) => switch (role) {
-      'primary' => 'Chính',
-      'supporting' => 'Bổ trợ',
-      'both' => 'Chính hoặc bổ trợ',
-      _ => role,
-    };
+  'primary' => 'Chính',
+  'supporting' => 'Bổ trợ',
+  'both' => 'Chính hoặc bổ trợ',
+  _ => role,
+};
 
-String _formatDate(DateTime d) => '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+String _formatDate(DateTime d) =>
+    '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
 
 // Khóa hũ cố định của phương pháp "6 chiếc hũ" (FinanceMethodSeeder.SixJarsLayout ở BE) — đây
 // là phương pháp duy nhất có khối jars nên map icon theo đúng 6 key này là đủ, không cần tổng quát hơn.
@@ -39,20 +40,25 @@ const Map<String, IconData> _jarIcons = {
 IconData _jarIcon(String key) => _jarIcons[key] ?? LucideIcons.wallet;
 
 // Hũ tích luỹ (không phải hũ chi tiêu): dùng hết 100% phân bổ là đạt mục tiêu, không phải cảnh báo.
-const Set<String> _accumulativeJarKeys = {'long_term_pct', 'financial_freedom_pct', 'give_pct'};
+const Set<String> _accumulativeJarKeys = {
+  'long_term_pct',
+  'financial_freedom_pct',
+  'give_pct',
+};
 
 GlassProgressState _jarChipState(JarEntity jar) {
-  if (jar.level == 'over' || jar.level == 't2') return GlassProgressState.danger;
+  if (jar.level == 'over' || jar.level == 't2')
+    return GlassProgressState.danger;
   if (jar.level == 't1') return GlassProgressState.warning;
   return GlassProgressState.success;
 }
 
 Color _chipColor(GlassProgressState state) => switch (state) {
-      GlassProgressState.danger => GlassColors.danger,
-      GlassProgressState.warning => GlassColors.warning,
-      GlassProgressState.success => GlassColors.success,
-      GlassProgressState.normal => GlassColors.textMuted,
-    };
+  GlassProgressState.danger => GlassColors.danger,
+  GlassProgressState.warning => GlassColors.warning,
+  GlassProgressState.success => GlassColors.success,
+  GlassProgressState.normal => GlassColors.textMuted,
+};
 
 String _jarChipLabel(JarEntity jar) {
   if (jar.level == 'over') return 'Vượt hạn mức';
@@ -61,7 +67,8 @@ String _jarChipLabel(JarEntity jar) {
   if (_accumulativeJarKeys.contains(jar.key) && (jar.usedPct ?? 0) >= 100) {
     return 'Đạt ${jar.usedPct}% mục tiêu';
   }
-  if (jar.remainingCents != null) return 'Còn ${formatVnd(jar.remainingCents!)}';
+  if (jar.remainingCents != null)
+    return 'Còn ${formatVnd(jar.remainingCents!)}';
   return 'Ổn định';
 }
 
@@ -85,13 +92,17 @@ class MyMethodsScreen extends ConsumerWidget {
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
-          title: Text('Cách quản lý của tôi', style: GlassTypography.headlineMd()),
+          title: Text(
+            'Cách quản lý của tôi',
+            style: GlassTypography.headlineMd(),
+          ),
           actions: [
             IconButton(
               key: const ValueKey('open-alert-thresholds'),
               tooltip: 'Ngưỡng cảnh báo',
               icon: Icon(LucideIcons.bellRing, color: GlassColors.slateAnchor),
-              onPressed: () => context.push('/finance-methods/alert-thresholds'),
+              onPressed: () =>
+                  context.push('/finance-methods/alert-thresholds'),
             ),
             IconButton(
               key: const ValueKey('open-edit-methods'),
@@ -132,14 +143,27 @@ class _HeroSection extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(errorMessage(e), style: GlassTypography.bodySm(color: GlassColors.danger)),
-            TextButton(onPressed: () => ref.read(myMethodsControllerProvider.notifier).load(), child: const Text('Thử lại')),
+            Text(
+              errorMessage(e),
+              style: GlassTypography.bodySm(color: GlassColors.danger),
+            ),
+            TextButton(
+              onPressed: () =>
+                  ref.read(myMethodsControllerProvider.notifier).load(),
+              child: const Text('Thử lại'),
+            ),
           ],
         ),
       ),
       data: (list) {
         if (list.isEmpty) {
-          return GlassCard(level: 2, child: Text('Chưa dùng cách quản lý nào.', style: GlassTypography.bodyMd()));
+          return GlassCard(
+            level: 2,
+            child: Text(
+              'Chưa dùng cách quản lý nào.',
+              style: GlassTypography.bodyMd(),
+            ),
+          );
         }
         UserMethodEntity active = list.first;
         for (final um in list) {
@@ -163,8 +187,14 @@ class _ActiveMethodHero extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final jarsAsync = ref.watch(jarsProvider);
     final spendableAsync = ref.watch(spendableProvider);
-    final jarSet = jarsAsync.maybeWhen(data: (sets) => _findJarSet(sets, active.id), orElse: () => null);
-    final incomeCents = spendableAsync.maybeWhen(data: (s) => s.incomeCents, orElse: () => null);
+    final jarSet = jarsAsync.maybeWhen(
+      data: (sets) => _findJarSet(sets, active.id),
+      orElse: () => null,
+    );
+    final incomeCents = spendableAsync.maybeWhen(
+      data: (s) => s.incomeCents,
+      orElse: () => null,
+    );
 
     return GlassCard(
       level: 2,
@@ -175,16 +205,31 @@ class _ActiveMethodHero extends ConsumerWidget {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.7), borderRadius: GlassRadius.roundedPill),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.7),
+                  borderRadius: GlassRadius.roundedPill,
+                ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(width: 6, height: 6, decoration: BoxDecoration(color: GlassColors.success, shape: BoxShape.circle)),
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: GlassColors.success,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
                     const SizedBox(width: 6),
                     Text(
                       'Đang hoạt động từ ${_formatDate(active.startedAt)}',
-                      style: GlassTypography.labelCaps(color: GlassColors.slateAnchor),
+                      style: GlassTypography.labelCaps(
+                        color: GlassColors.slateAnchor,
+                      ),
                     ),
                   ],
                 ),
@@ -207,17 +252,25 @@ class _ActiveMethodHero extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Căn cứ thu nhập hàng tháng', style: GlassTypography.labelCaps()),
+                    Text(
+                      'Căn cứ thu nhập hàng tháng',
+                      style: GlassTypography.labelCaps(),
+                    ),
                     const SizedBox(height: 4),
                     Text(
-                      incomeCents == null ? 'Chưa khai thu nhập' : formatVnd(incomeCents),
+                      incomeCents == null
+                          ? 'Chưa khai thu nhập'
+                          : formatVnd(incomeCents),
                       style: GlassTypography.displayHero(),
                     ),
                   ],
                 ),
               ),
               if (jarSet != null && jarSet.jars.isNotEmpty)
-                GlassBadge(text: '${jarSet.jars.length} Hũ phân bổ', color: GlassColors.slateAnchor),
+                GlassBadge(
+                  text: '${jarSet.jars.length} Hũ phân bổ',
+                  color: GlassColors.slateAnchor,
+                ),
             ],
           ),
         ],
@@ -236,16 +289,28 @@ class _JarsSection extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(errorMessage(e), style: GlassTypography.bodySm(color: GlassColors.danger)),
-            TextButton(onPressed: () => ref.invalidate(jarsProvider), child: const Text('Thử lại')),
+            Text(
+              errorMessage(e),
+              style: GlassTypography.bodySm(color: GlassColors.danger),
+            ),
+            TextButton(
+              onPressed: () => ref.invalidate(jarsProvider),
+              child: const Text('Thử lại'),
+            ),
           ],
         ),
       ),
       data: (sets) {
         if (sets.isEmpty || sets.every((s) => s.jars.isEmpty)) {
           return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              GlassCard(child: Text('Cách đang dùng không có khối hũ.', style: GlassTypography.bodyMd())),
+              GlassCard(
+                child: Text(
+                  'Cách đang dùng không có khối hũ.',
+                  style: GlassTypography.bodyMd(),
+                ),
+              ),
               const SizedBox(height: 16),
               GlassSecondaryButton(
                 key: const ValueKey('switch-method'),
@@ -256,6 +321,7 @@ class _JarsSection extends ConsumerWidget {
           );
         }
         return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             for (final set in sets)
               if (set.jars.isNotEmpty)
@@ -267,13 +333,19 @@ class _JarsSection extends ConsumerWidget {
                     children: [
                       Padding(
                         padding: const EdgeInsets.only(bottom: 10, left: 4),
-                        child: Text(set.title ?? set.methodName, style: GlassTypography.headlineSm()),
+                        child: Text(
+                          set.title ?? set.methodName,
+                          style: GlassTypography.headlineSm(),
+                        ),
                       ),
                       for (final jar in set.jars)
                         Padding(
                           key: ValueKey('jar-${set.userMethodId}-${jar.key}'),
                           padding: const EdgeInsets.only(bottom: 10),
-                          child: _JarCard(userMethodId: set.userMethodId, jar: jar),
+                          child: _JarCard(
+                            userMethodId: set.userMethodId,
+                            jar: jar,
+                          ),
                         ),
                     ],
                   ),
@@ -307,7 +379,8 @@ class _JarCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final percent = jar.allocatedCents == null || jar.allocatedCents == BigInt.zero
+    final percent =
+        jar.allocatedCents == null || jar.allocatedCents == BigInt.zero
         ? 0.0
         : (jar.spentCents.toDouble() / jar.allocatedCents!.toDouble() * 100);
     final chipState = _jarChipState(jar);
@@ -328,8 +401,15 @@ class _JarCard extends StatelessWidget {
                 Container(
                   width: 40,
                   height: 40,
-                  decoration: BoxDecoration(color: GlassColors.accentSkyBlue.withValues(alpha: 0.18), shape: BoxShape.circle),
-                  child: Icon(_jarIcon(jar.key), size: 20, color: GlassColors.slateAnchor),
+                  decoration: BoxDecoration(
+                    color: GlassColors.accentSkyBlue.withValues(alpha: 0.18),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    _jarIcon(jar.key),
+                    size: 20,
+                    color: GlassColors.slateAnchor,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -338,7 +418,9 @@ class _JarCard extends StatelessWidget {
                       Flexible(
                         child: Text(
                           jar.label,
-                          style: GlassTypography.bodyLg(color: GlassColors.textPrimary).copyWith(fontWeight: FontWeight.w600),
+                          style: GlassTypography.bodyLg(
+                            color: GlassColors.textPrimary,
+                          ).copyWith(fontWeight: FontWeight.w600),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
@@ -351,9 +433,14 @@ class _JarCard extends StatelessWidget {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text(formatVnd(jar.spentCents), style: GlassTypography.labelNumeric()),
                     Text(
-                      jar.allocatedCents == null ? 'Chưa biết' : '/ ${formatVnd(jar.allocatedCents!)}',
+                      formatVnd(jar.spentCents),
+                      style: GlassTypography.labelNumeric(),
+                    ),
+                    Text(
+                      jar.allocatedCents == null
+                          ? 'Chưa biết'
+                          : '/ ${formatVnd(jar.allocatedCents!)}',
                       style: GlassTypography.bodySm(),
                     ),
                   ],
@@ -374,7 +461,10 @@ class _JarCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                GlassBadge(text: _jarChipLabel(jar), color: _chipColor(chipState)),
+                GlassBadge(
+                  text: _jarChipLabel(jar),
+                  color: _chipColor(chipState),
+                ),
               ],
             ),
           ],
@@ -393,70 +483,107 @@ class _EditMethodsSheet extends ConsumerWidget {
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-        child: GlassCard(
-          level: 3,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Quản lý cách đang dùng', style: GlassTypography.headlineSm()),
-              const SizedBox(height: 12),
-              async.when(
-                loading: () => const GlassLoadingSpinner(),
-                error: (e, __) => Text(errorMessage(e), style: GlassTypography.bodySm(color: GlassColors.danger)),
-                data: (list) {
-                  if (list.isEmpty) {
-                    return Text('Chưa dùng cách quản lý nào.', style: GlassTypography.bodyMd());
-                  }
-                  return Column(
-                    children: [
-                      for (final um in list)
-                        Padding(
-                          key: ValueKey('my-method-${um.id}'),
-                          padding: const EdgeInsets.only(bottom: 14),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '${um.method.name} · ${_roleLabel(um.role)}',
-                                style: GlassTypography.bodyLg(color: GlassColors.textPrimary).copyWith(fontWeight: FontWeight.w700),
-                              ),
-                              Text(
-                                'Hiệu lực: ${um.effective.entries.map((e) => '${e.key}=${e.value}').join(', ')}',
-                                style: GlassTypography.bodySm(),
-                              ),
-                              const SizedBox(height: 6),
-                              Row(
-                                children: [
-                                  TextButton(
-                                    key: ValueKey('my-method-edit-params-${um.id}'),
-                                    onPressed: () => _editParams(context, ref, um),
-                                    child: const Text('Chỉnh tham số'),
-                                  ),
-                                  TextButton(
-                                    key: ValueKey('my-method-end-${um.id}'),
-                                    onPressed: () => ref.read(myMethodsControllerProvider.notifier).end(um.id),
-                                    child: Text('Kết thúc', style: GlassTypography.bodyMd(color: GlassColors.danger)),
-                                  ),
-                                ],
-                              ),
-                            ],
+        // SizedBox: bottom sheet cấp ràng buộc lỏng nên thẻ kính tự co theo nội dung (lệch, hẹp)
+        child: SizedBox(
+          width: double.infinity,
+          child: GlassCard(
+            level: 3,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Quản lý cách đang dùng',
+                  style: GlassTypography.headlineSm(),
+                ),
+                const SizedBox(height: 12),
+                async.when(
+                  loading: () => const GlassLoadingSpinner(),
+                  error: (e, __) => Text(
+                    errorMessage(e),
+                    style: GlassTypography.bodySm(color: GlassColors.danger),
+                  ),
+                  data: (list) {
+                    if (list.isEmpty) {
+                      return Text(
+                        'Chưa dùng cách quản lý nào.',
+                        style: GlassTypography.bodyMd(),
+                      );
+                    }
+                    return Column(
+                      children: [
+                        for (final um in list)
+                          Padding(
+                            key: ValueKey('my-method-${um.id}'),
+                            padding: const EdgeInsets.only(bottom: 14),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '${um.method.name} · ${_roleLabel(um.role)}',
+                                  style: GlassTypography.bodyLg(
+                                    color: GlassColors.textPrimary,
+                                  ).copyWith(fontWeight: FontWeight.w700),
+                                ),
+                                Text(
+                                  'Hiệu lực: ${um.effective.entries.map((e) => '${e.key}=${e.value}').join(', ')}',
+                                  style: GlassTypography.bodySm(),
+                                ),
+                                const SizedBox(height: 6),
+                                Row(
+                                  children: [
+                                    TextButton(
+                                      key: ValueKey(
+                                        'my-method-edit-params-${um.id}',
+                                      ),
+                                      onPressed: () =>
+                                          _editParams(context, ref, um),
+                                      child: const Text('Chỉnh tham số'),
+                                    ),
+                                    TextButton(
+                                      key: ValueKey('my-method-end-${um.id}'),
+                                      onPressed: () => ref
+                                          .read(
+                                            myMethodsControllerProvider
+                                                .notifier,
+                                          )
+                                          .end(um.id),
+                                      child: Text(
+                                        'Kết thúc',
+                                        style: GlassTypography.bodyMd(
+                                          color: GlassColors.danger,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                    ],
-                  );
-                },
-              ),
-            ],
+                      ],
+                    );
+                  },
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Future<void> _editParams(BuildContext context, WidgetRef ref, UserMethodEntity um) async {
+  Future<void> _editParams(
+    BuildContext context,
+    WidgetRef ref,
+    UserMethodEntity um,
+  ) async {
     final editable = um.method.params.where((p) => p.userEditable).toList();
-    final controllers = {for (final p in editable) p.key: TextEditingController(text: '${um.effective[p.key] ?? p.defaultValue}')};
+    final controllers = {
+      for (final p in editable)
+        p.key: TextEditingController(
+          text: '${um.effective[p.key] ?? p.defaultValue}',
+        ),
+    };
     final changes = await showDialog<Map<String, int?>>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -469,15 +596,23 @@ class _EditMethodsSheet extends ConsumerWidget {
                 key: ValueKey('param-field-${p.key}'),
                 controller: controllers[p.key],
                 keyboardType: TextInputType.number,
-                decoration: InputDecoration(labelText: '${p.label} (${p.min}–${p.max})'),
+                decoration: InputDecoration(
+                  labelText: '${p.label} (${p.min}–${p.max})',
+                ),
               ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Hủy')),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Hủy'),
+          ),
           TextButton(
             key: const ValueKey('param-dialog-save'),
-            onPressed: () => Navigator.pop(dialogContext, {for (final p in editable) p.key: int.tryParse(controllers[p.key]!.text.trim())}),
+            onPressed: () => Navigator.pop(dialogContext, {
+              for (final p in editable)
+                p.key: int.tryParse(controllers[p.key]!.text.trim()),
+            }),
             child: const Text('Lưu'),
           ),
         ],
@@ -493,9 +628,16 @@ class _EditMethodsSheet extends ConsumerWidget {
     if (changes == null || !context.mounted) return;
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await ref.read(myMethodsControllerProvider.notifier).updateParams(um.id, changes);
+      await ref
+          .read(myMethodsControllerProvider.notifier)
+          .updateParams(um.id, changes);
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text(errorMessage(e)), backgroundColor: GlassColors.danger));
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(errorMessage(e)),
+          backgroundColor: GlassColors.danger,
+        ),
+      );
     }
   }
 }

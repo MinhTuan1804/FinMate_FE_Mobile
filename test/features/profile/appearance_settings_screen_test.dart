@@ -22,7 +22,7 @@ void main() {
 
   testWidgets('chọn Tối rồi Hệ thống đổi themeModeProvider ngay', (tester) async {
     await pump(tester);
-    expect(container.read(themeModeProvider), ThemeMode.light);
+    expect(container.read(themeModeProvider), ThemeMode.system); // mặc định theo hệ thống
 
     await tester.tap(find.byKey(const ValueKey('theme-dark')));
     await tester.pumpAndSettle();

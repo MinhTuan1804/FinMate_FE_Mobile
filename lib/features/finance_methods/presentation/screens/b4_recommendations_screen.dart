@@ -5,6 +5,7 @@ import 'package:finmate/core/network/api_exceptions.dart';
 import 'package:finmate/core/theme/glass/glass_colors.dart';
 import 'package:finmate/core/theme/glass/glass_typography.dart';
 import 'package:finmate/features/finance_methods/data/finance_methods_repository.dart';
+import 'package:finmate/features/finance_methods/domain/finance_method.dart';
 import 'package:finmate/features/finance_methods/presentation/controllers/finance_methods_controller.dart';
 import 'package:finmate/shared/widgets/glass/glass_background.dart';
 import 'package:finmate/shared/widgets/glass/glass_buttons.dart';
@@ -16,6 +17,15 @@ String _roleLabel(String role) => switch (role) {
       'supporting' => 'Bổ trợ',
       'both' => 'Chính hoặc bổ trợ',
       _ => role,
+    };
+
+// outcome của BE: 'shown'|'accepted'|'changed'|'skipped'
+String _outcomeLabel(String outcome) => switch (outcome) {
+      'shown' => 'Chờ bạn quyết định',
+      'accepted' => 'Đã áp dụng',
+      'changed' => 'Đã đổi sang cách khác',
+      'skipped' => 'Đã bỏ qua',
+      _ => 'Đã xử lý',
     };
 
 /// B4 — Gợi ý phương pháp quản lý tài chính: gợi ý AI/quy tắc + danh mục để tự chọn + mẫu mục
@@ -74,17 +84,43 @@ class _RecommendationSection extends ConsumerWidget {
       }
     }
 
+    // "Áp dụng gợi ý" = chọn đúng cách AI gợi ý: cách chính TRƯỚC (backend ghi gợi ý là "accepted" khi cách chính trùng), rồi cách bổ trợ nếu có.
+    // Gọi thẳng repository vì cùng lý do ở _CatalogSection._choose. Bổ trợ lỗi thì cách chính vẫn đã áp dụng: tải lại để màn hiện đúng trạng thái.
+    Future<void> apply(RecommendationEntity rec) async {
+      final messenger = ScaffoldMessenger.of(context);
+      final repository = ref.read(financeMethodsRepositoryProvider);
+      try {
+        await repository.chooseMethod(methodCode: rec.primary.method.code, role: 'primary', recommendationId: rec.id);
+        final support = rec.support;
+        if (support != null) {
+          await repository.chooseMethod(methodCode: support.method.code, role: 'supporting', recommendationId: rec.id);
+        }
+        ref.invalidate(myMethodsControllerProvider);
+        await controller.loadLatest();
+        if (!context.mounted) return;
+        messenger.showSnackBar(const SnackBar(content: Text('Đã áp dụng gợi ý.')));
+        context.push('/finance-methods/my-methods');
+      } catch (e) {
+        ref.invalidate(myMethodsControllerProvider);
+        await controller.loadLatest();
+        messenger.showSnackBar(SnackBar(content: Text(errorMessage(e)), backgroundColor: GlassColors.danger));
+      }
+    }
+
     return GlassCard(
       level: 2,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('AI FINANCIAL ADVISOR', style: GlassTypography.labelCaps(color: GlassColors.accentSkyBlue)),
-          const SizedBox(height: 8),
-          GlassPrimaryButton(
-            key: const ValueKey('method-generate-recommendation'),
-            label: 'Tạo gợi ý mới',
-            onPressed: generate,
+          Text('GỢI Ý TỪ TRỢ LÝ AI', style: GlassTypography.labelCaps(color: GlassColors.slateAnchor)),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: GlassPrimaryButton(
+              key: const ValueKey('method-generate-recommendation'),
+              label: 'Tạo gợi ý mới',
+              onPressed: generate,
+            ),
           ),
           const SizedBox(height: 12),
           async.when(
@@ -99,7 +135,7 @@ class _RecommendationSection extends ConsumerWidget {
                 key: const ValueKey('method-recommendation-result'),
                 children: [
                   Text(
-                    'Nguồn: ${rec.source == 'ai' ? 'AI' : 'Quy tắc'} · Trạng thái: ${rec.outcome}',
+                    'Nguồn: ${rec.source == 'ai' ? 'AI' : 'Quy tắc'} · ${_outcomeLabel(rec.outcome)}',
                     style: GlassTypography.bodySm(),
                   ),
                   const SizedBox(height: 6),
@@ -110,7 +146,16 @@ class _RecommendationSection extends ConsumerWidget {
                     Text('Bổ trợ: ${rec.support!.method.name}', style: GlassTypography.bodyLg(color: GlassColors.textPrimary).copyWith(fontWeight: FontWeight.w700)),
                     Text(rec.support!.reason, style: GlassTypography.bodyMd()),
                   ],
-                  if (rec.outcome == 'shown')
+                  if (rec.outcome == 'shown') ...[
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: GlassPrimaryButton(
+                        key: const ValueKey('method-apply-recommendation'),
+                        label: 'Áp dụng gợi ý',
+                        onPressed: () => apply(rec),
+                      ),
+                    ),
                     Align(
                       alignment: Alignment.centerLeft,
                       child: TextButton(
@@ -119,6 +164,7 @@ class _RecommendationSection extends ConsumerWidget {
                         child: Text('Bỏ qua gợi ý này', style: GlassTypography.bodyMd(color: GlassColors.textMuted)),
                       ),
                     ),
+                  ],
                 ],
               );
             },
@@ -154,32 +200,32 @@ class _CatalogSection extends ConsumerWidget {
                   Padding(
                     key: ValueKey('method-catalog-${m.code}'),
                     padding: const EdgeInsets.only(bottom: 14),
-                    child: Row(
+                    // Nút xuống hàng riêng dưới mô tả: để cạnh nhau thì cột chữ bị ép hẹp, xuống dòng từng từ
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '${m.name} (${_roleLabel(m.role)})',
-                                style: GlassTypography.bodyLg(color: GlassColors.textPrimary).copyWith(fontWeight: FontWeight.w600),
-                              ),
-                              Text(m.summary, style: GlassTypography.bodySm()),
-                            ],
-                          ),
+                        Text(
+                          '${m.name} (${_roleLabel(m.role)})',
+                          style: GlassTypography.bodyLg(color: GlassColors.textPrimary).copyWith(fontWeight: FontWeight.w600),
                         ),
-                        if (m.canBePrimary)
-                          TextButton(
-                            key: ValueKey('method-choose-primary-${m.code}'),
-                            onPressed: () => _choose(context, ref, m.code, 'primary'),
-                            child: const Text('Chọn chính'),
-                          ),
-                        if (m.canBeSupport)
-                          TextButton(
-                            key: ValueKey('method-choose-supporting-${m.code}'),
-                            onPressed: () => _choose(context, ref, m.code, 'supporting'),
-                            child: const Text('Chọn bổ trợ'),
+                        Text(m.summary, style: GlassTypography.bodySm()),
+                        if (m.canBePrimary || m.canBeSupport)
+                          Wrap(
+                            spacing: 8,
+                            children: [
+                              if (m.canBePrimary)
+                                TextButton(
+                                  key: ValueKey('method-choose-primary-${m.code}'),
+                                  onPressed: () => _choose(context, ref, m.code, 'primary'),
+                                  child: const Text('Chọn chính'),
+                                ),
+                              if (m.canBeSupport)
+                                TextButton(
+                                  key: ValueKey('method-choose-supporting-${m.code}'),
+                                  onPressed: () => _choose(context, ref, m.code, 'supporting'),
+                                  child: const Text('Chọn bổ trợ'),
+                                ),
+                            ],
                           ),
                       ],
                     ),

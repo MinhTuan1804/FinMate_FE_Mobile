@@ -61,11 +61,11 @@ void main() {
     await _pumpAndPickGallery(tester, adapter: adapter);
 
     expect(adapter.to('/transactions/scan-receipt'), hasLength(1));
-    expect(find.text('WinMart'), findsOneWidget);
-    expect(find.text('55.000 ₫'), findsOneWidget);
+    expect(find.text('WinMart'), findsWidgets);
+    expect(find.text('55.000 ₫'), findsWidgets);
     expect(find.text('Ăn uống'), findsOneWidget);
 
-    await tester.tap(find.text('Rà soát và lưu giao dịch'));
+    await tester.tap(find.text('Tiếp tục với kết quả này'));
     await tester.pumpAndSettle();
     expect(find.text('REVIEW_PAGE'), findsOneWidget);
   });
@@ -82,7 +82,7 @@ void main() {
     fail = false;
     await tester.tap(find.text('Thử lại'));
     await _settle(tester);
-    expect(find.text('WinMart'), findsOneWidget);
+    expect(find.text('WinMart'), findsWidgets);
   });
 
   testWidgets('OCR không đọc được số tiền: báo không đọc được và cho chọn ảnh khác', (tester) async {
@@ -96,7 +96,7 @@ void main() {
 
     expect(find.textContaining('Không đọc được hóa đơn'), findsOneWidget);
     expect(find.text('Chọn ảnh khác'), findsWidgets);
-    expect(find.text('Rà soát và lưu giao dịch'), findsNothing);
+    expect(find.text('Tiếp tục với kết quả này'), findsNothing);
   });
 
   testWidgets('bị từ chối quyền ảnh: hiện thông điệp và không gọi API', (tester) async {

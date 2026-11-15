@@ -41,11 +41,6 @@ import 'package:finmate/features/groups/presentation/screens/accept_invitation_s
 import 'package:finmate/features/groups/presentation/screens/group_finance_screen.dart';
 import 'package:finmate/features/forecast/presentation/screens/forecast_screen.dart';
 import 'package:finmate/features/forecast/presentation/screens/forecast_settings_screen.dart';
-import 'package:finmate/features/qr_transfer/domain/vietqr_parser.dart';
-import 'package:finmate/features/qr_transfer/presentation/screens/qr_history_screen.dart';
-import 'package:finmate/features/qr_transfer/presentation/screens/qr_scan_screen.dart';
-import 'package:finmate/features/qr_transfer/presentation/screens/qr_transfer_screen.dart';
-import 'package:finmate/features/qr_transfer/presentation/screens/saved_counterparties_screen.dart';
 import 'package:finmate/features/analytics/presentation/screens/ai_insights_screen.dart';
 import 'package:finmate/features/analytics/presentation/screens/cashflow_forecast_screen.dart';
 import 'package:finmate/features/analytics/presentation/screens/category_report_screen.dart';
@@ -263,26 +258,6 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/forecast-settings',
         builder: (context, state) => const ForecastSettingsScreen(),
-      ),
-      GoRoute(
-        path: '/qr-transfers',
-        builder: (context, state) => const QrScanScreen(),
-      ),
-      GoRoute(
-        path: '/qr-scan',
-        builder: (context, state) => const QrScanScreen(),
-      ),
-      GoRoute(
-        path: '/qr-transfer',
-        builder: (context, state) => QrTransferScreen(scanned: state.extra as VietQrData?),
-      ),
-      GoRoute(
-        path: '/qr-history',
-        builder: (context, state) => const QrHistoryScreen(),
-      ),
-      GoRoute(
-        path: '/qr-counterparties',
-        builder: (context, state) => const SavedCounterpartiesScreen(),
       ),
       GoRoute(
         path: '/analytics/category-report',

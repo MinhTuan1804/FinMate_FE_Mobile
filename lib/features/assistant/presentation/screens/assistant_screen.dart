@@ -212,6 +212,11 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
       ],
     );
     if (choice == null || !mounted) return;
+    if (choice == 'scan') {
+      // "Quét bill" mở màn quét hóa đơn riêng (D4); kết quả rà soát rồi mới lưu
+      context.push('/scan-receipt');
+      return;
+    }
     final source = ref.read(receiptImageSourceProvider);
     try {
       final path = switch (choice) {
@@ -264,7 +269,9 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
 
     return Scaffold(
       body: AmbientGlassBackground(
+        // top: false để nền header phủ lên tận mép trên (sau thanh trạng thái); header tự cộng phần đệm này
         child: SafeArea(
+          top: false,
           child: Column(
             children: [
               _buildHeader(context),
@@ -369,7 +376,12 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
     final canPop = Navigator.of(context).canPop();
     final secondary = AppTypography.caption(context);
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      padding: EdgeInsets.fromLTRB(
+        16,
+        8 + MediaQuery.paddingOf(context).top,
+        16,
+        8,
+      ),
       decoration: BoxDecoration(
         color: AppColors.surface(context).withValues(alpha: 0.88),
         border: Border(
@@ -515,10 +527,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
               decoration: BoxDecoration(
                 color: AppColors.safe,
                 shape: BoxShape.circle,
-                border: Border.all(
-                  color: AppColors.surface(context),
-                  width: 2,
-                ),
+                border: Border.all(color: AppColors.surface(context), width: 2),
               ),
             ),
           ),

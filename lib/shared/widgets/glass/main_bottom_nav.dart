@@ -18,7 +18,7 @@ class MainBottomNav extends StatelessWidget {
       currentIndex: currentIndex,
       onDestinationSelected: (idx) {
         if (idx == -1) {
-          context.push('/qr-transfers');
+          context.push('/qr-transfers/scan');
         } else if (idx != currentIndex) {
           // go (không push) để chuyển tab không chồng stack
           context.go(_routes[idx]);
