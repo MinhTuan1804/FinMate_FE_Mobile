@@ -7,6 +7,8 @@ import 'package:finmate/features/accounts/domain/financial_account.dart';
 import 'package:finmate/features/accounts/presentation/controllers/accounts_controller.dart';
 import 'package:finmate/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:finmate/features/notifications/presentation/notification_capture_scope.dart';
+import 'package:finmate/features/planning/data/planning_repository.dart';
+import 'package:finmate/features/planning/presentation/controllers/planning_controller.dart';
 import '../../fixtures/fixture.dart';
 
 class _FakeBridge extends NotificationBridge {
@@ -46,6 +48,19 @@ class _StubAccounts extends AccountsController {
 
   void emit(List<FinancialAccount> list) => state = AsyncValue.data(list);
   void emitState(AsyncValue<List<FinancialAccount>> v) => state = v;
+
+  // Issue D (2026-11-13): scope giờ cũng gọi load()/loadPlanningData() sau mỗi lần flushQueue
+  // thành công — test này chỉ quan tâm việc đẩy gói xuống native theo accounts.emit(...), không
+  // cần tải thật lại qua mạng (và không có responder nào chờ sẵn cho nó).
+  @override
+  Future<void> load() async {}
+}
+
+class _StubPlanning extends PlanningController {
+  _StubPlanning() : super(repository: PlanningRepository(apiClient: testApiClient(RouteAdapter((o) => respondFixture('accounts')))), enabled: false);
+
+  @override
+  Future<void> loadPlanningData({bool silent = false}) async {}
 }
 
 FinancialAccount _acc(String id, {String? pkg, bool monitored = true}) => FinancialAccount(
@@ -90,6 +105,7 @@ void main() {
         notificationBridgeProvider.overrideWithValue(bridge),
         currentUserIdProvider.overrideWith((ref) => userId),
         accountsControllerProvider.overrideWith((ref) => accounts),
+        planningControllerProvider.overrideWith((ref) => _StubPlanning()),
       ]);
       addTearDown(container.dispose);
       bridge.readExpiredFlag = () => container.read(sessionExpiredProvider);

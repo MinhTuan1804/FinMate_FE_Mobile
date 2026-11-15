@@ -297,7 +297,10 @@ void main() {
     await tester.tap(find.text('Hoàn tất & Khám phá FinMate'));
     await tester.pumpAndSettle();
 
-    // Hoàn tất thiết lập thì sang khảo sát cách quản lý (Phân hệ B), chưa về Trang chủ
+    // Hoàn tất thiết lập thì sang màn xin quyền thông báo, bỏ qua thì tới khảo sát cách quản lý (Phân hệ B), chưa về Trang chủ
+    expect(find.text('Tự động ghi nhận giao dịch'), findsOneWidget);
+    await tester.tap(find.text('Bỏ qua (có thể bật sau trong Cá nhân)'));
+    await tester.pumpAndSettle();
     expect(find.text('Khảo sát đầu vào'), findsOneWidget);
     expect(find.text('Xin chào,'), findsNothing);
     expect(backend.income, 15000000);

@@ -14,6 +14,7 @@ import 'package:finmate/features/auth/presentation/screens/forgot_password_scree
 import 'package:finmate/features/auth/presentation/screens/forgot_password_otp_screen.dart';
 import 'package:finmate/features/auth/presentation/screens/reset_password_screen.dart';
 import 'package:finmate/features/onboarding/presentation/screens/initial_setup_screen.dart';
+import 'package:finmate/features/onboarding/presentation/screens/notification_permission_screen.dart';
 import 'package:finmate/features/dashboard/presentation/screens/home_screen.dart';
 import 'package:finmate/features/transactions/presentation/screens/transactions_screen.dart';
 import 'package:finmate/features/planning/presentation/screens/planning_screen.dart';
@@ -72,6 +73,12 @@ import 'package:finmate/features/profile/presentation/screens/add_financial_acco
 import 'package:finmate/features/profile/presentation/screens/financial_accounts_screen.dart';
 import 'package:finmate/features/profile/presentation/screens/legal_document_screen.dart';
 import 'package:finmate/features/profile/presentation/screens/subscription_screen.dart';
+import 'package:finmate/features/qr_transfers/domain/qr_transfer.dart';
+import 'package:finmate/features/qr_transfers/presentation/screens/c1_scan_qr_screen.dart';
+import 'package:finmate/features/qr_transfers/presentation/screens/c2_confirm_transfer_screen.dart';
+import 'package:finmate/features/qr_transfers/presentation/screens/c3_history_screen.dart';
+import 'package:finmate/features/qr_transfers/presentation/screens/c4_saved_beneficiaries_screen.dart';
+import 'package:finmate/features/qr_transfers/presentation/screens/c5_edit_beneficiary_screen.dart';
 import 'package:finmate/features/devices/presentation/screens/devices_screen.dart';
 import 'package:finmate/features/finance_methods/presentation/screens/b4_recommendations_screen.dart';
 import 'package:finmate/features/finance_methods/presentation/screens/b5_my_methods_screen.dart';
@@ -196,6 +203,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/onboarding',
         builder: (context, state) => const InitialSetupScreen(),
+      ),
+      GoRoute(
+        path: '/onboarding/notification-permission',
+        builder: (context, state) => const NotificationPermissionScreen(),
       ),
       GoRoute(
         path: '/home',
@@ -372,6 +383,35 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/legal/privacy',
         builder: (context, state) => const LegalDocumentScreen(type: LegalDocType.privacy),
+      ),
+      GoRoute(
+        path: '/qr-transfers/scan',
+        builder: (context, state) => const C1ScanQrScreen(),
+      ),
+      GoRoute(
+        path: '/qr-transfers/confirm',
+        builder: (context, state) {
+          final extra = state.extra is Map ? state.extra as Map : const {};
+          return C2ConfirmTransferScreen(
+            initialReceiverBankBin: extra['receiverBankBin'] as String?,
+            initialAccountNumber: extra['receiverAccountNumber'] as String?,
+            initialReceiverName: extra['receiverName'] as String?,
+            initialAmountCents: extra['amountCents'] as BigInt?,
+            initialMessage: extra['message'] as String?,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/qr-transfers/history',
+        builder: (context, state) => const C3HistoryScreen(),
+      ),
+      GoRoute(
+        path: '/qr-transfers/beneficiaries',
+        builder: (context, state) => const C4SavedBeneficiariesScreen(),
+      ),
+      GoRoute(
+        path: '/qr-transfers/beneficiaries/edit',
+        builder: (context, state) => C5EditBeneficiaryScreen(counterparty: state.extra as CounterpartyOverrideEntity),
       ),
       GoRoute(
         path: '/devices',

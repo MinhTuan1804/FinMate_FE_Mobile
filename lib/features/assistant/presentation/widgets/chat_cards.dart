@@ -872,7 +872,7 @@ class _GoalEditSheet extends StatefulWidget {
 
 class _GoalEditSheetState extends State<_GoalEditSheet> {
   late final TextEditingController _name = TextEditingController(text: widget.goal.name);
-  late final TextEditingController _amount = TextEditingController(text: widget.goal.targetCents.toString());
+  late final TextEditingController _amount = TextEditingController(text: formatAmountDigits(widget.goal.targetCents));
   String? _error;
 
   @override
@@ -905,6 +905,7 @@ class _GoalEditSheetState extends State<_GoalEditSheet> {
             key: const ValueKey('goal-amount'),
             controller: _amount,
             keyboardType: TextInputType.number,
+            inputFormatters: [ThousandsSeparatorInputFormatter()],
             decoration: InputDecoration(labelText: 'Số tiền mục tiêu (₫)', errorText: _error),
           ),
           const SizedBox(height: 16),
@@ -955,7 +956,8 @@ class _RowEditSheet extends StatefulWidget {
 }
 
 class _RowEditSheetState extends State<_RowEditSheet> {
-  late final TextEditingController _amount = TextEditingController(text: widget.draft.amountCents?.toString() ?? '');
+  late final TextEditingController _amount =
+      TextEditingController(text: widget.draft.amountCents == null ? '' : formatAmountDigits(widget.draft.amountCents!));
   late final TextEditingController _note = TextEditingController(text: widget.draft.description ?? '');
   late String? _slug = widget.draft.categorySlug;
   String? _error;
@@ -990,6 +992,7 @@ class _RowEditSheetState extends State<_RowEditSheet> {
             key: const ValueKey('edit-amount'),
             controller: _amount,
             keyboardType: TextInputType.number,
+            inputFormatters: [ThousandsSeparatorInputFormatter()],
             decoration: InputDecoration(labelText: 'Số tiền (₫)', errorText: _error),
           ),
           const SizedBox(height: 8),

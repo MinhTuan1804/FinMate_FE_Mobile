@@ -86,9 +86,9 @@ class _InitialSetupScreenState extends ConsumerState<InitialSetupScreen> {
                   .toList(),
             ),
           );
-      // Nối tiếp luồng: setup xong thì sang thẳng khảo sát đầu vào (B3) để có dữ liệu cho
-      // gợi ý phương pháp quản lý (B4), thay vì về Home rồi người dùng phải tự tìm trong Hồ sơ.
-      if (mounted) context.go('/survey');
+      // Cuối chuỗi onboarding bắt buộc: hỏi quyền đọc thông báo 1 lần (§16.4) trước khi sang
+      // khảo sát đầu vào (B3) — không đi thẳng '/survey' nữa.
+      if (mounted) context.go('/onboarding/notification-permission');
     } catch (e) {
       if (mounted) _showError(errorMessage(e));
     } finally {
@@ -296,6 +296,7 @@ class _InitialSetupScreenState extends ConsumerState<InitialSetupScreen> {
           label: 'Thu nhập hàng tháng dự kiến (VND)',
           controller: _incomeController,
           keyboardType: TextInputType.number,
+          inputFormatters: [ThousandsSeparatorInputFormatter()],
           prefixIcon: LucideIcons.banknote,
           suffixIcon: const Padding(padding: EdgeInsets.only(right: 16), child: Center(widthFactor: 1, child: Text('₫'))),
         ),
@@ -304,6 +305,7 @@ class _InitialSetupScreenState extends ConsumerState<InitialSetupScreen> {
           label: 'Số dư ví tiền mặt hiện có (VND)',
           controller: _cashController,
           keyboardType: TextInputType.number,
+          inputFormatters: [ThousandsSeparatorInputFormatter()],
           prefixIcon: LucideIcons.wallet,
           suffixIcon: const Padding(padding: EdgeInsets.only(right: 16), child: Center(widthFactor: 1, child: Text('₫'))),
         ),

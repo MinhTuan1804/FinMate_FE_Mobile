@@ -438,6 +438,7 @@ class _CreateTransactionBottomSheetState
           TextField(
             controller: _amountController,
             keyboardType: TextInputType.number,
+            inputFormatters: [ThousandsSeparatorInputFormatter()],
             decoration: const InputDecoration(
               labelText: 'Số tiền (VNĐ)',
               prefixIcon: Icon(LucideIcons.coins, size: 20),

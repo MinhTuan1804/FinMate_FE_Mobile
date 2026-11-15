@@ -39,7 +39,7 @@ class DraftEditSheet extends ConsumerStatefulWidget {
 
 class _DraftEditSheetState extends ConsumerState<DraftEditSheet> {
   late final _amount = TextEditingController(
-    text: widget.draft.amountCents.toString(),
+    text: formatAmountDigits(widget.draft.amountCents),
   );
   late final _merchant = TextEditingController(
     text: widget.draft.merchantName ?? '',
@@ -174,6 +174,7 @@ class _DraftEditSheetState extends ConsumerState<DraftEditSheet> {
                         controller: _amount,
                         enabled: !_saving,
                         keyboardType: TextInputType.number,
+                        inputFormatters: [ThousandsSeparatorInputFormatter()],
                         decoration: const InputDecoration(
                           labelText: 'Số tiền (VNĐ)',
                           prefixIcon: Icon(LucideIcons.coins, size: 20),

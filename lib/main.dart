@@ -2,13 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:finmate/core/config/app_config_controller.dart';
 import 'package:finmate/core/config/app_config_gate.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:finmate/core/theme/app_theme.dart';
 import 'package:finmate/core/theme/glass/glass_theme_sync.dart';
 import 'package:finmate/features/notifications/presentation/notification_capture_scope.dart';
 import 'package:finmate/routes/app_router.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await initializeDateFormatting('vi_VN', null);
   runApp(
     const ProviderScope(
       child: FinMateApp(),

@@ -13,10 +13,12 @@ class ReportsRepository {
 
   ReportsRepository({required this.apiClient});
 
-  Future<MonthlySummary> getMonthlySummary({required int year, required int month}) async {
+  /// [accountId] null = tổng mọi ví. Có giá trị = chỉ ví đó (Issue D, 2026-11-13: BE luôn tính
+  /// live cho trường hợp này, không qua cache daily_summaries).
+  Future<MonthlySummary> getMonthlySummary({required int year, required int month, String? accountId}) async {
     final response = await apiClient.get(
       '/api/v1/reports/monthly-summary',
-      queryParameters: {'year': year, 'month': month},
+      queryParameters: {'year': year, 'month': month, if (accountId != null) 'accountId': accountId},
       fromJsonT: (json) => MonthlySummary.fromJson(json as Map<String, dynamic>),
     );
     return response.data ?? MonthlySummary.empty;
