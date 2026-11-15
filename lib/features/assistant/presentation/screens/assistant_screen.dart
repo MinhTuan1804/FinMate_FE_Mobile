@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:finmate/core/theme/app_colors.dart';
 import 'package:finmate/core/theme/app_spacing.dart';
@@ -26,6 +28,10 @@ class AssistantScreen extends ConsumerStatefulWidget {
 
 class _AssistantScreenState extends ConsumerState<AssistantScreen> {
   final _input = TextEditingController();
+  final _inputFocus = FocusNode();
+  final _plusKey = GlobalKey();
+  bool _actionsOpen =
+      false; // người dùng bấm ">" để mở lại nút + và mic khi đang gõ
   Timer? _recordLimit;
   StreamSubscription<double>? _levelSub;
   SpeechEndDetector _detector = SpeechEndDetector();
@@ -35,12 +41,25 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
   bool _listening = false;
 
   static const _maxRecording = Duration(seconds: 55);
-  static const _suggestions = ['ăn phở 45k', 'tháng này tôi tiêu bao nhiêu?'];
+
+  /// Gợi ý nhanh: chạm chip gửi đúng nội dung chip
+  static const _suggestions = <(IconData, String)>[
+    (LucideIcons.trendingUp, 'Hôm nay tôi đã chi bao nhiêu?'),
+    (LucideIcons.utensils, 'Phân tích ăn uống tháng này'),
+    (LucideIcons.pencil, 'ăn phở 45k'),
+    (LucideIcons.chartLine, 'tháng này tôi tiêu bao nhiêu?'),
+  ];
+
+  final _sentAt = <int, DateTime>{};
 
   @override
   void initState() {
     super.initState();
     _recorder = ref.read(voiceRecorderProvider);
+    _inputFocus.addListener(() {
+      if (!mounted) return;
+      setState(() => _actionsOpen = false);
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _ensureAccount(ref.read(accountsControllerProvider).valueOrNull);
@@ -55,6 +74,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
     _levelSub?.cancel();
     if (_listening) _recorder.cancel();
     _input.dispose();
+    _inputFocus.dispose();
     super.dispose();
   }
 
@@ -72,7 +92,9 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
 
   void _snack(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _toggleVoice() async {
@@ -145,30 +167,49 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
   }
 
   Future<void> _pickReceipt() async {
-    final choice = await showModalBottomSheet<String>(
+    final box = _plusKey.currentContext?.findRenderObject() as RenderBox?;
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    if (box == null) return;
+    final origin = box.localToGlobal(Offset.zero, ancestor: overlay);
+    // Menu mở phía trên nút +, giống menu đính kèm của Messenger
+    const menuHeight = 3 * 52.0 + 2 + 16;
+    final position = RelativeRect.fromLTRB(
+      origin.dx,
+      origin.dy - menuHeight - 8,
+      overlay.size.width - origin.dx - box.size.width,
+      overlay.size.height - origin.dy + 8,
+    );
+    PopupMenuEntry<String> item(String value, String label, IconData icon) =>
+        PopupMenuItem<String>(
+          value: value,
+          height: 52,
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(label, style: AppTypography.bodyLarge(context)),
+              ),
+              const SizedBox(width: 16),
+              Icon(icon, size: 20, color: AppColors.slateOn(context)),
+            ],
+          ),
+        );
+    final choice = await showMenu<String>(
       context: context,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(LucideIcons.scanLine),
-              title: const Text('Quét bill'),
-              onTap: () => Navigator.pop(ctx, 'scan'),
-            ),
-            ListTile(
-              leading: const Icon(LucideIcons.camera),
-              title: const Text('Chụp ảnh'),
-              onTap: () => Navigator.pop(ctx, 'camera'),
-            ),
-            ListTile(
-              leading: const Icon(LucideIcons.image),
-              title: const Text('Chọn ảnh từ thư viện'),
-              onTap: () => Navigator.pop(ctx, 'gallery'),
-            ),
-          ],
-        ),
+      position: position,
+      color: AppColors.surface(context).withValues(alpha: 0.96),
+      elevation: 8,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(color: AppColors.glassBorder(context)),
       ),
+      constraints: const BoxConstraints(minWidth: 240),
+      items: [
+        item('scan', 'Quét bill', LucideIcons.scanLine),
+        const PopupMenuDivider(height: 1),
+        item('camera', 'Chụp ảnh', LucideIcons.camera),
+        const PopupMenuDivider(height: 1),
+        item('gallery', 'Chọn ảnh từ thư viện', LucideIcons.image),
+      ],
     );
     if (choice == null || !mounted) return;
     final source = ref.read(receiptImageSourceProvider);
@@ -197,46 +238,69 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
     ref.read(assistantControllerProvider.notifier).send(text);
   }
 
+  /// Giờ hiển thị của tin nhắn: ghi nhận lúc tin nhắn xuất hiện lần đầu (mô hình tin nhắn không lưu thời điểm)
+  String _timeOf(int id) =>
+      DateFormat('HH:mm').format(_sentAt.putIfAbsent(id, DateTime.now));
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(assistantControllerProvider);
-    final accounts = ref.watch(accountsControllerProvider).valueOrNull ??
+    final accounts =
+        ref.watch(accountsControllerProvider).valueOrNull ??
         const <FinancialAccount>[];
     ref.listen(
       accountsControllerProvider,
       (_, next) => _ensureAccount(next.valueOrNull),
     );
-    final selected =
-        accounts.where((a) => a.id == state.selectedAccountId).firstOrNull;
+    final selected = accounts
+        .where((a) => a.id == state.selectedAccountId)
+        .firstOrNull;
 
     final messages = state.messages;
-    final itemCount = messages.length + (state.isSending ? 1 : 0);
+    final sendingOffset = state.isSending ? 1 : 0;
+    // Thêm một mục cho nhãn ngày giờ ở đầu cuộc trò chuyện (danh sách đảo chiều nên nó nằm cuối)
+    final itemCount =
+        messages.length + sendingOffset + (messages.isEmpty ? 0 : 1);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Trợ lý FinMate')),
       body: AmbientGlassBackground(
         child: SafeArea(
           child: Column(
             children: [
+              _buildHeader(context),
+              _buildSuggestions(context, state.isSending),
               Expanded(
                 child: messages.isEmpty && !state.isSending
                     ? _buildEmpty(context)
                     : ListView.builder(
                         reverse: true,
-                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                         itemCount: itemCount,
                         itemBuilder: (context, i) {
                           if (state.isSending && i == 0) {
-                            return _typing(
-                              context,
-                              scanning: messages.isNotEmpty &&
-                                  messages.last is ImageNote,
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              child: AiRow(
+                                child: AssistantBubble(
+                                  text:
+                                      messages.isNotEmpty &&
+                                          messages.last is ImageNote
+                                      ? 'Đang đọc hóa đơn...'
+                                      : 'Đang trả lời...',
+                                ),
+                              ),
                             );
                           }
-                          final message = messages[messages.length -
-                              1 -
-                              (i - (state.isSending ? 1 : 0))];
-                          return _messageView(message);
+                          final mi = i - sendingOffset;
+                          if (mi == messages.length) {
+                            return _buildDayDivider(context, messages.first.id);
+                          }
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: _messageView(
+                              messages[messages.length - 1 - mi],
+                            ),
+                          );
                         },
                       ),
               ),
@@ -259,11 +323,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
                           horizontal: 12,
                           vertical: 7,
                         ),
-                        decoration: BoxDecoration(
-                          color: AppColors.surface(context).withValues(alpha: 0.78),
-                          borderRadius: AppSpacing.roundedPill,
-                          border: Border.all(color: AppColors.glassBorder(context)),
-                        ),
+                        decoration: _pillDecoration(context),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -273,10 +333,13 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
                               color: AppColors.primaryAction(context),
                             ),
                             const SizedBox(width: 6),
-                            Text(
-                              'Ghi vào: ${selected?.name ?? 'chọn tài khoản'}',
-                              style: AppTypography.caption(context).copyWith(
-                                fontWeight: FontWeight.w600,
+                            Flexible(
+                              child: Text(
+                                'Ghi vào: ${selected?.name ?? 'chọn tài khoản'}',
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTypography.caption(
+                                  context,
+                                ).copyWith(fontWeight: FontWeight.w600),
                               ),
                             ),
                             const SizedBox(width: 4),
@@ -295,83 +358,247 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
     );
   }
 
-  Widget _messageView(ChatMessage message) => switch (message) {
-        UserText m => UserBubble(text: m.text),
-        ImageNote m => ImageBubble(path: m.path),
-        AssistantText m => AssistantBubble(text: m.text),
-        SavedCard m => SavedCardView(tx: m.tx),
-        SummaryCard m => SummaryCardView(summary: m.summary),
-        DraftCard m => DraftCardView(card: m),
-        DraftBatchCard m => DraftBatchCardView(card: m),
-        GoalDraftCard m => GoalDraftCardView(card: m),
-        ErrorNote m => ErrorNoteView(
-            note: m,
-            onRetry: () =>
-                ref.read(assistantControllerProvider.notifier).retry(m.id),
-          ),
-      };
+  /// Nền viên thuốc kính nhạt dùng chung cho chip và nút tròn (Figma E1)
+  BoxDecoration _pillDecoration(BuildContext context) => BoxDecoration(
+    color: AppColors.surfaceSubtle(context).withValues(alpha: 0.65),
+    borderRadius: AppSpacing.roundedPill,
+    border: Border.all(color: AppColors.glassBorder(context)),
+  );
 
-  Widget _typing(BuildContext context, {bool scanning = false}) => Align(
-        alignment: Alignment.centerLeft,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Text(
-            scanning ? 'Đang đọc hóa đơn...' : 'Đang trả lời...',
-            style: AppTypography.caption(context),
-          ),
+  Widget _buildHeader(BuildContext context) {
+    final canPop = Navigator.of(context).canPop();
+    final secondary = AppTypography.caption(context);
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      decoration: BoxDecoration(
+        color: AppColors.surface(context).withValues(alpha: 0.88),
+        border: Border(
+          bottom: BorderSide(color: AppColors.glassBorder(context)),
         ),
-      );
+      ),
+      child: Row(
+        children: [
+          if (canPop)
+            LiquidGlassIconButton(
+              icon: LucideIcons.arrowLeft,
+              tooltip: 'Quay lại',
+              size: 40,
+              iconSize: 18,
+              onPressed: () => Navigator.of(context).maybePop(),
+            )
+          else
+            const SizedBox(width: AppSpacing.minTouchTarget),
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildAvatar(context),
+                  const SizedBox(width: 10),
+                  Flexible(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                'FinMate AI',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTypography.bodyLarge(context)
+                                    .copyWith(
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: -0.4,
+                                      height: 1.3,
+                                    ),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            ExcludeSemantics(
+                              child: Icon(
+                                LucideIcons.badgeCheck,
+                                size: 15,
+                                color: AppColors.slateOn(context),
+                              ),
+                            ),
+                          ],
+                        ),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: const BoxDecoration(
+                                color: AppColors.safe,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                'Đang trực tuyến • Trợ lý tài chính',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: secondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          LiquidGlassIconButton(
+            key: const ValueKey('open-ai-memory'),
+            icon: LucideIcons.ellipsisVertical,
+            tooltip: 'Bộ nhớ AI',
+            size: 40,
+            iconSize: 18,
+            onPressed: () => context.push('/assistant/memory'),
+          ),
+        ],
+      ),
+    );
+  }
 
-  Widget _buildEmpty(BuildContext context) {
-    final actionColor = AppColors.primaryAction(context);
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: ZenvestHeroDeck(
-          peekBadgeText: 'AI',
-          child: LiquidGlassCard(
-            variant: LiquidGlassVariant.iridescentHero,
-            enableBlur: true,
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    color: actionColor.withValues(alpha: 0.14),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    LucideIcons.sparkles,
-                    size: 28,
-                    color: actionColor,
-                  ),
+  /// Avatar trợ lý: viền chuyển màu xanh-hồng, lõi trắng, chấm trực tuyến
+  Widget _buildAvatar(BuildContext context) {
+    return SizedBox(
+      width: 44,
+      height: 44,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(2),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                begin: Alignment.bottomLeft,
+                end: Alignment.topRight,
+                colors: [
+                  AppColors.secondary.withValues(alpha: 0.7),
+                  AppColors.surfaceSubtle(context),
+                  AppColors.tertiary.withValues(alpha: 0.7),
+                ],
+              ),
+            ),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: AppColors.surface(context),
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: Icon(
+                  LucideIcons.sparkles,
+                  size: 20,
+                  color: AppColors.slateOn(context),
                 ),
-                const SizedBox(height: 14),
-                Text('Bạn muốn ghi gì hôm nay?', style: AppTypography.h3(context)),
-                const SizedBox(height: 4),
-                Text(
-                  'Nhắn tự nhiên, FinMate sẽ ghi chép hoặc trả lời giúp bạn.',
-                  textAlign: TextAlign.center,
-                  style: AppTypography.caption(context),
+              ),
+            ),
+          ),
+          Positioned(
+            right: -2,
+            bottom: -2,
+            child: Container(
+              width: 14,
+              height: 14,
+              decoration: BoxDecoration(
+                color: AppColors.safe,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: AppColors.surface(context),
+                  width: 2,
                 ),
-                const SizedBox(height: 20),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  alignment: WrapAlignment.center,
-                  children: [
-                    for (final s in _suggestions)
-                      ZenvestActionPill(
-                        label: s,
-                        trailingIcon: LucideIcons.arrowUpRight,
-                        onTap: () => _send(s),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Hàng chip gợi ý cuộn ngang; chạm chip gửi đúng nội dung của nó
+  Widget _buildSuggestions(BuildContext context, bool sending) {
+    return SizedBox(
+      height: 52,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        child: Row(
+          children: [
+            for (final (icon, label) in _suggestions)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Semantics(
+                  button: true,
+                  enabled: !sending,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: Ink(
+                      decoration: _pillDecoration(context),
+                      child: InkWell(
+                        customBorder: const StadiumBorder(),
+                        onTap: sending ? null : () => _send(label),
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(minHeight: 40),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 15),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  icon,
+                                  size: 14,
+                                  color: AppColors.slateOn(context),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  label,
+                                  style: AppTypography.caption(context)
+                                      .copyWith(
+                                        fontWeight: FontWeight.w400,
+                                        color: AppColors.textPrimary(context),
+                                      ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                       ),
-                  ],
+                    ),
+                  ),
                 ),
-              ],
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Nhãn "HÔM NAY • 12:45" ở đầu cuộc trò chuyện
+  Widget _buildDayDivider(BuildContext context, int firstMessageId) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 4, bottom: 12),
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 5),
+          decoration: _pillDecoration(context),
+          child: Text(
+            'HÔM NAY • ${_timeOf(firstMessageId)}',
+            style: AppTypography.caption(context).copyWith(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.55,
             ),
           ),
         ),
@@ -379,55 +606,185 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
     );
   }
 
-  Widget _buildInput(BuildContext context, bool sending) {
-    final actionColor = AppColors.primaryAction(context);
-    final row = Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 8, 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _input,
-              minLines: 1,
-              maxLines: 4,
-              textInputAction: TextInputAction.send,
-              onSubmitted: (_) => _submitInput(),
-              decoration: InputDecoration(
-                hintText: _listening
-                    ? 'Đang nghe... nói xong mình sẽ tự gửi'
-                    : (sending ? 'Đang xử lý...' : 'Nhắn: "ăn phở 45k"...'),
+  Widget _messageView(ChatMessage message) => switch (message) {
+    UserText m => UserBubble(text: m.text, time: _timeOf(m.id)),
+    ImageNote m => ImageBubble(path: m.path),
+    AssistantText m => AiRow(child: AssistantBubble(text: m.text)),
+    SavedCard m => AiRow(child: SavedCardView(tx: m.tx)),
+    SummaryCard m => AiRow(child: SummaryCardView(summary: m.summary)),
+    DraftCard m => AiRow(child: DraftCardView(card: m)),
+    DraftBatchCard m => AiRow(child: DraftBatchCardView(card: m)),
+    GoalDraftCard m => AiRow(child: GoalDraftCardView(card: m)),
+    PurchaseCard m => AiRow(child: PurchaseCardView(card: m)),
+    ErrorNote m => AiRow(
+      child: ErrorNoteView(
+        note: m,
+        onRetry: () =>
+            ref.read(assistantControllerProvider.notifier).retry(m.id),
+      ),
+    ),
+  };
+
+  Widget _buildEmpty(BuildContext context) {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                color: AppColors.secondary.withValues(alpha: 0.25),
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.glassBorder(context)),
+              ),
+              child: Icon(
+                LucideIcons.sparkles,
+                size: 28,
+                color: AppColors.slateOn(context),
               ),
             ),
-          ),
-          IconButton(
-            key: const ValueKey('scan-button'),
-            tooltip: 'Quét hóa đơn',
-            onPressed: sending ? null : _pickReceipt,
-            icon: const Icon(LucideIcons.scanLine, size: 22),
-            color: actionColor,
-          ),
-          IconButton(
-            key: const ValueKey('mic-button'),
-            tooltip: _listening ? 'Dừng và gửi' : 'Nói để ghi chép',
-            onPressed: sending ? null : _toggleVoice,
-            icon: Icon(
-              _listening ? LucideIcons.square : LucideIcons.mic,
-              size: 22,
+            const SizedBox(height: 14),
+            Text('Bạn muốn ghi gì hôm nay?', style: AppTypography.h3(context)),
+            const SizedBox(height: 4),
+            Text(
+              'Nhắn tự nhiên, FinMate sẽ ghi chép hoặc trả lời giúp bạn.',
+              textAlign: TextAlign.center,
+              style: AppTypography.caption(context),
             ),
-            color: _listening ? AppColors.danger : actionColor,
-          ),
-          ValueListenableBuilder<TextEditingValue>(
-            valueListenable: _input,
-            builder: (context, value, _) => IconButton(
-              key: const ValueKey('send-button'),
-              onPressed:
-                  value.text.trim().isEmpty || sending ? null : _submitInput,
-              icon: const Icon(LucideIcons.send, size: 22),
-              color: actionColor,
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInput(BuildContext context, bool sending) {
+    final actionColor = AppColors.primaryAction(context);
+    final onAction = AppColors.onPrimaryAction(context);
+    // Đang gõ thì thu nút + và mic lại thành ">" (như Messenger); đang ghi âm vẫn phải thấy nút dừng
+    final showActions = !_inputFocus.hasFocus || _actionsOpen || _listening;
+    ButtonStyle roundStyle({Color? foreground}) => IconButton.styleFrom(
+      fixedSize: const Size(40, 40),
+      padding: EdgeInsets.zero,
+      backgroundColor: AppColors.surfaceSubtle(context).withValues(alpha: 0.65),
+      foregroundColor: foreground ?? AppColors.textPrimary(context),
+      shape: CircleBorder(
+        side: BorderSide(color: AppColors.glassBorder(context)),
+      ),
+    );
+    final row = Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+      child: Container(
+        padding: const EdgeInsets.all(7),
+        decoration: BoxDecoration(
+          color: AppColors.surface(context).withValues(alpha: 0.88),
+          borderRadius: AppSpacing.roundedPill,
+          border: Border.all(color: AppColors.glassBorder(context)),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primaryAction(context).withValues(alpha: 0.1),
+              blurRadius: 25,
+              spreadRadius: -5,
+              offset: const Offset(0, 20),
             ),
-          ),
-        ],
+          ],
+        ),
+        child: Row(
+          children: [
+            AnimatedSize(
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOut,
+              alignment: Alignment.centerLeft,
+              child: showActions
+                  ? Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          key: const ValueKey('scan-button'),
+                          tooltip: 'Đính kèm hóa đơn',
+                          onPressed: sending ? null : _pickReceipt,
+                          style: roundStyle(),
+                          icon: Icon(LucideIcons.plus, key: _plusKey, size: 18),
+                        ),
+                        const SizedBox(width: 6),
+                        IconButton(
+                          key: const ValueKey('mic-button'),
+                          tooltip: _listening
+                              ? 'Dừng và gửi'
+                              : 'Nói để ghi chép',
+                          onPressed: sending ? null : _toggleVoice,
+                          style: roundStyle(
+                            foreground: _listening ? AppColors.danger : null,
+                          ),
+                          icon: Icon(
+                            _listening ? LucideIcons.square : LucideIcons.mic,
+                            size: 18,
+                          ),
+                        ),
+                      ],
+                    )
+                  : IconButton(
+                      key: const ValueKey('expand-actions'),
+                      tooltip: 'Hiện thêm tùy chọn',
+                      onPressed: () => setState(() => _actionsOpen = true),
+                      style: roundStyle(),
+                      icon: const Icon(LucideIcons.chevronRight, size: 18),
+                    ),
+            ),
+            Expanded(
+              child: TextField(
+                controller: _input,
+                focusNode: _inputFocus,
+                onTapOutside: (_) => _inputFocus.unfocus(),
+                minLines: 1,
+                maxLines: 4,
+                textInputAction: TextInputAction.send,
+                onSubmitted: (_) => _submitInput(),
+                style: AppTypography.body(context),
+                decoration: InputDecoration(
+                  filled: false,
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  disabledBorder: InputBorder.none,
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  hintMaxLines: 1,
+                  hintText: _listening
+                      ? 'Đang nghe... nói xong mình sẽ tự gửi'
+                      : (sending
+                            ? 'Đang xử lý...'
+                            : 'Nhắn hoặc nói với FinMate...'),
+                ),
+              ),
+            ),
+            ValueListenableBuilder<TextEditingValue>(
+              valueListenable: _input,
+              builder: (context, value, _) => IconButton(
+                key: const ValueKey('send-button'),
+                tooltip: 'Gửi',
+                onPressed: value.text.trim().isEmpty || sending
+                    ? null
+                    : _submitInput,
+                style: IconButton.styleFrom(
+                  fixedSize: const Size(44, 44),
+                  padding: EdgeInsets.zero,
+                  backgroundColor: actionColor,
+                  foregroundColor: onAction,
+                  disabledBackgroundColor: actionColor.withValues(alpha: 0.35),
+                  disabledForegroundColor: onAction.withValues(alpha: 0.8),
+                  shape: const CircleBorder(),
+                ),
+                icon: const Icon(LucideIcons.arrowUp, size: 18),
+              ),
+            ),
+          ],
+        ),
       ),
     );
     if (!_listening) return row;

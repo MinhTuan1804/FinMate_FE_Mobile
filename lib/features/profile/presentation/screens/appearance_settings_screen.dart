@@ -2,159 +2,378 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:finmate/core/format/money.dart';
 import 'package:finmate/core/theme/app_colors.dart';
 import 'package:finmate/core/theme/app_spacing.dart';
 import 'package:finmate/core/theme/app_theme.dart';
 import 'package:finmate/core/theme/app_typography.dart';
 import 'package:finmate/core/widgets/glass/liquid_glass.dart';
 
-/// Màn H3: Tùy chỉnh Giao diện & Hiển thị (Appearance Settings Screen)
-class AppearanceSettingsScreen extends ConsumerStatefulWidget {
+/// Màn H3: Giao diện & Hiển thị (theo Figma). Chỉ có hai cài đặt thật là chế độ màu và giảm hiệu ứng trong suốt, áp dụng ngay.
+/// Cỡ chữ áp dụng thật toàn app. Ẩn số dư, giảm chuyển động và tăng tương phản chưa có cơ chế nên hiện khóa kèm nhãn "Sắp có".
+class AppearanceSettingsScreen extends ConsumerWidget {
   const AppearanceSettingsScreen({super.key});
 
   @override
-  ConsumerState<AppearanceSettingsScreen> createState() => _AppearanceSettingsScreenState();
-}
-
-class _AppearanceSettingsScreenState extends ConsumerState<AppearanceSettingsScreen> {
-  bool _hideBalanceDefault = false;
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final currentTheme = ref.watch(themeModeProvider);
     final reduceTransparency = ref.watch(reduceTransparencyProvider);
+    final textScale = ref.watch(textScaleProvider);
+
+    void select(ThemeMode mode) =>
+        ref.read(themeModeProvider.notifier).state = mode;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Giao diện & Hiển thị'),
-        leading: IconButton(
-          icon: const Icon(LucideIcons.arrowLeft),
-          onPressed: () => context.pop(),
+        centerTitle: true,
+        leading: Padding(
+          padding: const EdgeInsets.all(8),
+          child: LiquidGlassIconButton(
+            icon: LucideIcons.arrowLeft,
+            size: 40,
+            tooltip: 'Quay lại',
+            onPressed: () => context.pop(),
+          ),
         ),
       ),
       body: AmbientGlassBackground(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text('CHẾ ĐỘ MÀU SẮC', style: AppTypography.sectionLabel(context)),
-              const SizedBox(height: 12),
-
-              // 3 Preview Cards: Sáng / Tối / Hệ thống
-              Row(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(left: 4, bottom: 12),
+              child: Text(
+                'CHẾ ĐỘ HIỂN THỊ',
+                style: AppTypography.sectionLabel(context),
+              ),
+            ),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: _ThemeCard(
+                    key: const ValueKey('theme-light'),
+                    title: 'Sáng',
+                    subtitle: 'Mặc định',
+                    mode: ThemeMode.light,
+                    selected: currentTheme == ThemeMode.light,
+                    onSelect: () => select(ThemeMode.light),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _ThemeCard(
+                    key: const ValueKey('theme-dark'),
+                    title: 'Tối',
+                    subtitle: 'Dịu mắt ban đêm',
+                    mode: ThemeMode.dark,
+                    selected: currentTheme == ThemeMode.dark,
+                    onSelect: () => select(ThemeMode.dark),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _ThemeCard(
+                    key: const ValueKey('theme-system'),
+                    title: 'Hệ thống',
+                    subtitle: 'Tự động',
+                    mode: ThemeMode.system,
+                    selected: currentTheme == ThemeMode.system,
+                    onSelect: () => select(ThemeMode.system),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            Padding(
+              padding: const EdgeInsets.only(left: 4, bottom: 12),
+              child: Text(
+                'TÙY CHỌN HIỂN THỊ',
+                style: AppTypography.sectionLabel(context),
+              ),
+            ),
+            LiquidGlassCard(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: Column(
+                children: [
+                  _lockedTile(
+                    context,
+                    LucideIcons.eyeOff,
+                    'Ẩn số dư trên màn hình chính',
+                    'Chống nhìn trộm nơi công cộng',
+                  ),
+                  const Divider(height: 1),
+                  _lockedTile(
+                    context,
+                    LucideIcons.ban,
+                    'Giảm hiệu ứng chuyển động',
+                    'Hạn chế hoạt ảnh khi chuyển màn',
+                  ),
+                  const Divider(height: 1),
+                  _lockedTile(
+                    context,
+                    LucideIcons.contrast,
+                    'Tăng độ tương phản (High Contrast)',
+                    'Chữ và viền đậm hơn',
+                  ),
+                  const Divider(height: 1),
+                  SwitchListTile.adaptive(
+                    key: const ValueKey('reduce-transparency'),
+                    contentPadding: EdgeInsets.zero,
+                    secondary: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: AppColors.secondary.withValues(alpha: 0.18),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        LucideIcons.layers,
+                        size: 18,
+                        color: AppColors.textSecondary(context),
+                      ),
+                    ),
+                    title: Text(
+                      'Giảm hiệu ứng trong suốt',
+                      style: AppTypography.body(
+                        context,
+                      ).copyWith(fontSize: 14.5, fontWeight: FontWeight.w700),
+                    ),
+                    subtitle: Text(
+                      'Chuyển nền kính mờ sang màu đặc để tăng độ tương phản và tiết kiệm pin.',
+                      style: AppTypography.caption(
+                        context,
+                      ).copyWith(fontSize: 12),
+                    ),
+                    value: reduceTransparency,
+                    onChanged: (val) =>
+                        ref.read(reduceTransparencyProvider.notifier).state =
+                            val,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            Padding(
+              padding: const EdgeInsets.only(left: 4, bottom: 12),
+              child: Row(
                 children: [
                   Expanded(
-                    child: _themeCard(
-                      context,
-                      title: 'Sáng',
-                      subtitle: 'Serene Sky',
-                      mode: ThemeMode.light,
-                      current: currentTheme,
-                      bgColor: const Color(0xFFE8EFF8),
-                      accentColor: AppColors.primary,
-                      onSelect: () => ref.read(themeModeProvider.notifier).state = ThemeMode.light,
+                    child: Text(
+                      'CỠ CHỮ HIỂN THỊ',
+                      style: AppTypography.sectionLabel(context),
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _themeCard(
+                  Text(
+                    _scaleLabel(textScale),
+                    style: AppTypography.caption(
                       context,
-                      title: 'Tối',
-                      subtitle: 'Obsidian',
-                      mode: ThemeMode.dark,
-                      current: currentTheme,
-                      bgColor: const Color(0xFF0F172A),
-                      accentColor: const Color(0xFF7CA9D6),
-                      onSelect: () => ref.read(themeModeProvider.notifier).state = ThemeMode.dark,
-                    ),
+                    ).copyWith(fontWeight: FontWeight.w700),
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _themeCard(
-                      context,
-                      title: 'Hệ thống',
-                      subtitle: 'Tự động',
-                      mode: ThemeMode.system,
-                      current: currentTheme,
-                      bgColor: const Color(0xFF7CA9D6).withValues(alpha: 0.3),
-                      accentColor: AppColors.primaryAction(context),
-                      onSelect: () => ref.read(themeModeProvider.notifier).state = ThemeMode.system,
+                ],
+              ),
+            ),
+            LiquidGlassCard(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+              child: Column(
+                children: [
+                  Slider(
+                    key: const ValueKey('text-scale'),
+                    value: _scaleStops
+                        .indexOf(textScale)
+                        .clamp(0, 2)
+                        .toDouble(),
+                    min: 0,
+                    max: 2,
+                    divisions: 2,
+                    label: _scaleLabel(textScale),
+                    onChanged: (v) =>
+                        ref.read(textScaleProvider.notifier).state =
+                            _scaleStops[v.round()],
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Nhỏ', style: AppTypography.caption(context)),
+                      Text(
+                        'Chuẩn',
+                        style: AppTypography.caption(
+                          context,
+                        ).copyWith(fontWeight: FontWeight.w700),
+                      ),
+                      Text('Lớn', style: AppTypography.caption(context)),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.inset(context, 0.7),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'BẢN XEM TRƯỚC TRỰC TIẾP',
+                          style: AppTypography.caption(
+                            context,
+                          ).copyWith(fontSize: 10.5, letterSpacing: 0.5),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'FinMate hiển thị số tiền rõ ràng: ${formatVnd(BigInt.from(120000))}',
+                          style: AppTypography.body(context),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
-              const SizedBox(height: 24),
+const _scaleStops = [0.9, 1.0, 1.15];
 
-              Text('HIỆU ỨNG THỊ GIÁC & QUYỀN RIÊNG TƯ', style: AppTypography.sectionLabel(context)),
-              const SizedBox(height: 12),
+String _scaleLabel(double scale) => switch (scale) {
+  0.9 => 'Nhỏ',
+  1.15 => 'Lớn',
+  _ => 'Chuẩn (Mặc định)',
+};
 
-              ZenvestSurfaceSheet(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
-                child: Column(
-                  children: [
-                    SwitchListTile.adaptive(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(
-                        'Giảm hiệu ứng trong suốt (Reduce Transparency)',
-                        style: AppTypography.body(context).copyWith(
-                          fontSize: 14.5,
-                          fontWeight: FontWeight.w700,
+/// Công tắc theo Figma nhưng app chưa có cơ chế tương ứng: hiện khóa kèm nhãn "Sắp có", không giả vờ hoạt động.
+Widget _lockedTile(
+  BuildContext context,
+  IconData icon,
+  String title,
+  String subtitle,
+) {
+  return SwitchListTile.adaptive(
+    contentPadding: EdgeInsets.zero,
+    secondary: Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: AppColors.secondary.withValues(alpha: 0.18),
+        shape: BoxShape.circle,
+      ),
+      child: Icon(icon, size: 18, color: AppColors.textSecondary(context)),
+    ),
+    title: Row(
+      children: [
+        Flexible(
+          child: Text(
+            title,
+            style: AppTypography.body(
+              context,
+            ).copyWith(fontSize: 14.5, fontWeight: FontWeight.w700),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          decoration: BoxDecoration(
+            color: AppColors.secondary.withValues(alpha: 0.2),
+            borderRadius: AppSpacing.roundedPill,
+          ),
+          child: Text(
+            'Sắp có',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              color: AppColors.slateOn(context),
+            ),
+          ),
+        ),
+      ],
+    ),
+    subtitle: Text(
+      subtitle,
+      style: AppTypography.caption(context).copyWith(fontSize: 12),
+    ),
+    value: false,
+    onChanged: null,
+  );
+}
+
+/// Thẻ chọn chế độ màu: hình xem trước thu nhỏ của giao diện, nhãn và dấu chọn; có nhãn cho trình đọc màn hình.
+class _ThemeCard extends StatelessWidget {
+  const _ThemeCard({
+    super.key,
+    required this.title,
+    required this.subtitle,
+    required this.mode,
+    required this.selected,
+    required this.onSelect,
+  });
+
+  final String title;
+  final String subtitle;
+  final ThemeMode mode;
+  final bool selected;
+  final VoidCallback onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = AppColors.primaryAction(context);
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: 'Giao diện $title, $subtitle',
+      child: GestureDetector(
+        onTap: onSelect,
+        child: LiquidGlassCard(
+          padding: const EdgeInsets.all(8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: SizedBox(height: 112, child: _Preview(mode: mode)),
+                  ),
+                  if (selected)
+                    Positioned(
+                      top: 4,
+                      right: 4,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: accent,
+                          shape: BoxShape.circle,
+                        ),
+                        padding: const EdgeInsets.all(3),
+                        child: Icon(
+                          LucideIcons.check,
+                          size: 12,
+                          color: AppColors.onPrimaryAction(context),
                         ),
                       ),
-                      subtitle: Text(
-                        'Chuyển nền kính mờ sang màu đặc để tăng độ tương phản và tiết kiệm pin.',
-                        style: AppTypography.caption(context).copyWith(fontSize: 12),
-                      ),
-                      value: reduceTransparency,
-                      onChanged: (val) {
-                        ref.read(reduceTransparencyProvider.notifier).state = val;
-                      },
                     ),
-                    const Divider(height: 24),
-                    SwitchListTile.adaptive(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(
-                        'Ẩn số dư tài sản mặc định',
-                        style: AppTypography.body(context).copyWith(
-                          fontSize: 14.5,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      subtitle: Text(
-                        'Hiển thị số tiền dưới dạng •••••••• khi mở app ở nơi công cộng.',
-                        style: AppTypography.caption(context).copyWith(fontSize: 12),
-                      ),
-                      value: _hideBalanceDefault,
-                      onChanged: (val) => setState(() => _hideBalanceDefault = val),
-                    ),
-                  ],
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: AppTypography.body(context).copyWith(
+                  fontSize: 13,
+                  fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
                 ),
               ),
-
-              const SizedBox(height: 24),
-
-              Text('ĐẶC TẢ THIẾT KẾ SERENE LIQUID GLASS', style: AppTypography.sectionLabel(context)),
-              const SizedBox(height: 12),
-
-              LiquidGlassCard(
-                variant: LiquidGlassVariant.subtle,
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Bảo vệ mắt & Chuẩn tương phản WCAG AA',
-                      style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w700),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Nền trời sương xanh nhạt không chói, chữ số đậm rõ nét, không dùng gradient quá bão hòa.',
-                      style: AppTypography.caption(context).copyWith(fontSize: 12.5),
-                    ),
-                  ],
-                ),
+              Text(
+                subtitle,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTypography.caption(context).copyWith(fontSize: 11),
               ),
             ],
           ),
@@ -162,74 +381,109 @@ class _AppearanceSettingsScreenState extends ConsumerState<AppearanceSettingsScr
       ),
     );
   }
+}
 
-  Widget _themeCard(
-    BuildContext context, {
-    required String title,
-    required String subtitle,
-    required ThemeMode mode,
-    required ThemeMode current,
-    required Color bgColor,
-    required Color accentColor,
-    required VoidCallback onSelect,
+/// Hình xem trước thu nhỏ của một giao diện: nền, thanh tiêu đề, thẻ và nút giả bằng các khối màu.
+class _Preview extends StatelessWidget {
+  const _Preview({required this.mode});
+
+  final ThemeMode mode;
+
+  static const _lightBg = Color(0xFFE8EFF8);
+  static const _lightCard = Color(0xFFFFFFFF);
+  static const _lightBar = Color(0xFFB8C7DA);
+  static const _darkBg = Color(0xFF0F172A);
+  static const _darkCard = Color(0xFF1E293B);
+  static const _darkBar = Color(0xFF475569);
+
+  Widget _mock({
+    required Color bg,
+    required Color card,
+    required Color bar,
+    required Color accent,
   }) {
-    final isSelected = mode == current;
-
-    return GestureDetector(
-      onTap: onSelect,
-      child: Container(
-        height: 120,
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: AppSpacing.roundedLarge,
-          border: Border.all(
-            color: isSelected ? accentColor : AppColors.borderLight,
-            width: isSelected ? 2.5 : 1.0,
+    return Container(
+      color: bg,
+      padding: const EdgeInsets.all(8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 26,
+            height: 5,
+            decoration: BoxDecoration(
+              color: bar,
+              borderRadius: BorderRadius.circular(3),
+            ),
           ),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: accentColor.withValues(alpha: 0.25),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ]
-              : null,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Align(
-              alignment: Alignment.topRight,
-              child: isSelected
-                  ? Icon(LucideIcons.circleCheck, color: accentColor, size: 18)
-                  : const SizedBox(height: 18),
+          const SizedBox(height: 8),
+          Container(
+            height: 22,
+            decoration: BoxDecoration(
+              color: card,
+              borderRadius: BorderRadius.circular(8),
             ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 14,
-                    color: mode == ThemeMode.dark ? Colors.white : const Color(0xFF111827),
-                  ),
-                ),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: mode == ThemeMode.dark ? Colors.white60 : Colors.black54,
-                  ),
-                ),
-              ],
+          ),
+          const SizedBox(height: 6),
+          Container(
+            height: 14,
+            decoration: BoxDecoration(
+              color: bar.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(6),
             ),
-          ],
-        ),
+          ),
+          const Spacer(),
+          Container(
+            height: 12,
+            decoration: BoxDecoration(
+              color: accent,
+              borderRadius: BorderRadius.circular(6),
+            ),
+          ),
+        ],
       ),
     );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final light = _mock(
+      bg: _lightBg,
+      card: _lightCard,
+      bar: _lightBar,
+      accent: const Color(0xFFA3D0FF),
+    );
+    final dark = _mock(
+      bg: _darkBg,
+      card: _darkCard,
+      bar: _darkBar,
+      accent: const Color(0xFF7CA9D6),
+    );
+    return switch (mode) {
+      ThemeMode.light => light,
+      ThemeMode.dark => dark,
+      ThemeMode.system => Row(
+        children: [
+          Expanded(
+            child: ClipRect(
+              child: Align(
+                alignment: Alignment.centerLeft,
+                widthFactor: 0.5,
+                child: SizedBox(width: 200, child: light),
+              ),
+            ),
+          ),
+          Expanded(
+            child: ClipRect(
+              child: Align(
+                alignment: Alignment.centerRight,
+                widthFactor: 0.5,
+                child: SizedBox(width: 200, child: dark),
+              ),
+            ),
+          ),
+        ],
+      ),
+    };
   }
 }

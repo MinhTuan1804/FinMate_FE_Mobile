@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:finmate/core/network/api_exceptions.dart';
@@ -15,6 +16,7 @@ import 'package:finmate/features/transactions/presentation/widgets/draft_edit_sh
 import 'package:finmate/features/transactions/presentation/widgets/draft_transaction_tile.dart';
 import 'package:finmate/features/transactions/presentation/widgets/failed_sync_banner.dart';
 import 'package:finmate/features/transactions/presentation/widgets/notification_access_card.dart';
+import 'package:finmate/shared/widgets/glass/main_bottom_nav.dart';
 
 class TransactionsScreen extends ConsumerStatefulWidget {
   const TransactionsScreen({super.key});
@@ -160,11 +162,28 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     final accessOff = drafts && ref.watch(notificationAccessEnabledProvider).valueOrNull == false;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Lịch sử giao dịch')),
+      appBar: AppBar(
+        title: const Text('Lịch sử giao dịch'),
+        actions: [
+          IconButton(
+            key: const ValueKey('open-transfer'),
+            tooltip: 'Chuyển tiền giữa ví',
+            icon: const Icon(LucideIcons.arrowLeftRight),
+            onPressed: () => context.push('/transfer'),
+          ),
+          IconButton(
+            key: const ValueKey('open-scan-receipt'),
+            tooltip: 'Quét hóa đơn',
+            icon: const Icon(LucideIcons.scanLine),
+            onPressed: () => context.push('/scan-receipt'),
+          ),
+        ],
+      ),
+      bottomNavigationBar: const MainBottomNav(currentIndex: 1),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => CreateTransactionBottomSheet.show(context),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
+        backgroundColor: AppColors.primaryAction(context),
+        foregroundColor: AppColors.onPrimaryAction(context),
         icon: const Icon(LucideIcons.plus, size: 20),
         label: const Text('Ghi chép mới'),
       ),
@@ -355,6 +374,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     // 1. Chuyển khoản nội bộ (BR-26, BR-27: Không tính vào chi tiêu/ngân sách)
     if (tx.isInternalTransfer) {
       return ListTile(
+        onTap: () => context.push('/transaction-detail', extra: tx),
         leading: Container(
           width: 44,
           height: 44,
@@ -403,6 +423,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     final prefix = isExpense ? '-' : '+';
 
     return ListTile(
+      onTap: () => context.push('/transaction-detail', extra: tx),
       leading: Container(
         width: 44,
         height: 44,
@@ -429,7 +450,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
             icon: Icon(
               LucideIcons.users,
               size: 16,
-              color: tx.groupId != null ? AppColors.primary : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
+              color: tx.groupId != null ? AppColors.primaryAction(context) : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
             ),
             tooltip: tx.groupId != null ? 'Đã chia sẻ vào nhóm' : 'Chia sẻ vào nhóm',
             visualDensity: VisualDensity.compact,

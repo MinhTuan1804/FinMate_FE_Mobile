@@ -61,7 +61,7 @@ class _GlassTextFieldState extends State<GlassTextField> {
         hintText: widget.hintText,
         hintStyle: GlassTypography.bodyLg(color: GlassColors.textMuted),
         filled: true,
-        fillColor: Colors.white.withValues(alpha: 0.45),
+        fillColor: GlassColors.fieldFill,
         contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
         prefixIcon: widget.prefixIcon != null
             ? Icon(widget.prefixIcon, size: 20, color: GlassColors.textMuted)
@@ -74,11 +74,11 @@ class _GlassTextFieldState extends State<GlassTextField> {
             : widget.suffixIcon,
         border: OutlineInputBorder(
           borderRadius: GlassRadius.roundedInput,
-          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.75), width: 1.5),
+          borderSide: BorderSide(color: GlassColors.fieldBorder, width: 1.5),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: GlassRadius.roundedInput,
-          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.75), width: 1.5),
+          borderSide: BorderSide(color: GlassColors.fieldBorder, width: 1.5),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: GlassRadius.roundedInput,
@@ -86,11 +86,11 @@ class _GlassTextFieldState extends State<GlassTextField> {
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: GlassRadius.roundedInput,
-          borderSide: const BorderSide(color: GlassColors.danger, width: 1.5),
+          borderSide: BorderSide(color: GlassColors.danger, width: 1.5),
         ),
         focusedErrorBorder: OutlineInputBorder(
           borderRadius: GlassRadius.roundedInput,
-          borderSide: const BorderSide(color: GlassColors.danger, width: 1.5),
+          borderSide: BorderSide(color: GlassColors.danger, width: 1.5),
         ),
       ),
     );

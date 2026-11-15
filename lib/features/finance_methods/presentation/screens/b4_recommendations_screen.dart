@@ -9,6 +9,7 @@ import 'package:finmate/features/finance_methods/presentation/controllers/financ
 import 'package:finmate/shared/widgets/glass/glass_background.dart';
 import 'package:finmate/shared/widgets/glass/glass_buttons.dart';
 import 'package:finmate/shared/widgets/glass/glass_card.dart';
+import 'package:finmate/shared/widgets/glass/glass_loading_spinner.dart';
 
 String _roleLabel(String role) => switch (role) {
       'primary' => 'Chính',
@@ -87,7 +88,7 @@ class _RecommendationSection extends ConsumerWidget {
           ),
           const SizedBox(height: 12),
           async.when(
-            loading: () => const Padding(padding: EdgeInsets.all(8), child: CircularProgressIndicator()),
+            loading: () => const GlassLoadingSpinner(),
             error: (e, __) => Text(errorMessage(e), style: GlassTypography.bodySm(color: GlassColors.danger)),
             data: (rec) {
               if (rec == null) {
@@ -139,7 +140,7 @@ class _CatalogSection extends ConsumerWidget {
           Text('Danh mục cách quản lý', style: GlassTypography.headlineSm()),
           const SizedBox(height: 12),
           async.when(
-            loading: () => const Padding(padding: EdgeInsets.all(8), child: CircularProgressIndicator()),
+            loading: () => const GlassLoadingSpinner(),
             error: (e, __) => Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -221,7 +222,7 @@ class _GoalSuggestionsSection extends ConsumerWidget {
           Text('Mẫu mục tiêu gợi ý', style: GlassTypography.headlineSm()),
           const SizedBox(height: 12),
           async.when(
-            loading: () => const Padding(padding: EdgeInsets.all(8), child: CircularProgressIndicator()),
+            loading: () => const GlassLoadingSpinner(),
             error: (e, __) => Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

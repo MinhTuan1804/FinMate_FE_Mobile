@@ -11,6 +11,7 @@ import 'package:finmate/features/finance_methods/presentation/controllers/financ
 import 'package:finmate/shared/widgets/glass/glass_background.dart';
 import 'package:finmate/shared/widgets/glass/glass_card.dart';
 import 'package:finmate/shared/widgets/glass/glass_jar_progress_card.dart';
+import 'package:finmate/shared/widgets/glass/glass_loading_spinner.dart';
 
 String _roleLabel(String role) => switch (role) {
       'primary' => 'Chính',
@@ -37,7 +38,7 @@ class MyMethodsScreen extends ConsumerWidget {
             IconButton(
               key: const ValueKey('open-alert-thresholds'),
               tooltip: 'Ngưỡng cảnh báo',
-              icon: const Icon(LucideIcons.bellRing, color: GlassColors.slateAnchor),
+              icon: Icon(LucideIcons.bellRing, color: GlassColors.slateAnchor),
               onPressed: () => context.push('/finance-methods/alert-thresholds'),
             ),
           ],
@@ -71,7 +72,7 @@ class _MyMethodsSection extends ConsumerWidget {
           Text('Cách tôi đang dùng', style: GlassTypography.headlineSm()),
           const SizedBox(height: 12),
           async.when(
-            loading: () => const Padding(padding: EdgeInsets.all(8), child: CircularProgressIndicator()),
+            loading: () => const GlassLoadingSpinner(),
             error: (e, __) => Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -185,7 +186,7 @@ class _SpendableSection extends ConsumerWidget {
           Text('Tiền khả dụng tháng này', style: GlassTypography.headlineSm()),
           const SizedBox(height: 12),
           async.when(
-            loading: () => const Padding(padding: EdgeInsets.all(8), child: CircularProgressIndicator()),
+            loading: () => const GlassLoadingSpinner(),
             error: (e, __) => Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -226,7 +227,7 @@ class _JarsSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(jarsProvider);
     return async.when(
-      loading: () => GlassCard(child: const Padding(padding: EdgeInsets.all(8), child: CircularProgressIndicator())),
+      loading: () => const GlassCard(child: GlassLoadingSpinner()),
       error: (e, __) => GlassCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

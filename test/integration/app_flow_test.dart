@@ -297,16 +297,15 @@ void main() {
     await tester.tap(find.text('Hoàn tất & Khám phá FinMate'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Xin chào,'), findsOneWidget);
-    expect(find.text('Probe'), findsOneWidget);
+    // Hoàn tất thiết lập thì sang khảo sát cách quản lý (Phân hệ B), chưa về Trang chủ
+    expect(find.text('Khảo sát đầu vào'), findsOneWidget);
+    expect(find.text('Xin chào,'), findsNothing);
     expect(backend.income, 15000000);
     expect(backend.accounts.single['accountType'], 'Cash');
-    // Số dư lấy từ tài khoản vừa tạo (0 ₫), không phải số cứng cũ
-    expect(find.textContaining('24.500.000'), findsNothing);
     expect(storage.hasAccessToken(), completion(isTrue));
   });
 
-  testWidgets('chưa đồng ý điều khoản: đăng nhập xong bị giữ ở màn điều khoản, đồng ý rồi qua màn AI mới vào onboarding', (tester) async {
+  testWidgets('chưa đồng ý điều khoản: đăng nhập xong bị giữ ở màn điều khoản, đồng ý xong vào thẳng onboarding (đóng góp dữ liệu mặc định tắt)', (tester) async {
     backend.termsAccepted = false;
     await launch(tester);
 
@@ -319,12 +318,9 @@ void main() {
     await tester.tap(find.text('Đồng ý & Tiếp tục'));
     await tester.pumpAndSettle();
 
-    // Màn AI (a8) hiện ra sau Điều khoản; giữ mặc định (AI cá nhân hoá bật) rồi tiếp tục
-    expect(find.text('Trợ lý AI của bạn'), findsOneWidget);
-    await tester.tap(find.text('Đồng ý & Tiếp tục'));
-    await tester.pumpAndSettle();
-
-    expect(backend.consentCalls, ['accept:terms:4', 'accept:ai:3']);
+    // Không còn màn AI riêng: chỉ ghi Điều khoản (server tự bật AI), đóng góp dữ liệu huấn luyện không được ghi vì công tắc mặc định tắt
+    expect(find.text('Trợ lý AI của bạn'), findsNothing);
+    expect(backend.consentCalls, ['accept:terms:4']);
     expect(backend.aiConsent, isTrue);
     expect(find.textContaining('Thiết lập ban đầu'), findsOneWidget);
   });
@@ -509,8 +505,8 @@ void main() {
     }
 
     Future<void> saveReview(WidgetTester tester) async {
-      await tester.ensureVisible(find.text('Xác nhận & Lưu giao dịch'));
-      await tester.tap(find.text('Xác nhận & Lưu giao dịch'));
+      await tester.ensureVisible(find.text('Lưu vào sổ giao dịch'));
+      await tester.tap(find.text('Lưu vào sổ giao dịch'));
       await tester.pumpAndSettle();
     }
 
@@ -520,9 +516,9 @@ void main() {
 
       await sendText(tester, 'cafe 55k');
 
-      expect(find.text('Đã ghi giao dịch'), findsOneWidget);
+      expect(find.text('Đã ghi nhận giao dịch thành công!'), findsOneWidget);
       expect(backend.chatTexts, ['cafe 55k']);
-      await tester.pageBack();
+      await tester.tap(find.byTooltip('Quay lại'));
       await tester.pumpAndSettle();
       expect(find.text('3.945.000 ₫'), findsWidgets);
     });
@@ -543,7 +539,7 @@ void main() {
       expect(backend.createdScanIds, [null]); // giao dịch không từ quét thì không gửi receiptScanId
       expect(backend.transactions.single['transactionType'], 'Credit');
       expect(find.textContaining('Đã ghi: 20.000.000 ₫'), findsOneWidget);
-      await tester.pageBack();
+      await tester.tap(find.byTooltip('Quay lại'));
       await tester.pumpAndSettle();
       expect(find.text('24.000.000 ₫'), findsWidgets);
     });
@@ -558,8 +554,8 @@ void main() {
       await tester.tap(find.text('Xem và lưu'));
       await tester.pumpAndSettle();
       backend.latency = const Duration(milliseconds: 600); // như mạng thật: có khung hình vẽ giữa lúc đang lưu và lúc có phản hồi
-      await tester.ensureVisible(find.text('Xác nhận & Lưu giao dịch'));
-      await tester.tap(find.text('Xác nhận & Lưu giao dịch'));
+      await tester.ensureVisible(find.text('Lưu vào sổ giao dịch'));
+      await tester.tap(find.text('Lưu vào sổ giao dịch'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
       await tester.pump(const Duration(milliseconds: 400));
@@ -575,7 +571,7 @@ void main() {
       await tester.pump(const Duration(seconds: 5));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
-      await tester.pageBack();
+      await tester.tap(find.byTooltip('Quay lại'));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
     });
@@ -594,7 +590,7 @@ void main() {
 
       expect(backend.chatTexts, ['ăn phở 45k']);
       expect(find.text('ăn phở 45k'), findsWidgets);
-      expect(find.text('Đã ghi giao dịch'), findsOneWidget);
+      expect(find.text('Đã ghi nhận giao dịch thành công!'), findsOneWidget);
     });
 
     testWidgets('quét bill khi đã tắt AI: không hỏi đồng ý, vẫn quét được (chỉ dùng luật)', (tester) async {
@@ -707,7 +703,7 @@ void main() {
       await tapText(tester, 'Lưu 2 giao dịch');
       expect(backend.createdGroups, ['food']);
       // Rời màn khi nhóm sau còn lỗi: thẻ chat vẫn cho mở lại
-      await tester.tap(find.byIcon(LucideIcons.x));
+      await tester.tap(find.byTooltip('Quay lại'));
       await tester.pumpAndSettle();
       expect(find.text('Xem và lưu'), findsOneWidget);
 
@@ -729,8 +725,8 @@ void main() {
       await startWithAccount(tester);
       await openChat(tester);
       await sendText(tester, 'cafe 55k');
-      expect(find.text('Đã ghi giao dịch'), findsOneWidget);
-      await tester.pageBack();
+      expect(find.text('Đã ghi nhận giao dịch thành công!'), findsOneWidget);
+      await tester.tap(find.byTooltip('Quay lại'));
       await tester.pumpAndSettle();
 
       await tester.tap(find.byIcon(LucideIcons.circleUser));
@@ -740,7 +736,7 @@ void main() {
       await loginFromWelcome(tester);
       await openChat(tester);
 
-      expect(find.text('Đã ghi giao dịch'), findsNothing);
+      expect(find.text('Đã ghi nhận giao dịch thành công!'), findsNothing);
       expect(find.text('Bạn muốn ghi gì hôm nay?'), findsOneWidget);
     });
 

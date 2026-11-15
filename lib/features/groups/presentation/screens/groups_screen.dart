@@ -84,7 +84,7 @@ class GroupsScreen extends ConsumerWidget {
         ),
         child: Row(
           children: [
-            Icon(LucideIcons.users, color: AppColors.primary, size: 22),
+            Icon(LucideIcons.users, color: AppColors.primaryAction(context), size: 22),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -100,8 +100,8 @@ class GroupsScreen extends ConsumerWidget {
             ),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(6)),
-              child: Text(group.myRole.label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.primary)),
+              decoration: BoxDecoration(color: AppColors.primaryAction(context).withValues(alpha: 0.15), borderRadius: BorderRadius.circular(6)),
+              child: Text(group.myRole.label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.primaryAction(context))),
             ),
           ],
         ),

@@ -15,6 +15,7 @@ import 'package:finmate/shared/widgets/glass/glass_background.dart';
 import 'package:finmate/shared/widgets/glass/glass_badge.dart';
 import 'package:finmate/shared/widgets/glass/glass_card.dart';
 import 'package:finmate/shared/widgets/glass/glass_circular_progress.dart';
+import 'package:finmate/shared/widgets/glass/glass_loading_spinner.dart';
 import 'package:finmate/shared/widgets/glass/glass_transaction_row.dart';
 
 /// B6 — Chi tiết một hũ: ngân sách tháng này, danh mục liên kết (so với ngân sách đã khai ở
@@ -160,7 +161,7 @@ class _CategoryBudgetsSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(jarCategoryBudgetsProvider(jarKeyValue));
     return async.when(
-      loading: () => const Padding(padding: EdgeInsets.all(8), child: CircularProgressIndicator()),
+      loading: () => const GlassLoadingSpinner(),
       error: (e, __) => Text(errorMessage(e), style: GlassTypography.bodySm(color: GlassColors.danger)),
       data: (budgets) {
         if (budgets.isEmpty) {
@@ -194,7 +195,7 @@ class _CategoryBudgetRow extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(color: GlassColors.accentWarmPeach.withValues(alpha: 0.3), shape: BoxShape.circle),
-            child: const Icon(LucideIcons.tag, size: 18, color: GlassColors.slateAnchor),
+            child: Icon(LucideIcons.tag, size: 18, color: GlassColors.slateAnchor),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -235,7 +236,7 @@ class _RecentTransactionsSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(jarTransactionsProvider(jarKeyValue));
     return async.when(
-      loading: () => const Padding(padding: EdgeInsets.all(8), child: CircularProgressIndicator()),
+      loading: () => const GlassLoadingSpinner(),
       error: (e, __) => Text(errorMessage(e), style: GlassTypography.bodySm(color: GlassColors.danger)),
       data: (list) {
         if (list.isEmpty) {

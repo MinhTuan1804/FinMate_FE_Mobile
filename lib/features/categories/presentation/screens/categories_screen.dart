@@ -97,7 +97,7 @@ class CategoriesScreen extends ConsumerWidget {
                 border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
               ),
               child: ListTile(
-                leading: Icon(categoryIcon(category.slug), color: AppColors.primary),
+                leading: Icon(categoryIcon(category.slug), color: AppColors.primaryAction(context)),
                 title: Text(category.name, style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w600)),
                 subtitle: category.isSystem ? const Text('Danh mục hệ thống') : null,
                 trailing: category.isSystem

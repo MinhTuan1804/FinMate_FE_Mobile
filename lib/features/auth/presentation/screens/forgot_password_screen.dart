@@ -57,7 +57,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           backgroundColor: Colors.transparent,
           elevation: 0,
           leading: IconButton(
-            icon: const Icon(LucideIcons.arrowLeft, color: GlassColors.ink),
+            icon: Icon(LucideIcons.arrowLeft, color: GlassColors.ink),
             onPressed: () => context.canPop() ? context.pop() : context.go('/login'),
           ),
         ),

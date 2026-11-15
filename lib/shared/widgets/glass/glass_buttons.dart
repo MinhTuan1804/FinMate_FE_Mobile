@@ -27,22 +27,22 @@ class GlassPrimaryButton extends StatelessWidget {
         style: ElevatedButton.styleFrom(
           backgroundColor: GlassColors.ink,
           disabledBackgroundColor: GlassColors.ink.withValues(alpha: 0.5),
-          foregroundColor: Colors.white,
+          foregroundColor: GlassColors.onInk,
           elevation: 0,
           shape: const RoundedRectangleBorder(borderRadius: GlassRadius.roundedPill),
           padding: const EdgeInsets.symmetric(horizontal: 24),
         ),
         child: loading
-            ? const SizedBox(
+            ? SizedBox(
                 width: 20,
                 height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                child: CircularProgressIndicator(strokeWidth: 2, color: GlassColors.onInk),
               )
             : Row(
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  if (icon != null) ...[Icon(icon, size: 18, color: Colors.white), const SizedBox(width: 8)],
+                  if (icon != null) ...[Icon(icon, size: 18, color: GlassColors.onInk), const SizedBox(width: 8)],
                   Text(label, style: GlassTypography.buttonText()),
                 ],
               ),
@@ -70,7 +70,7 @@ class GlassSecondaryButton extends StatelessWidget {
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: GlassRadius.roundedPill,
-            side: BorderSide(color: Colors.white.withValues(alpha: 0.6)),
+            side: BorderSide(color: GlassColors.fieldBorder),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 20),
         ),

@@ -12,8 +12,8 @@ import 'package:finmate/core/theme/app_typography.dart';
 import 'package:finmate/core/widgets/glass/liquid_glass.dart';
 import 'package:finmate/features/analytics/domain/report_models.dart';
 import 'package:finmate/features/analytics/presentation/reports_providers.dart';
-import 'package:finmate/features/dashboard/presentation/widgets/app_bottom_nav.dart';
 import 'package:finmate/features/planning/presentation/controllers/planning_controller.dart';
+import 'package:finmate/shared/widgets/glass/main_bottom_nav.dart';
 
 class AnalyticsScreen extends ConsumerWidget {
   const AnalyticsScreen({super.key});
@@ -99,7 +99,7 @@ class AnalyticsScreen extends ConsumerWidget {
           ),
         ),
       ),
-      bottomNavigationBar: const AppBottomNav(currentIndex: 3),
+      bottomNavigationBar: const MainBottomNav(currentIndex: 3),
     );
   }
 

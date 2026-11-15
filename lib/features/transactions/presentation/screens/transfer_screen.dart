@@ -173,10 +173,10 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
                                   fontSize: 34,
                                   fontWeight: FontWeight.w800,
                                 ),
-                                decoration: const InputDecoration(
+                                decoration: InputDecoration(
                                   border: InputBorder.none,
                                   hintText: '0',
-                                  hintStyle: TextStyle(color: Colors.black26),
+                                  hintStyle: TextStyle(color: AppColors.textMuted(context)),
                                   isDense: true,
                                   contentPadding: EdgeInsets.zero,
                                 ),
@@ -286,9 +286,9 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
       decoration: BoxDecoration(
-        color: AppColors.surfaceLightSubtle.withValues(alpha: 0.6),
+        color: AppColors.surfaceSubtle(context).withValues(alpha: 0.6),
         borderRadius: AppSpacing.roundedLarge,
-        border: Border.all(color: AppColors.borderLight, width: 1),
+        border: Border.all(color: AppColors.border(context), width: 1),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<FinancialAccount>(

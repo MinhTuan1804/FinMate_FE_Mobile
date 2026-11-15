@@ -109,6 +109,27 @@ class GoalDraftCard extends ChatMessage {
       );
 }
 
+enum PurchaseCardStatus { pending, checking, assessed, cancelled }
+
+/// Câu "mua X được không?": thẻ khoản ĐỊNH mua. Không ghi gì; thẻ tự gọi backend (`POST /forecast/purchase-check`) và hiện kết luận ngay trên thẻ.
+/// Lỗi thì thẻ về `pending` kèm lý do để bấm "Thử lại".
+class PurchaseCard extends ChatMessage {
+  final PurchaseDraft purchase;
+  final PurchaseCardStatus status;
+  final PurchaseAssessment? assessment;
+  final String? error;
+
+  const PurchaseCard(super.id, this.purchase, {this.status = PurchaseCardStatus.pending, this.assessment, this.error});
+
+  PurchaseCard copyWith({PurchaseCardStatus? status, PurchaseAssessment? assessment, String? error, bool clearError = false}) => PurchaseCard(
+        id,
+        purchase,
+        status: status ?? this.status,
+        assessment: assessment ?? this.assessment,
+        error: clearError ? null : (error ?? this.error),
+      );
+}
+
 class ErrorNote extends ChatMessage {
   final String message;
 
@@ -168,6 +189,12 @@ class _FailedSend {
   const _FailedSend(this.text, this.requestId, this.source);
 }
 
+/// `intent` của server khi nó vừa hỏi giá một khoản định mua
+const _purchaseNeedsAmount = 'purchase_needs_amount';
+
+/// Tin chỉ có một số tiền ("15tr", "15 triệu", "800k", "1.500.000đ"): có thể là câu trả lời cho câu hỏi giá vừa rồi
+final _bareAmount = RegExp(r'^\d[\d.,]*\s*(?:k|nghìn|ngàn|tr|triệu|trieu|củ|cu|m|đ|d|vnd|₫)?$', caseSensitive: false, unicode: true);
+
 class AssistantController extends StateNotifier<AssistantState> {
   final AssistantRepository repository;
 
@@ -187,6 +214,10 @@ class AssistantController extends StateNotifier<AssistantState> {
   final Future<void> Function(String name, BigInt targetCents, DateTime? deadline)? createGoal;
   Timer? _retryTimer;
   bool _retrying = false;
+
+  /// Câu hỏi mua vừa được bot hỏi lại giá ("có nên mua iphone?"). Server không nhớ gì giữa hai tin, nên nếu tin kế tiếp chỉ là số tiền
+  /// ("15tr") thì app ghép câu này vào trước khi gửi; tin nào khác thì bỏ nhớ.
+  String? _askedPurchase;
 
   /// Mã các câu được giữ lại ngay trong phiên này (bong bóng của người dùng đã hiện sẵn); câu giữ từ lần chạy trước thì chưa có
   final Set<String> _heldThisSession = {};
@@ -219,8 +250,11 @@ class AssistantController extends StateNotifier<AssistantState> {
     final trimmed = text.trim();
     if (trimmed.isEmpty || state.isSending) return;
 
+    final asked = _askedPurchase;
+    _askedPurchase = null;
     _add(UserText(_nextId++, trimmed));
-    if (await _deliver(trimmed, const Uuid().v4(), source)) unawaited(retryPending());
+    final outgoing = asked != null && _bareAmount.hasMatch(trimmed) ? '$asked $trimmed' : trimmed;
+    if (await _deliver(outgoing, const Uuid().v4(), source)) unawaited(retryPending());
   }
 
   /// Gửi lại tin nhắn bị lỗi bằng đúng `clientRequestId` cũ để backend không tạo trùng
@@ -254,10 +288,12 @@ class AssistantController extends StateNotifier<AssistantState> {
       if (local != null) {
         final analysis = await repository.analyze(text);
         if (!mounted) return true;
+        _askedPurchase = analysis.intent == _purchaseNeedsAmount ? text : null;
         await _decideLocally(local, analysis, text, requestId, source);
       } else {
         final reply = await repository.chat(text, accountId: state.selectedAccountId, clientRequestId: requestId);
         if (!mounted) return true;
+        _askedPurchase = reply.intent == _purchaseNeedsAmount ? text : null;
         _present(reply, source);
       }
       return true;
@@ -503,7 +539,34 @@ class AssistantController extends StateNotifier<AssistantState> {
       case ChatAction.goal:
         if (reply.replyText != null) _add(AssistantText(_nextId++, reply.replyText!));
         _add(GoalDraftCard(_nextId++, reply.goal!));
+      case ChatAction.purchase:
+        // Hỏi "mua X được không?" là xin kết luận: không bắt người dùng bấm thêm, thẻ tự gọi đánh giá và hiện kết quả. Lời của server ("bấm Đánh giá nhé") bỏ qua.
+        final id = _nextId++;
+        _add(PurchaseCard(id, reply.purchase!));
+        unawaited(assessPurchase(id));
     }
+  }
+
+  PurchaseCard? _purchaseCard(int messageId) => state.messages.whereType<PurchaseCard>().where((m) => m.id == messageId).firstOrNull;
+
+  /// "Đánh giá": gọi backend đúng một lần cho mỗi lần bấm; lỗi thì thẻ về trạng thái chờ kèm lý do để bấm lại. Không bao giờ ghi giao dịch.
+  Future<void> assessPurchase(int messageId) async {
+    final card = _purchaseCard(messageId);
+    if (card == null || card.status == PurchaseCardStatus.checking || card.status == PurchaseCardStatus.cancelled) return;
+    _replace(card.copyWith(status: PurchaseCardStatus.checking, clearError: true));
+    try {
+      final assessment = await repository.purchaseCheck(card.purchase);
+      if (!mounted) return;
+      _replace(card.copyWith(status: PurchaseCardStatus.assessed, assessment: assessment, clearError: true));
+    } catch (e) {
+      if (mounted) _replace(card.copyWith(status: PurchaseCardStatus.pending, error: errorMessage(e)));
+    }
+  }
+
+  void cancelPurchase(int messageId) {
+    final card = _purchaseCard(messageId);
+    if (card == null || card.status == PurchaseCardStatus.checking) return;
+    _replace(card.copyWith(status: PurchaseCardStatus.cancelled, clearError: true));
   }
 
   GoalDraftCard? _goalCard(int messageId) => state.messages.whereType<GoalDraftCard>().where((m) => m.id == messageId).firstOrNull;

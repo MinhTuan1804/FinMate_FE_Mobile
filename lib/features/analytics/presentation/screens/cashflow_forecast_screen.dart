@@ -204,7 +204,7 @@ class CashflowForecastScreen extends ConsumerWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(LucideIcons.calendarClock, size: 20, color: AppColors.slateAction),
+                          Icon(LucideIcons.calendarClock, size: 20, color: AppColors.slateOn(context)),
                           const SizedBox(height: 10),
                           Text('Tốc độ chi tiêu/ngày', style: AppTypography.caption(context)),
                           const SizedBox(height: 4),

@@ -575,7 +575,7 @@ class ZenvestHeroDeck extends StatelessWidget {
                   ),
                   boxShadow: <BoxShadow>[
                     BoxShadow(
-                      color: AppColors.primary.withValues(
+                      color: AppColors.primaryAction(context).withValues(
                         alpha: isDark ? 0.18 : 0.04,
                       ),
                       blurRadius: 16,
@@ -651,12 +651,12 @@ class ZenvestActionPill extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = AppColors.isDark(context);
     final bgColor = isActive
-        ? (isDark ? AppColors.secondary : AppColors.primary)
+        ? (isDark ? AppColors.secondary : AppColors.primaryAction(context))
         : (isDark
             ? AppColors.surfaceDarkElevated.withValues(alpha: 0.88)
             : Colors.white.withValues(alpha: 0.86));
     final fgColor = isActive
-        ? (isDark ? AppColors.primary : Colors.white)
+        ? (isDark ? AppColors.backgroundDark : Colors.white)
         : AppColors.textPrimary(context);
     final borderColor = isActive
         ? Colors.transparent
@@ -671,7 +671,7 @@ class ZenvestActionPill extends StatelessWidget {
           borderRadius: AppSpacing.roundedPill,
           boxShadow: <BoxShadow>[
             BoxShadow(
-              color: AppColors.primary.withValues(alpha: isDark ? 0.18 : 0.04),
+              color: AppColors.primaryAction(context).withValues(alpha: isDark ? 0.18 : 0.04),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
@@ -761,7 +761,7 @@ class ZenvestSurfaceSheet extends StatelessWidget {
         ),
         boxShadow: <BoxShadow>[
           BoxShadow(
-            color: AppColors.primary.withValues(alpha: isDark ? 0.28 : 0.05),
+            color: AppColors.primaryAction(context).withValues(alpha: isDark ? 0.28 : 0.05),
             blurRadius: 28,
             offset: const Offset(0, -4),
           ),
@@ -1046,8 +1046,9 @@ class LiquidGlassPillButton extends StatelessWidget {
 
     final (Color bg, Color fg, Color border) = switch (style) {
       LiquidGlassButtonStyle.primary => (
-          isDark ? AppColors.secondary : AppColors.primary,
-          isDark ? AppColors.primary : AppColors.surfaceLightElevated,
+          isDark ? AppColors.secondary : AppColors.primaryAction(context),
+          // Nền tối là xanh nhạt (secondary): chữ phải đậm. primaryAction ở giao diện tối cũng là xanh nhạt nên chữ chìm vào nền.
+          isDark ? AppColors.backgroundDark : AppColors.surfaceLightElevated,
           Colors.transparent,
         ),
       LiquidGlassButtonStyle.secondary => (
@@ -1150,8 +1151,8 @@ class LiquidGlassIconButton extends StatelessWidget {
     final isDark = AppColors.isDark(context);
     final (Color bg, Color fg, Color border) = switch (style) {
       LiquidGlassButtonStyle.primary => (
-          isDark ? AppColors.secondary : AppColors.primary,
-          isDark ? AppColors.primary : AppColors.surfaceLightElevated,
+          isDark ? AppColors.secondary : AppColors.primaryAction(context),
+          isDark ? AppColors.backgroundDark : AppColors.surfaceLightElevated,
           Colors.transparent,
         ),
       LiquidGlassButtonStyle.secondary => (
@@ -1160,8 +1161,8 @@ class LiquidGlassIconButton extends StatelessWidget {
           isDark ? AppColors.borderDark : AppColors.glassBorderLight,
         ),
       LiquidGlassButtonStyle.inverted => (
-          AppColors.slateAction,
-          AppColors.surfaceLightElevated,
+          AppColors.slateOn(context),
+          isDark ? AppColors.backgroundDark : AppColors.surfaceLightElevated,
           Colors.transparent,
         ),
       LiquidGlassButtonStyle.outlined => (

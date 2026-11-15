@@ -35,6 +35,27 @@ Future<void> _pump(WidgetTester tester, RouteAdapter adapter) async {
 
 void main() {
   group('MyMethodsScreen (B5)', () {
+    testWidgets('đang tải: mỗi vòng quay là hình tròn đều (không bị kéo giãn ngang) và nằm giữa thẻ', (tester) async {
+      tester.view.physicalSize = const Size(375, 812);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(ProviderScope(
+        overrides: [apiClientProvider.overrideWithValue(testApiClient(_adapter()))],
+        child: const MaterialApp(home: MyMethodsScreen()),
+      ));
+      await tester.pump(); // khung đầu: các phần còn đang tải
+
+      final spinners = find.byType(CircularProgressIndicator);
+      expect(spinners, findsNWidgets(3));
+      for (var i = 0; i < 3; i++) {
+        final size = tester.getSize(spinners.at(i));
+        expect(size.width, size.height, reason: 'vòng quay bị kéo giãn thành elip: $size');
+      }
+      // Dọn: để dữ liệu tải xong ở khung rộng (font của môi trường test rộng hơn font thật nên khung 375 sẽ báo tràn ở thẻ hũ)
+      tester.view.physicalSize = const Size(800, 4000);
+      await tester.pumpAndSettle();
+    });
+
     testWidgets('chưa có cách đang dùng, tiền khả dụng, hũ', (tester) async {
       await _pump(tester, _adapter());
 

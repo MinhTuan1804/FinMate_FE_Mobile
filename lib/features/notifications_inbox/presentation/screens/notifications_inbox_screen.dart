@@ -129,7 +129,7 @@ class NotificationsInboxScreen extends ConsumerWidget {
                           width: 64,
                           height: 64,
                           decoration: BoxDecoration(color: GlassColors.secondarySurface, shape: BoxShape.circle),
-                          child: const Icon(LucideIcons.bellOff, size: 28, color: GlassColors.textMuted),
+                          child: Icon(LucideIcons.bellOff, size: 28, color: GlassColors.textMuted),
                         ),
                         const SizedBox(height: 16),
                         Text('Chưa có thông báo', style: GlassTypography.headlineSm()),

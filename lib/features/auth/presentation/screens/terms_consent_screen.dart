@@ -13,8 +13,9 @@ import 'package:finmate/shared/widgets/glass/glass_buttons.dart';
 import 'package:finmate/shared/widgets/glass/glass_card.dart';
 
 /// a7 — Bắt buộc với mọi tài khoản trước khi vào app. Ghi xong thì hồ sơ đổi và router tự đưa
-/// người dùng đi tiếp (xem [authRedirect]); màn này còn tự điều hướng sang /ai-consent vì đó
-/// không phải là bước router tự ép đi.
+/// người dùng đi tiếp (xem [authRedirect]).
+/// Việc đóng góp dữ liệu huấn luyện AI KHÔNG bắt buộc và mặc định tắt: chỉ ghi đồng ý training khi
+/// người dùng tự bật công tắc ở đây (hoặc sau này trong Cá nhân).
 /// Đổi câu chữ ở đây thì tăng [ConsentVersions.terms] (và bản bên server).
 class TermsConsentScreen extends ConsumerStatefulWidget {
   const TermsConsentScreen({super.key});
@@ -25,6 +26,7 @@ class TermsConsentScreen extends ConsumerStatefulWidget {
 
 class _TermsConsentScreenState extends ConsumerState<TermsConsentScreen> {
   bool _checked = false;
+  bool _training = false;
   bool _busy = false;
   String? _error;
 
@@ -34,8 +36,15 @@ class _TermsConsentScreenState extends ConsumerState<TermsConsentScreen> {
       _error = null;
     });
     try {
-      await ref.read(authControllerProvider.notifier).acceptConsent(ConsentKind.terms);
-      if (mounted) context.go('/ai-consent');
+      final auth = ref.read(authControllerProvider.notifier);
+      await auth.acceptConsent(ConsentKind.terms);
+      // Ghi Điều khoản xong là router đã đưa người dùng đi tiếp (màn này có thể đã bị đóng); auth còn dùng được.
+      // Nếu ghi training lỗi thì mặc định vẫn là chưa đồng ý (an toàn); bật lại được trong Cá nhân.
+      if (_training) {
+        try {
+          await auth.acceptConsent(ConsentKind.training);
+        } catch (_) {}
+      }
     } catch (e) {
       if (mounted) setState(() => _error = errorMessage(e));
     } finally {
@@ -189,6 +198,42 @@ class _TermsConsentScreenState extends ConsumerState<TermsConsentScreen> {
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 14),
+                GlassCard(
+                  child: MergeSemantics(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Đóng góp dữ liệu ẩn danh để cải thiện mô hình FinMate AI (không bắt buộc)',
+                                style: GlassTypography.bodyLg().copyWith(fontWeight: FontWeight.w600),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Lưu chữ hóa đơn đã ẩn thông tin cá nhân cùng danh mục bạn chọn, không lưu ảnh. '
+                                'Mặc định tắt; bạn bật hoặc tắt lại bất cứ lúc nào trong Cá nhân.',
+                                style: GlassTypography.bodySm(),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Switch(
+                          key: const ValueKey('training-switch'),
+                          value: _training,
+                          onChanged: _busy ? null : (v) => setState(() => _training = v),
+                          activeThumbColor: Colors.white,
+                          activeTrackColor: GlassColors.ink,
+                          inactiveTrackColor: GlassColors.secondarySurface,
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
                 if (_error != null) ...[
                   const SizedBox(height: 8),

@@ -30,6 +30,22 @@ class AssistantRepository {
     return response.data ?? ChatReply.fromJson(const {});
   }
 
+  /// Đánh giá một khoản định mua (chỉ đọc, không tạo giao dịch): kết luận do backend tính từ số dư và dự báo của người dùng
+  Future<PurchaseAssessment> purchaseCheck(PurchaseDraft draft) async {
+    final date = draft.purchaseDate;
+    final response = await apiClient.post(
+      '/api/v1/forecast/purchase-check',
+      data: {
+        'amountCents': draft.amountCents.toInt(),
+        if (draft.item != null) 'item': draft.item,
+        if (draft.categorySlug != null) 'categorySlug': draft.categorySlug,
+        if (date != null) 'purchaseDate': '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}',
+      },
+      fromJsonT: (json) => PurchaseAssessment.fromJson(json as Map<String, dynamic>),
+    );
+    return response.data ?? const PurchaseAssessment(verdict: 'insufficient_data', summary: '');
+  }
+
   /// Gửi tệp ghi âm (multipart, field `file`): backend đổi giọng thành chữ rồi xử lý như câu chat (ưu tiên Rasa)
   Future<VoiceReply> voiceChat(String filePath, {String? accountId, String? clientRequestId}) async {
     final formData = FormData.fromMap({

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:finmate/core/config/app_config_controller.dart';
 import 'package:finmate/core/config/app_config_gate.dart';
 import 'package:finmate/core/theme/app_theme.dart';
+import 'package:finmate/core/theme/glass/glass_theme_sync.dart';
 import 'package:finmate/features/notifications/presentation/notification_capture_scope.dart';
 import 'package:finmate/routes/app_router.dart';
 
@@ -23,6 +24,7 @@ class FinMateApp extends ConsumerWidget {
     final themeConfig = ref.watch(appConfigProvider.select((config) => config.theme));
     final themeMode = ref.watch(themeModeProvider);
     final reduceTransparency = ref.watch(reduceTransparencyProvider);
+    final userTextScale = ref.watch(textScaleProvider);
 
     return MaterialApp.router(
       title: 'FinMate',
@@ -44,11 +46,13 @@ class FinMateApp extends ConsumerWidget {
         final media = MediaQuery.of(context);
         return MediaQuery(
           data: media.copyWith(
-            textScaler: TextScaler.linear(media.textScaler.scale(1) * themeConfig.textScale),
+            textScaler: TextScaler.linear(media.textScaler.scale(1) * themeConfig.textScale * userTextScale),
           ),
-          child: AppConfigGate(
-            child: NotificationCaptureScope(
-              child: child ?? const SizedBox.shrink(),
+          child: GlassThemeSync(
+            child: AppConfigGate(
+              child: NotificationCaptureScope(
+                child: child ?? const SizedBox.shrink(),
+              ),
             ),
           ),
         );

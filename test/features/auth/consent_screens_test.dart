@@ -22,7 +22,7 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  /// TermsConsentScreen tự điều hướng sang /ai-consent khi đồng ý xong, nên cần GoRouter thật trong context.
+  /// Điều khoản cần GoRouter trong context (màn dùng GoRouter cho các điều hướng khác trong app thật).
   Future<void> pumpTerms(WidgetTester tester, ConsentRepo repo) async {
     tester.view.physicalSize = const Size(800, 2400);
     tester.view.devicePixelRatio = 1;
@@ -31,7 +31,6 @@ void main() {
     await auth.checkAuthStatus();
     final router = GoRouter(routes: [
       GoRoute(path: '/', builder: (_, __) => const TermsConsentScreen()),
-      GoRoute(path: '/ai-consent', builder: (_, __) => const Text('AI_CONSENT_PAGE')),
     ]);
     await tester.pumpWidget(ProviderScope(
       overrides: [authControllerProvider.overrideWith((ref) => auth)],
@@ -76,10 +75,11 @@ void main() {
       expect(find.textContaining('lưu trên điện thoại của bạn'), findsOneWidget);
     });
 
-    testWidgets('tick rồi Đồng ý & Tiếp tục: ghi đồng ý điều khoản đúng một lần rồi sang /ai-consent (không có lời gọi nào khác)', (tester) async {
+    testWidgets('công tắc đóng góp dữ liệu mặc định tắt: tick Đồng ý chỉ ghi điều khoản, không ghi training', (tester) async {
       final repo = ConsentRepo(consentTestUser());
       await pumpTerms(tester, repo);
 
+      expect(tester.widget<Switch>(find.byKey(const ValueKey('training-switch'))).value, isFalse);
       await tester.tap(find.byType(Checkbox));
       await tester.pump();
       await tester.tap(find.widgetWithText(ElevatedButton, 'Đồng ý & Tiếp tục'));
@@ -88,7 +88,20 @@ void main() {
       expect(repo.calls, ['accept:terms']);
       expect(repo.user.aiConsentGranted, isTrue); // server tự bật AI khi đồng ý Điều khoản
       expect(repo.user.trainingConsentGranted, isFalse);
-      expect(find.text('AI_CONSENT_PAGE'), findsOneWidget);
+    });
+
+    testWidgets('người dùng tự bật công tắc đóng góp dữ liệu rồi Đồng ý: ghi điều khoản trước, rồi training', (tester) async {
+      final repo = ConsentRepo(consentTestUser());
+      await pumpTerms(tester, repo);
+
+      await tester.tap(find.byKey(const ValueKey('training-switch')));
+      await tester.tap(find.byType(Checkbox));
+      await tester.pump();
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Đồng ý & Tiếp tục'));
+      await tester.pumpAndSettle();
+
+      expect(repo.calls, ['accept:terms', 'accept:training']);
+      expect(repo.user.trainingConsentGranted, isTrue);
     });
 
     testWidgets('lỗi mạng: hiện lỗi, không coi là đã đồng ý, bấm lại được', (tester) async {

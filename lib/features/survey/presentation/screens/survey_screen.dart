@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:finmate/features/finance_methods/data/finance_methods_repository.dart';
 import 'package:finmate/core/theme/glass/glass_colors.dart';
 import 'package:finmate/core/theme/glass/glass_typography.dart';
 import 'package:finmate/features/survey/domain/survey.dart';
@@ -62,6 +63,10 @@ class _SurveyScreenState extends ConsumerState<SurveyScreen> {
         .toList();
     try {
       await ref.read(surveyControllerProvider.notifier).submit(answers);
+      // Nộp lại khảo sát thì gợi ý cũ đã lỗi thời: tạo mới (backend tái dùng nếu tín hiệu không đổi). Lỗi AI/mạng không chặn luồng.
+      try {
+        await ref.read(financeMethodsRepositoryProvider).generateRecommendation();
+      } catch (_) {}
       if (!mounted) return;
       _showMessage('Đã gửi khảo sát.');
       // Nối tiếp luồng: làm xong khảo sát thì đi thẳng sang màn gợi ý phương pháp (B4),

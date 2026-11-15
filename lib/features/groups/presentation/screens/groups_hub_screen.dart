@@ -189,7 +189,7 @@ class _GroupsHubScreenState extends ConsumerState<GroupsHubScreen> {
                             shape: BoxShape.circle,
                           ),
                           child: Center(
-                            child: Icon(group.icon, size: 22, color: AppColors.slateAction),
+                            child: Icon(group.icon, size: 22, color: AppColors.slateOn(context)),
                           ),
                         ),
                         const SizedBox(width: 14),

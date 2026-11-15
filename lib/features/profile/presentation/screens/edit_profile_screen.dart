@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:finmate/core/format/money.dart';
+import 'package:finmate/core/network/api_exceptions.dart';
 import 'package:finmate/core/theme/app_colors.dart';
+import 'package:finmate/core/theme/app_spacing.dart';
 import 'package:finmate/core/theme/app_typography.dart';
 import 'package:finmate/core/widgets/glass/liquid_glass.dart';
 import 'package:finmate/features/auth/presentation/controllers/auth_controller.dart';
 
-/// Màn H2: Sửa hồ sơ cá nhân và thu nhập (Edit Profile Screen)
+/// Màn H2: Chỉnh sửa hồ sơ (theo Figma). Hồ sơ chỉ có tên hiển thị và thu nhập hàng tháng để sửa; email chỉ đọc.
+/// Ảnh đại diện, số điện thoại, đổi email và ngày nhận thu nhập trong Figma chưa có ở BE nên không hiển thị.
 class EditProfileScreen extends ConsumerStatefulWidget {
   const EditProfileScreen({super.key});
 
@@ -26,9 +31,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     super.initState();
     final user = ref.read(authControllerProvider).valueOrNull;
     _nameController = TextEditingController(text: user?.displayName ?? '');
-    _incomeController = TextEditingController(
-      text: user?.monthlyIncomeCents != null ? user!.monthlyIncomeCents.toString() : '',
-    );
+    final income = user?.monthlyIncomeCents;
+    _incomeController = TextEditingController(text: income == null ? '' : NumberFormat('#,###', 'vi_VN').format(income));
+    _nameController.addListener(() => setState(() {}));
   }
 
   @override
@@ -39,164 +44,208 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   }
 
   Future<void> _handleSave() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (_isLoading || !_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
-
+    final messenger = ScaffoldMessenger.of(context);
     try {
-      final rawIncome = _incomeController.text.replaceAll('.', '').replaceAll(',', '').trim();
-      final income = int.tryParse(rawIncome);
+      final income = parseAmountInput(_incomeController.text)!.toInt();
       await ref.read(authControllerProvider.notifier).updateProfile(
-        displayName: _nameController.text.trim(),
-        monthlyIncomeCents: income,
-      );
-
+            displayName: _nameController.text.trim(),
+            monthlyIncomeCents: income,
+          );
       if (!mounted) return;
-      setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Đã cập nhật hồ sơ thành công!'),
-          backgroundColor: AppColors.safe,
-        ),
-      );
+      messenger.showSnackBar(const SnackBar(content: Text('Đã cập nhật hồ sơ.')));
       context.pop();
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Không thể cập nhật: ${e.toString()}'),
-          backgroundColor: AppColors.danger,
-        ),
-      );
+    } on Object catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(errorMessage(e)), backgroundColor: AppColors.danger));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authControllerProvider).valueOrNull;
+    final shownName = _nameController.text.trim().isNotEmpty ? _nameController.text.trim() : (user?.displayName ?? '');
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Sửa hồ sơ & Thu nhập'),
-        leading: IconButton(
-          icon: const Icon(LucideIcons.arrowLeft),
-          onPressed: () => context.pop(),
+        title: const Text('Chỉnh sửa hồ sơ'),
+        centerTitle: true,
+        leading: Padding(
+          padding: const EdgeInsets.all(8),
+          child: LiquidGlassIconButton(icon: LucideIcons.arrowLeft, size: 40, tooltip: 'Quay lại', onPressed: () => context.pop()),
         ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: FilledButton(
+              key: const ValueKey('save-top'),
+              onPressed: _isLoading ? null : _handleSave,
+              style: FilledButton.styleFrom(shape: const StadiumBorder(), visualDensity: VisualDensity.compact),
+              child: const Text('Lưu'),
+            ),
+          ),
+        ],
       ),
       body: AmbientGlassBackground(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
           child: Form(
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Avatar representation
                 Center(
-                  child: Stack(
-                    children: [
-                      CircleAvatar(
-                        radius: 46,
-                        backgroundColor: AppColors.secondary.withValues(alpha: 0.2),
-                        child: Text(
-                          user?.displayName.isNotEmpty == true ? user!.displayName[0].toUpperCase() : 'U',
-                          style: TextStyle(
-                            fontSize: 36,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.primaryAction(context),
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: Container(
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: AppColors.primaryAction(context),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            LucideIcons.camera,
-                            size: 16,
-                            color: AppColors.onPrimaryAction(context),
-                          ),
-                        ),
-                      ),
-                    ],
+                  child: CircleAvatar(
+                    radius: 46,
+                    backgroundColor: AppColors.secondary.withValues(alpha: 0.2),
+                    child: Text(
+                      shownName.isNotEmpty ? shownName[0].toUpperCase() : 'U',
+                      style: TextStyle(fontSize: 36, fontWeight: FontWeight.w800, color: AppColors.primaryAction(context)),
+                    ),
                   ),
                 ),
-
-                const SizedBox(height: 24),
-
-                ZenvestSurfaceSheet(
-                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
+                const SizedBox(height: 12),
+                Text(
+                  shownName,
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.h2(context).copyWith(fontSize: 20, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 20),
+                LiquidGlassCard(
+                  padding: const EdgeInsets.all(18),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text('Họ và tên hiển thị', style: AppTypography.bodyMedium(context)),
+                      Row(
+                        children: [
+                          Icon(LucideIcons.idCard, size: 16, color: AppColors.textSecondary(context)),
+                          const SizedBox(width: 8),
+                          Text('THÔNG TIN CƠ BẢN', style: AppTypography.sectionLabel(context)),
+                        ],
+                      ),
+                      const Divider(height: 24),
+                      Text('Họ và tên', style: AppTypography.bodyMedium(context)),
                       const SizedBox(height: 8),
                       TextFormField(
                         controller: _nameController,
-                        decoration: const InputDecoration(
-                          hintText: 'Nhập tên của bạn',
-                          prefixIcon: Icon(LucideIcons.user, size: 18),
-                        ),
-                        validator: (val) {
-                          if (val == null || val.trim().isEmpty) {
-                            return 'Vui lòng nhập họ và tên.';
-                          }
-                          return null;
-                        },
+                        textInputAction: TextInputAction.next,
+                        decoration: const InputDecoration(hintText: 'Nhập tên của bạn', prefixIcon: Icon(LucideIcons.user, size: 18)),
+                        validator: (val) => (val == null || val.trim().isEmpty) ? 'Vui lòng nhập họ và tên.' : null,
                       ),
-                      const SizedBox(height: 20),
-
-                      Text('Thu nhập cố định hàng tháng (VNĐ)', style: AppTypography.bodyMedium(context)),
-                      const SizedBox(height: 8),
-                      TextFormField(
-                        controller: _incomeController,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          hintText: '15.000.000',
-                          prefixIcon: Icon(LucideIcons.coins, size: 18),
-                          suffixText: '₫',
-                        ),
-                        validator: (val) {
-                          if (val == null || val.trim().isEmpty) {
-                            return 'Vui lòng nhập mức thu nhập hàng tháng.';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Thu nhập được dùng để tính toán hạn mức ngân sách an toàn và tỷ lệ phân bổ các hũ chi tiêu.',
-                        style: AppTypography.caption(context).copyWith(fontSize: 12),
-                      ),
-                      const SizedBox(height: 20),
-
-                      Text('Địa chỉ Email (Không thể đổi)', style: AppTypography.bodyMedium(context)),
+                      const SizedBox(height: 16),
+                      Text('Email nhận thông báo giao dịch', style: AppTypography.bodyMedium(context)),
                       const SizedBox(height: 8),
                       TextFormField(
                         initialValue: user?.email ?? '',
                         readOnly: true,
-                        decoration: const InputDecoration(
-                          prefixIcon: Icon(LucideIcons.mail, size: 18),
-                          filled: true,
+                        decoration: const InputDecoration(prefixIcon: Icon(LucideIcons.mail, size: 18), filled: true),
+                      ),
+                      const SizedBox(height: 6),
+                      Text('Email dùng để đăng nhập nên không thể đổi.', style: AppTypography.caption(context).copyWith(fontSize: 12)),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                LiquidGlassCard(
+                  variant: LiquidGlassVariant.iridescentHero,
+                  padding: const EdgeInsets.all(18),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(color: AppColors.secondary.withValues(alpha: 0.25), shape: BoxShape.circle),
+                            child: Icon(LucideIcons.sparkles, size: 18, color: AppColors.slateOn(context)),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Thu nhập hàng tháng cho AI',
+                                  style: AppTypography.h2(context).copyWith(fontSize: 16, fontWeight: FontWeight.w700),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Dùng để tính hạn mức chi an toàn mỗi ngày và tỷ lệ phân bổ các hũ chi tiêu.',
+                                  style: AppTypography.caption(context).copyWith(fontSize: 12),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 12, 8),
+                        decoration: BoxDecoration(color: AppColors.inset(context, 0.85), borderRadius: AppSpacing.roundedLarge),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(LucideIcons.wallet, size: 14, color: AppColors.textSecondary(context)),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    'Thu nhập ròng cố định / tháng',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: AppTypography.caption(context).copyWith(fontSize: 12),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            TextFormField(
+                              key: const ValueKey('income-field'),
+                              controller: _incomeController,
+                              keyboardType: TextInputType.number,
+                              style: AppTypography.tabular(AppTypography.displayBalance(context).copyWith(fontSize: 26, fontWeight: FontWeight.w800)),
+                              decoration: InputDecoration(
+                                hintText: '15.000.000',
+                                suffix: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                                  decoration: BoxDecoration(color: AppColors.secondary.withValues(alpha: 0.2), borderRadius: AppSpacing.roundedPill),
+                                  child: Text('VND (₫)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.slateOn(context))),
+                                ),
+                                border: InputBorder.none,
+                                enabledBorder: InputBorder.none,
+                                focusedBorder: InputBorder.none,
+                                filled: false,
+                              ),
+                              validator: (val) {
+                                if (val == null || val.trim().isEmpty) return 'Vui lòng nhập mức thu nhập hàng tháng.';
+                                if (parseAmountInput(val) == null) return 'Số tiền không hợp lệ.';
+                                return null;
+                              },
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
                 ),
-
                 const SizedBox(height: 28),
-
                 LiquidGlassPillButton(
                   label: _isLoading ? 'Đang lưu...' : 'Lưu thay đổi',
                   icon: LucideIcons.check,
                   isFullWidth: true,
                   onPressed: _isLoading ? () {} : _handleSave,
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: _isLoading ? null : () => context.pop(),
+                  style: TextButton.styleFrom(minimumSize: const Size.fromHeight(48), shape: const StadiumBorder()),
+                  child: const Text('Hủy bỏ'),
                 ),
               ],
             ),

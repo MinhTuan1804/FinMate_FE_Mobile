@@ -1,9 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:finmate/features/auth/domain/entities/user_profile.dart';
 import 'package:finmate/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:finmate/features/finance_methods/presentation/screens/b7_alert_thresholds_screen.dart';
 import '../../fixtures/fixture.dart';
+
+class _MockAuth extends StateNotifier<AsyncValue<UserProfile?>> implements AuthController {
+  _MockAuth(super.state);
+
+  final saved = <NotificationPrefs>[];
+
+  @override
+  Future<void> updateNotificationPrefs(NotificationPrefs prefs) async {
+    saved.add(prefs);
+    state = AsyncValue.data(state.value!.copyWith(notificationPrefs: prefs));
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
 
 /// Adapter mặc định: ngưỡng hệ thống (chưa có ngưỡng cá nhân).
 RouteAdapter _adapter({
@@ -35,7 +51,7 @@ void main() {
       await _pump(tester, _adapter());
 
       expect(find.byKey(const ValueKey('threshold-effective')), findsOneWidget);
-      expect(find.textContaining('T1=70% · T2=90%'), findsWidgets);
+      expect(find.textContaining('70% · 90% (mặc định hệ thống)'), findsOneWidget);
     });
 
     testWidgets('đặt ngưỡng cá nhân: gửi PUT đúng body, hiện nguồn personal', (tester) async {
@@ -49,7 +65,7 @@ void main() {
 
       final putReq = adapter.requests.firstWhere((r) => r.method == 'PUT');
       expect(putReq.path, contains('/alert-thresholds'));
-      expect(find.textContaining('nguồn: personal'), findsOneWidget);
+      expect(find.textContaining('(cá nhân)'), findsOneWidget);
     });
 
     testWidgets('xóa ngưỡng cá nhân: gửi DELETE rồi tự tải lại GET', (tester) async {
@@ -61,7 +77,38 @@ void main() {
 
       final deleteReq = adapter.requests.firstWhere((r) => r.method == 'DELETE' && r.path.contains('/alert-thresholds'));
       expect(deleteReq, isNotNull);
-      expect(find.textContaining('nguồn: system'), findsOneWidget);
+      expect(find.textContaining('(mặc định hệ thống)'), findsOneWidget);
+    });
+
+    testWidgets('tùy chọn thông báo lấy từ hồ sơ; tắt công tắc gọi updateNotificationPrefs với đúng giá trị', (tester) async {
+      final user = UserProfile(
+        id: 'u1',
+        email: 'probe@example.com',
+        displayName: 'Probe',
+        isEmailVerified: true,
+        notificationPrefs: NotificationPrefs.defaultPrefs(),
+        createdAt: DateTime(2026),
+      );
+      final auth = _MockAuth(AsyncValue.data(user));
+      tester.view.physicalSize = const Size(800, 4000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          apiClientProvider.overrideWithValue(testApiClient(_adapter())),
+          authControllerProvider.overrideWith((ref) => auth),
+        ],
+        child: const MaterialApp(home: AlertThresholdsScreen()),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(tester.widget<Switch>(find.descendant(of: find.byKey(const ValueKey('pref-push')), matching: find.byType(Switch))).value, isTrue);
+      await tester.tap(find.byKey(const ValueKey('pref-budget')));
+      await tester.pumpAndSettle();
+
+      expect(auth.saved, hasLength(1));
+      expect(auth.saved.single.budgetAlertsEnabled, isFalse);
+      expect(auth.saved.single.pushEnabled, isTrue);
     });
   });
 }

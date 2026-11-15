@@ -16,6 +16,7 @@ class _ChatAdapter implements HttpClientAdapter {
   final List<RequestOptions> requests = [];
   Completer<void>? gate;
   bool failNext = false;
+  bool failPurchaseCheck = false;
 
   String fixtureFor(String text) {
     if (text.contains('cafe')) return 'chat_saved';
@@ -34,8 +35,41 @@ class _ChatAdapter implements HttpClientAdapter {
       failNext = false;
       throwNetworkDown(options);
     }
+    if (options.path.endsWith('/forecast/purchase-check')) {
+      if (failPurchaseCheck) {
+        failPurchaseCheck = false;
+        throwNetworkDown(options);
+      }
+      return respondJson({
+        'success': true,
+        'data': {
+          'verdict': 'off_plan',
+          'summary': 'Vẫn đủ tiền nhưng lệch kế hoạch.',
+          'warnings': [
+            {'code': 'plan_over', 'message': 'Khoản này làm số còn lại trong kế hoạch tháng âm.'},
+          ],
+          'maxAffordableCents': 34200000,
+          'earliestSafeDate': null,
+        },
+      });
+    }
     final text = (options.data as Map)['text'] as String;
+    if (text.contains('laptop')) {
+      return respondJson({
+        'success': true,
+        'data': {
+          'action': 'purchase',
+          'intent': 'evaluate_purchase',
+          'replyText': 'Mình hiểu khoản định mua của bạn như thế này.',
+          'purchase': {'item': 'laptop', 'amountCents': 20000000, 'purchaseDate': '2026-11-20', 'categorySlug': null},
+        },
+      });
+    }
     if (text == 'ky la') return respondJson({'success': true, 'data': {'action': 'dance'}});
+    // câu hỏi mua thiếu giá: server hỏi lại giá bằng intent riêng (có giá thì rơi xuống fixture chung)
+    if (text.contains('iphone') && !text.contains('15tr')) {
+      return respondJson({'success': true, 'data': {'action': 'reply', 'intent': 'purchase_needs_amount', 'replyText': 'Bạn định mua với giá bao nhiêu?'}});
+    }
     return respondFixture(fixtureFor(text));
   }
 
@@ -126,6 +160,79 @@ void main() {
     expect(controller.state.messages.whereType<ErrorNote>(), isEmpty);
     expect(controller.state.messages.whereType<UserText>(), hasLength(1));
     expect(controller.state.messages.whereType<SavedCard>(), hasLength(1));
+  });
+
+  group('thẻ khoản định mua', () {
+    PurchaseCard card() => controller.state.messages.whereType<PurchaseCard>().single;
+
+    test('action purchase: MỘT thẻ, tự gọi purchase-check (không chờ bấm), hiện kết luận của backend, không ghi gì và không có lời "bấm Đánh giá"', () async {
+      await controller.send('mua laptop 20tr được không');
+      await pumpEventQueue();
+
+      final request = adapter.requests.last;
+      expect(request.path, endsWith('/forecast/purchase-check'));
+      expect(request.data, {'amountCents': 20000000, 'item': 'laptop', 'purchaseDate': '2026-11-20'});
+      expect(card().purchase.item, 'laptop');
+      expect(card().purchase.amountCents, BigInt.from(20000000));
+      expect(card().status, PurchaseCardStatus.assessed);
+      expect(card().assessment!.verdict, 'off_plan');
+      expect(card().assessment!.warnings, hasLength(1));
+      expect(card().assessment!.maxAffordableCents, BigInt.from(34200000));
+      expect(controller.state.messages.whereType<AssistantText>(), isEmpty);
+      expect(dataChanged, 0, reason: 'đánh giá không phải giao dịch');
+    });
+
+    test('lỗi mạng khi tự đánh giá: thẻ về trạng thái chờ kèm lý do, bấm Thử lại được', () async {
+      adapter.failPurchaseCheck = true;
+      await controller.send('mua laptop 20tr được không');
+      await pumpEventQueue();
+
+      expect(card().status, PurchaseCardStatus.pending);
+      expect(card().error, isNotNull);
+
+      await controller.assessPurchase(card().id);
+      expect(card().status, PurchaseCardStatus.assessed);
+      expect(card().error, isNull);
+    });
+
+    test('Bỏ qua sau lỗi: thẻ đóng lại và không gọi purchase-check nữa', () async {
+      adapter.failPurchaseCheck = true;
+      await controller.send('mua laptop 20tr được không');
+      await pumpEventQueue();
+      controller.cancelPurchase(card().id);
+      await controller.assessPurchase(card().id);
+
+      expect(card().status, PurchaseCardStatus.cancelled);
+      expect(adapter.requests.where((r) => r.path.endsWith('/forecast/purchase-check')), hasLength(1));
+    });
+  });
+
+  group('câu hỏi mua thiếu giá', () {
+    const question = 'tôi có nên mua iphone duo ko ?';
+    String sentText(int i) => (adapter.requests[i].data as Map)['text'] as String;
+
+    test('tin kế tiếp chỉ có số tiền được ghép vào câu hỏi mua; bong bóng của người dùng vẫn chỉ hiện số tiền', () async {
+      await controller.send(question);
+      await controller.send('15tr');
+
+      expect(sentText(1), '$question 15tr');
+      expect(controller.state.messages.whereType<UserText>().map((m) => m.text), [question, '15tr']);
+    });
+
+    test('tin khác thì không ghép, và số tiền gửi sau đó cũng không ghép nữa (chỉ nhớ một lượt)', () async {
+      await controller.send(question);
+      await controller.send('cafe 55k');
+      await controller.send('15tr');
+
+      expect(sentText(1), 'cafe 55k');
+      expect(sentText(2), '15tr');
+    });
+
+    test('không có câu hỏi mua trước đó thì số tiền được gửi nguyên', () async {
+      await controller.send('15tr');
+
+      expect(sentText(0), '15tr');
+    });
   });
 
   test('mỗi tin nhắn mới dùng clientRequestId khác nhau', () async {

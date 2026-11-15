@@ -180,7 +180,7 @@ class _SupportTicketDetailScreenState extends ConsumerState<SupportTicketDetailS
                           padding: const EdgeInsets.all(AppSpacing.sm),
                           constraints: const BoxConstraints(maxWidth: 320),
                           decoration: BoxDecoration(
-                            color: m.kind == 'Customer' ? AppColors.primary.withValues(alpha: 0.12) : AppColors.surfaceLightSubtle,
+                            color: m.kind == 'Customer' ? AppColors.primaryAction(context).withValues(alpha: 0.12) : AppColors.surfaceLightSubtle,
                             borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
                           ),
                           child: Column(

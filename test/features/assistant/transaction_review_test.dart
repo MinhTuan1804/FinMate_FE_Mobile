@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:finmate/core/widgets/glass/liquid_glass.dart';
 import 'package:finmate/features/accounts/domain/financial_account.dart';
 import 'package:finmate/features/accounts/presentation/controllers/accounts_controller.dart';
 import 'package:finmate/features/assistant/data/assistant_repository.dart';
@@ -111,8 +112,8 @@ void main() {
   }
 
   Future<void> tapSave(WidgetTester tester) async {
-    await tester.ensureVisible(find.text('Xác nhận & Lưu giao dịch'));
-    await tester.tap(find.text('Xác nhận & Lưu giao dịch'));
+    await tester.ensureVisible(find.text('Lưu vào sổ giao dịch'));
+    await tester.tap(find.text('Lưu vào sổ giao dịch'));
     await tester.pumpAndSettle();
   }
 
@@ -158,6 +159,35 @@ void main() {
     await tapSave(tester);
 
     expect(tx.created.single['categoryId'], _categories.firstWhere((c) => c.slug == 'food').id);
+  });
+
+  testWidgets('"ăn cơm 35k" đúng như backend trả (kind expense, debit, food): lưu là chi tiêu, không phải chuyển tiền', (tester) async {
+    // JSON thật của POST /transactions/chat cho câu "ăn cơm 35k" (đã gọi thử trên backend local 2026-11-13)
+    final draft = DraftTransaction.fromChatJson({
+      'kind': 'expense',
+      'amountCents': 35000,
+      'transactionType': 'debit',
+      'merchantName': null,
+      'description': 'ăn cơm',
+      'categorySlug': 'food',
+      'incomeType': null,
+      'toOthers': false,
+      'suggestedFinancialAccountId': _accounts.first.id,
+      'missingFields': <String>[],
+      'occurredAt': null,
+      'possibleDuplicateTransactionId': null,
+    });
+    await openReview(tester, draft);
+
+    expect(tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'Chi tiêu')).selected, isTrue);
+    expect(tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'Chuyển tiền')).selected, isFalse);
+
+    await tapSave(tester);
+
+    expect(tx.transfers, isEmpty, reason: 'không được gọi chuyển tiền nội bộ');
+    expect(tx.created.single['type'], TransactionType.expense);
+    expect(tx.created.single['categoryId'], _categories.firstWhere((c) => c.slug == 'food').id);
+    expect(tx.created.single['amount'], BigInt.from(35000));
   });
 
   testWidgets('tài khoản mặc định theo suggestedAccountId', (tester) async {
@@ -299,7 +329,7 @@ void main() {
     await tapSave(tester);
 
     expect(find.text('Tài khoản không tồn tại'), findsOneWidget);
-    expect(find.text('Xác nhận & Lưu giao dịch'), findsOneWidget);
+    expect(find.text('Lưu vào sổ giao dịch'), findsOneWidget);
   });
 
   testWidgets('lưu thành công đóng màn và đánh dấu thẻ nháp trong chat đã xử lý', (tester) async {
@@ -309,7 +339,7 @@ void main() {
     await openReview(tester, card.draft, messageId: card.id);
     await tapSave(tester);
 
-    expect(find.text('Xác nhận & Lưu giao dịch'), findsNothing);
+    expect(find.text('Lưu vào sổ giao dịch'), findsNothing);
     final resolved = assistant.state.messages.whereType<DraftCard>().single;
     expect(resolved.resolved, isTrue);
     expect(resolved.resolvedSummary, contains('45.000 ₫'));
@@ -339,7 +369,7 @@ void main() {
       expect(find.text('Khăn giấy, Pin AA'), findsOneWidget);
       // Bill tách nhóm không hiện ô số tiền chung và danh mục chung
       expect(find.text('SỐ TIỀN (VNĐ)'), findsNothing);
-      expect(find.text('Xác nhận & Lưu giao dịch'), findsNothing);
+      expect(find.text('Lưu vào sổ giao dịch'), findsNothing);
       expect(find.text('Lưu 2 giao dịch'), findsOneWidget);
     });
 
@@ -408,8 +438,8 @@ void main() {
       await tester.tap(find.text('Lưu 2 giao dịch'));
       await tester.pump();
 
-      expect(tester.widget<IconButton>(find.widgetWithIcon(IconButton, LucideIcons.x)).onPressed, isNull);
-      expect(tester.widget<OutlinedButton>(find.widgetWithText(OutlinedButton, 'Hủy bỏ bản ghi nháp')).onPressed, isNull);
+      expect(tester.widget<LiquidGlassIconButton>(find.widgetWithIcon(LiquidGlassIconButton, LucideIcons.arrowLeft)).onPressed, isNull);
+      expect(tester.widget<OutlinedButton>(find.widgetWithText(OutlinedButton, 'Bỏ qua giao dịch')).onPressed, isNull);
       await tester.state<NavigatorState>(find.byType(Navigator)).maybePop();
       await tester.pump();
       expect(find.byKey(const ValueKey('receipt-group-0')), findsOneWidget); // vẫn ở màn rà soát

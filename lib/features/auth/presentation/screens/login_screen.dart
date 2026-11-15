@@ -94,7 +94,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           backgroundColor: Colors.transparent,
           elevation: 0,
           leading: IconButton(
-            icon: const Icon(LucideIcons.arrowLeft, color: GlassColors.ink),
+            icon: Icon(LucideIcons.arrowLeft, color: GlassColors.ink),
             onPressed: () => context.canPop() ? context.pop() : context.go('/'),
           ),
         ),
@@ -116,7 +116,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       padding: const EdgeInsets.all(14),
                       child: Row(
                         children: [
-                          const Icon(LucideIcons.info, color: GlassColors.slateAnchor, size: 20),
+                          Icon(LucideIcons.info, color: GlassColors.slateAnchor, size: 20),
                           const SizedBox(width: 10),
                           Expanded(child: Text(_notice!, style: GlassTypography.bodySm(color: GlassColors.textPrimary))),
                         ],
@@ -130,7 +130,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       padding: const EdgeInsets.all(14),
                       child: Row(
                         children: [
-                          const Icon(LucideIcons.alertCircle, color: GlassColors.danger, size: 20),
+                          Icon(LucideIcons.alertCircle, color: GlassColors.danger, size: 20),
                           const SizedBox(width: 10),
                           Expanded(child: Text(_error!, style: GlassTypography.bodySm(color: GlassColors.danger))),
                         ],
@@ -217,12 +217,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget _socialDivider() {
     return Row(
       children: [
-        const Expanded(child: Divider(color: GlassColors.secondarySurface, thickness: 1)),
+        Expanded(child: Divider(color: GlassColors.secondarySurface, thickness: 1)),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Text('Hoặc đăng nhập với', style: GlassTypography.bodySm()),
         ),
-        const Expanded(child: Divider(color: GlassColors.secondarySurface, thickness: 1)),
+        Expanded(child: Divider(color: GlassColors.secondarySurface, thickness: 1)),
       ],
     );
   }

@@ -30,3 +30,24 @@ IconData categoryIcon(String? slug) {
       return LucideIcons.tag;
   }
 }
+
+/// Bộ icon người dùng chọn khi tạo danh mục (H13). Khóa là chuỗi lưu vào `iconName` của backend.
+const categoryIconChoices = <String, IconData>{
+  'coffee': LucideIcons.coffee,
+  'utensils': LucideIcons.utensils,
+  'shopping-bag': LucideIcons.shoppingBag,
+  'plane': LucideIcons.plane,
+  'gamepad': LucideIcons.gamepad2,
+  'car': LucideIcons.car,
+  'zap': LucideIcons.zap,
+  'pill': LucideIcons.pill,
+  'paw': LucideIcons.pawPrint,
+  'fuel': LucideIcons.fuel,
+  'dumbbell': LucideIcons.dumbbell,
+  'smile': LucideIcons.smile,
+  'briefcase': LucideIcons.briefcase,
+  'gift': LucideIcons.gift,
+};
+
+/// Icon của một danh mục: ưu tiên icon người dùng đã chọn (`iconName`), không có thì theo slug của danh mục hệ thống.
+IconData categoryIconFor(String? slug, String? iconName) => categoryIconChoices[iconName] ?? categoryIcon(slug);

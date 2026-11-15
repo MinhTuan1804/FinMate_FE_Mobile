@@ -22,9 +22,9 @@ class RecurringItemsScreen extends ConsumerWidget {
   Future<void> _create(BuildContext context, WidgetRef ref) async {
     final categories = ref.read(categoriesProvider).valueOrNull ?? const <Category>[];
     final accounts = ref.read(accountsControllerProvider).valueOrNull ?? const [];
-    final result = await showDialog<_RecurringInput>(
+    final result = await showDialog<RecurringFormInput>(
       context: context,
-      builder: (_) => _RecurringDialog(categories: categories, accounts: accounts),
+      builder: (_) => RecurringFormDialog(categories: categories, accounts: accounts),
     );
     if (result == null || !context.mounted) return;
     final messenger = ScaffoldMessenger.of(context);
@@ -48,9 +48,9 @@ class RecurringItemsScreen extends ConsumerWidget {
   Future<void> _edit(BuildContext context, WidgetRef ref, RecurringItemEntity item) async {
     final categories = ref.read(categoriesProvider).valueOrNull ?? const <Category>[];
     final accounts = ref.read(accountsControllerProvider).valueOrNull ?? const [];
-    final result = await showDialog<_RecurringInput>(
+    final result = await showDialog<RecurringFormInput>(
       context: context,
-      builder: (_) => _RecurringDialog(editing: item, categories: categories, accounts: accounts),
+      builder: (_) => RecurringFormDialog(editing: item, categories: categories, accounts: accounts),
     );
     if (result == null || !context.mounted) return;
     final messenger = ScaffoldMessenger.of(context);
@@ -253,7 +253,7 @@ class RecurringItemsScreen extends ConsumerWidget {
   }
 }
 
-class _RecurringInput {
+class RecurringFormInput {
   final RecurringDirection? direction;
   final String name;
   final String? counterpartyName;
@@ -263,7 +263,7 @@ class _RecurringInput {
   final String? categoryId;
   final String? financialAccountId;
 
-  const _RecurringInput({
+  const RecurringFormInput({
     this.direction,
     required this.name,
     this.counterpartyName,
@@ -276,18 +276,18 @@ class _RecurringInput {
 }
 
 /// Tạo/sửa khoản định kỳ; chiều tiền (direction) chỉ chọn được lúc tạo, không sửa được sau (theo API)
-class _RecurringDialog extends StatefulWidget {
+class RecurringFormDialog extends StatefulWidget {
   final RecurringItemEntity? editing;
   final List<Category> categories;
   final List<FinancialAccount> accounts;
 
-  const _RecurringDialog({this.editing, this.categories = const [], this.accounts = const []});
+  const RecurringFormDialog({super.key, this.editing, this.categories = const [], this.accounts = const []});
 
   @override
-  State<_RecurringDialog> createState() => _RecurringDialogState();
+  State<RecurringFormDialog> createState() => _RecurringDialogState();
 }
 
-class _RecurringDialogState extends State<_RecurringDialog> {
+class _RecurringDialogState extends State<RecurringFormDialog> {
   late final _name = TextEditingController(text: widget.editing?.name ?? '');
   late final _counterparty = TextEditingController(text: widget.editing?.counterpartyKey ?? '');
   late final _amount = TextEditingController(text: widget.editing?.amountCents.toString() ?? '');
@@ -329,7 +329,7 @@ class _RecurringDialogState extends State<_RecurringDialog> {
     } else {
       Navigator.pop(
         context,
-        _RecurringInput(
+        RecurringFormInput(
           direction: widget.editing == null ? _direction : null,
           name: name,
           counterpartyName: _counterparty.text.trim(),

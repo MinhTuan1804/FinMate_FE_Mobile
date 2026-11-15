@@ -21,3 +21,9 @@ final forecastProvider = FutureProvider<Forecast>((ref) {
   if (ref.watch(currentUserIdProvider) == null) return Forecast.empty;
   return ref.watch(reportsRepositoryProvider).getForecast();
 });
+
+/// Nhận xét chi tiêu của backend (mới nhất trước), gồm cả đã đọc.
+final spendingInsightsProvider = FutureProvider.autoDispose<List<SpendingInsight>>((ref) {
+  if (ref.watch(currentUserIdProvider) == null) return const <SpendingInsight>[];
+  return ref.watch(reportsRepositoryProvider).getInsights();
+});

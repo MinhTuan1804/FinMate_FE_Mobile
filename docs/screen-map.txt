@@ -8,6 +8,7 @@ Ký hiệu:
   [DÙNG CHUNG] một màn, nhiều lối vào, chỉ thiết kế một lần
 
 Kế hoạch dựng UI trên Stitch cho danh sách này: docs/stitch-ui-plan.md
+Đối chiếu Figma với API BE (màn nào thiếu API nào): docs/figma-api-gap.md
 
 Tổng: khoảng 75 màn full-screen + khoảng 10 sheet/dialog.
   - Đã có: 21

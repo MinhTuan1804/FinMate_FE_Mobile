@@ -460,7 +460,44 @@ class VoiceAnalysis {
       );
 }
 
-enum ChatAction { saved, summary, reply, confirm, goal }
+/// Khoản ĐỊNH mua mà AI đọc ra từ câu "mua X được không?". Không phải giao dịch: app chỉ gửi nó tới `POST /forecast/purchase-check` để backend đánh giá.
+class PurchaseDraft {
+  final String? item;
+  final BigInt amountCents;
+  final DateTime? purchaseDate;
+  final String? categorySlug;
+
+  const PurchaseDraft({this.item, required this.amountCents, this.purchaseDate, this.categorySlug});
+
+  factory PurchaseDraft.fromJson(Map<String, dynamic> json) => PurchaseDraft(
+        item: json['item'] as String?,
+        amountCents: parseCents(json['amountCents']),
+        purchaseDate: _parseDate(json['purchaseDate']),
+        categorySlug: json['categorySlug'] as String?,
+      );
+}
+
+/// Kết luận của backend cho một khoản định mua (`POST /forecast/purchase-check`); câu [summary] do backend sinh, không phải AI.
+class PurchaseAssessment {
+  /// fits_plan | off_plan | consider | shortfall_risk | insufficient_data
+  final String verdict;
+  final String summary;
+  final List<String> warnings;
+  final BigInt? maxAffordableCents;
+  final DateTime? earliestSafeDate;
+
+  const PurchaseAssessment({required this.verdict, required this.summary, this.warnings = const [], this.maxAffordableCents, this.earliestSafeDate});
+
+  factory PurchaseAssessment.fromJson(Map<String, dynamic> json) => PurchaseAssessment(
+        verdict: json['verdict'] as String? ?? 'insufficient_data',
+        summary: json['summary'] as String? ?? '',
+        warnings: _parseList(json['warnings'], (w) => w['message'] as String? ?? '').where((m) => m.isNotEmpty).toList(),
+        maxAffordableCents: _parseOptionalCents(json['maxAffordableCents']),
+        earliestSafeDate: _parseDate(json['earliestSafeDate']),
+      );
+}
+
+enum ChatAction { saved, summary, reply, confirm, goal, purchase }
 
 /// Phản hồi của `POST /transactions/chat`
 class ChatReply {
@@ -477,7 +514,10 @@ class ChatReply {
   /// Bản nháp mục tiêu tiết kiệm khi [action] là [ChatAction.goal]
   final GoalDraft? goal;
 
-  const ChatReply({required this.action, this.intent, this.replyText, this.transaction, this.draft, this.drafts = const [], this.summary, this.goal});
+  /// Khoản định mua khi [action] là [ChatAction.purchase]
+  final PurchaseDraft? purchase;
+
+  const ChatReply({required this.action, this.intent, this.replyText, this.transaction, this.draft, this.drafts = const [], this.summary, this.goal, this.purchase});
 
   /// Phản hồi lạ hoặc thiếu dữ liệu tương ứng với `action` → trả lời văn bản chung, không ném
   factory ChatReply.fromJson(Map<String, dynamic> json) {
@@ -506,6 +546,12 @@ class ChatReply {
           final goal = json['goal'];
           if (goal is! Map<String, dynamic>) return generic();
           return ChatReply(action: ChatAction.goal, intent: intent, replyText: replyText, goal: GoalDraft.fromJson(goal));
+        case 'purchase':
+          final purchase = json['purchase'];
+          if (purchase is! Map<String, dynamic>) return generic();
+          final draft = PurchaseDraft.fromJson(purchase);
+          if (draft.amountCents <= BigInt.zero) return generic();
+          return ChatReply(action: ChatAction.purchase, intent: intent, replyText: replyText, purchase: draft);
         case 'reply':
           return ChatReply(action: ChatAction.reply, intent: intent, replyText: replyText ?? _genericReply);
         default:

@@ -12,6 +12,9 @@ final themeModeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.light);
 /// Tùy chọn trợ năng "Giảm độ trong suốt" (Reduce Transparency fallback sang bề mặt đặc cùng tông).
 final reduceTransparencyProvider = StateProvider<bool>((ref) => false);
 
+/// Hệ số cỡ chữ người dùng chọn trong Giao diện & Hiển thị (Nhỏ 0.9, Chuẩn 1.0, Lớn 1.15); nhân với cỡ chữ hệ điều hành và cỡ chữ admin.
+final textScaleProvider = StateProvider<double>((ref) => 1.0);
+
 /// ThemeExtension chứa toàn bộ thông số Liquid Glass cho Light (Serene Glass) và Dark (Obsidian Glass)
 @immutable
 class LiquidGlassTheme extends ThemeExtension<LiquidGlassTheme> {

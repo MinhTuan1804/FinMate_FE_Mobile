@@ -6,7 +6,6 @@ import 'package:finmate/features/assistant/presentation/screens/transaction_revi
 import 'package:finmate/features/auth/domain/entities/user_profile.dart';
 import 'package:finmate/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:finmate/features/auth/presentation/screens/terms_consent_screen.dart';
-import 'package:finmate/features/auth/presentation/screens/ai_consent_screen.dart';
 import 'package:finmate/features/auth/presentation/screens/welcome_screen.dart';
 import 'package:finmate/features/auth/presentation/screens/login_screen.dart';
 import 'package:finmate/features/auth/presentation/screens/register_screen.dart';
@@ -22,10 +21,10 @@ import 'package:finmate/features/analytics/presentation/screens/analytics_screen
 import 'package:finmate/features/profile/presentation/screens/profile_screen.dart';
 import 'package:finmate/features/accounts/presentation/screens/accounts_screen.dart';
 import 'package:finmate/features/survey/presentation/screens/survey_screen.dart';
+import 'package:finmate/features/support/presentation/screens/support_create_screen.dart';
 import 'package:finmate/features/support/presentation/screens/support_screen.dart';
 import 'package:finmate/features/support/presentation/screens/support_ticket_detail_screen.dart';
 import 'package:finmate/features/support/presentation/screens/support_access_log_screen.dart';
-import 'package:finmate/features/app_config/presentation/screens/app_config_screen.dart';
 import 'package:finmate/features/subscriptions/presentation/screens/subscriptions_screen.dart';
 
 import 'package:finmate/features/community/presentation/screens/community_screen.dart';
@@ -41,7 +40,38 @@ import 'package:finmate/features/groups/presentation/screens/accept_invitation_s
 import 'package:finmate/features/groups/presentation/screens/group_finance_screen.dart';
 import 'package:finmate/features/forecast/presentation/screens/forecast_screen.dart';
 import 'package:finmate/features/forecast/presentation/screens/forecast_settings_screen.dart';
-import 'package:finmate/features/qr_transfers/presentation/screens/qr_transfer_screen.dart';
+import 'package:finmate/features/qr_transfer/domain/vietqr_parser.dart';
+import 'package:finmate/features/qr_transfer/presentation/screens/qr_history_screen.dart';
+import 'package:finmate/features/qr_transfer/presentation/screens/qr_scan_screen.dart';
+import 'package:finmate/features/qr_transfer/presentation/screens/qr_transfer_screen.dart';
+import 'package:finmate/features/qr_transfer/presentation/screens/saved_counterparties_screen.dart';
+import 'package:finmate/features/analytics/presentation/screens/ai_insights_screen.dart';
+import 'package:finmate/features/analytics/presentation/screens/cashflow_forecast_screen.dart';
+import 'package:finmate/features/analytics/presentation/screens/category_report_screen.dart';
+import 'package:finmate/features/analytics/presentation/screens/purchase_check_screen.dart';
+import 'package:finmate/features/analytics/presentation/screens/spending_anomalies_screen.dart';
+import 'package:finmate/features/assistant/presentation/screens/ai_memory_screen.dart';
+import 'package:finmate/features/planning/domain/entities/savings_goal_entity.dart';
+import 'package:finmate/features/planning/presentation/screens/loans_screen.dart';
+import 'package:finmate/features/planning/presentation/screens/recurring_transactions_screen.dart';
+import 'package:finmate/features/planning/presentation/screens/savings_goal_detail_screen.dart';
+import 'package:finmate/features/transactions/domain/entities/transaction_entity.dart';
+import 'package:finmate/features/transactions/presentation/screens/receipt_scanner_screen.dart';
+import 'package:finmate/features/transactions/presentation/screens/transaction_detail_screen.dart';
+import 'package:finmate/features/transactions/presentation/screens/transfer_screen.dart';
+import 'package:finmate/features/profile/presentation/screens/appearance_settings_screen.dart';
+import 'package:finmate/features/profile/presentation/screens/backup_export_screen.dart';
+import 'package:finmate/features/categories/domain/category.dart';
+import 'package:finmate/features/profile/presentation/screens/category_form_screen.dart';
+import 'package:finmate/features/profile/presentation/screens/category_management_screen.dart';
+import 'package:finmate/features/profile/presentation/screens/change_password_screen.dart';
+import 'package:finmate/features/profile/presentation/screens/consent_management_screen.dart';
+import 'package:finmate/features/profile/presentation/screens/delete_account_screen.dart';
+import 'package:finmate/features/profile/presentation/screens/edit_profile_screen.dart';
+import 'package:finmate/features/profile/presentation/screens/add_financial_account_screen.dart';
+import 'package:finmate/features/profile/presentation/screens/financial_accounts_screen.dart';
+import 'package:finmate/features/profile/presentation/screens/legal_document_screen.dart';
+import 'package:finmate/features/profile/presentation/screens/subscription_screen.dart';
 import 'package:finmate/features/devices/presentation/screens/devices_screen.dart';
 import 'package:finmate/features/finance_methods/presentation/screens/b4_recommendations_screen.dart';
 import 'package:finmate/features/finance_methods/presentation/screens/b5_my_methods_screen.dart';
@@ -51,7 +81,6 @@ import 'package:finmate/features/notifications_inbox/presentation/screens/notifi
 
 const _splashPath = '/splash';
 const _termsPath = '/terms';
-const _aiConsentPath = '/ai-consent';
 
 /// Các màn hình không cần đăng nhập
 const _publicPaths = {
@@ -89,9 +118,6 @@ String? authRedirect(AsyncValue<UserProfile?> auth, String location) {
 
   // Chưa đồng ý Điều khoản + Chính sách (hoặc chúng đã đổi phiên bản): không vào được chỗ nào khác
   if (!user.termsAccepted) return location == _termsPath ? null : _termsPath;
-
-  // Vừa đồng ý Điều khoản: để màn /ai-consent tự điều hướng tiếp, không ép đi trước khi hiện xong
-  if (location == _aiConsentPath) return null;
 
   if (_guestOnlyPaths.contains(location) || location == _termsPath) {
     final needsSetup = user.monthlyIncomeCents == null || user.monthlyIncomeCents == 0;
@@ -168,10 +194,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const TermsConsentScreen(),
       ),
       GoRoute(
-        path: _aiConsentPath,
-        builder: (context, state) => const AiConsentScreen(),
-      ),
-      GoRoute(
         path: '/onboarding',
         builder: (context, state) => const InitialSetupScreen(),
       ),
@@ -233,7 +255,123 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/qr-transfers',
-        builder: (context, state) => const QrTransferScreen(),
+        builder: (context, state) => const QrScanScreen(),
+      ),
+      GoRoute(
+        path: '/qr-scan',
+        builder: (context, state) => const QrScanScreen(),
+      ),
+      GoRoute(
+        path: '/qr-transfer',
+        builder: (context, state) => QrTransferScreen(scanned: state.extra as VietQrData?),
+      ),
+      GoRoute(
+        path: '/qr-history',
+        builder: (context, state) => const QrHistoryScreen(),
+      ),
+      GoRoute(
+        path: '/qr-counterparties',
+        builder: (context, state) => const SavedCounterpartiesScreen(),
+      ),
+      GoRoute(
+        path: '/analytics/category-report',
+        builder: (context, state) => const CategoryReportScreen(),
+      ),
+      GoRoute(
+        path: '/analytics/forecast',
+        builder: (context, state) => const CashflowForecastScreen(),
+      ),
+      GoRoute(
+        path: '/analytics/anomalies',
+        builder: (context, state) => const SpendingAnomaliesScreen(),
+      ),
+      GoRoute(
+        path: '/analytics/purchase-check',
+        builder: (context, state) => const PurchaseCheckScreen(),
+      ),
+      GoRoute(
+        path: '/analytics/insights',
+        builder: (context, state) => const AiInsightsScreen(),
+      ),
+      GoRoute(
+        path: '/assistant/memory',
+        builder: (context, state) => const AiMemoryScreen(),
+      ),
+      GoRoute(
+        path: '/transaction-detail',
+        builder: (context, state) => TransactionDetailScreen(transaction: state.extra as TransactionEntity),
+      ),
+      GoRoute(
+        path: '/transfer',
+        builder: (context, state) => const TransferScreen(),
+      ),
+      GoRoute(
+        path: '/scan-receipt',
+        builder: (context, state) => const ReceiptScannerScreen(),
+      ),
+      GoRoute(
+        path: '/planning/goal',
+        builder: (context, state) => SavingsGoalDetailScreen(goal: state.extra as SavingsGoalEntity),
+      ),
+      GoRoute(
+        path: '/planning/recurring',
+        builder: (context, state) => const RecurringTransactionsScreen(),
+      ),
+      GoRoute(
+        path: '/planning/loans',
+        builder: (context, state) => const LoansScreen(),
+      ),
+      GoRoute(
+        path: '/profile/edit',
+        builder: (context, state) => const EditProfileScreen(),
+      ),
+      GoRoute(
+        path: '/profile/appearance',
+        builder: (context, state) => const AppearanceSettingsScreen(),
+      ),
+      GoRoute(
+        path: '/profile/backup',
+        builder: (context, state) => const BackupExportScreen(),
+      ),
+      GoRoute(
+        path: '/profile/financial-accounts',
+        builder: (context, state) => const FinancialAccountsScreen(),
+      ),
+      GoRoute(
+        path: '/profile/financial-accounts/add',
+        builder: (context, state) => const AddFinancialAccountScreen(),
+      ),
+      GoRoute(
+        path: '/profile/consents',
+        builder: (context, state) => const ConsentManagementScreen(),
+      ),
+      GoRoute(
+        path: '/profile/categories',
+        builder: (context, state) => const CategoryManagementScreen(),
+      ),
+      GoRoute(
+        path: '/profile/categories/form',
+        builder: (context, state) => CategoryFormScreen(editing: state.extra as Category?),
+      ),
+      GoRoute(
+        path: '/profile/subscription',
+        builder: (context, state) => const SubscriptionScreen(),
+      ),
+      GoRoute(
+        path: '/profile/change-password',
+        builder: (context, state) => const ChangePasswordScreen(),
+      ),
+      GoRoute(
+        path: '/profile/delete-account',
+        builder: (context, state) => const DeleteAccountScreen(),
+      ),
+      GoRoute(
+        path: '/legal/terms',
+        builder: (context, state) => const LegalDocumentScreen(type: LegalDocType.terms),
+      ),
+      GoRoute(
+        path: '/legal/privacy',
+        builder: (context, state) => const LegalDocumentScreen(type: LegalDocType.privacy),
       ),
       GoRoute(
         path: '/devices',
@@ -274,16 +412,16 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const SupportScreen(),
       ),
       GoRoute(
+        path: '/support/new',
+        builder: (context, state) => const SupportCreateScreen(),
+      ),
+      GoRoute(
         path: '/support-ticket',
         builder: (context, state) => SupportTicketDetailScreen(ticketId: state.extra as String),
       ),
       GoRoute(
         path: '/support-access-log',
         builder: (context, state) => const SupportAccessLogScreen(),
-      ),
-      GoRoute(
-        path: '/app-config',
-        builder: (context, state) => const AppConfigScreen(),
       ),
       GoRoute(
         path: '/subscriptions',

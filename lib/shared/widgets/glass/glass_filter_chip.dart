@@ -31,7 +31,7 @@ class GlassFilterChip extends StatelessWidget {
         ),
         child: Text(
           '$label ($count)',
-          style: GlassTypography.bodyMd(color: selected ? Colors.white : GlassColors.textSecondary)
+          style: GlassTypography.bodyMd(color: selected ? GlassColors.onInk : GlassColors.textSecondary)
               .copyWith(fontWeight: FontWeight.w600),
         ),
       ),

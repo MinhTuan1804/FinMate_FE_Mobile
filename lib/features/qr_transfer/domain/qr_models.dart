@@ -78,6 +78,7 @@ class QrTransfer {
 class CounterpartyOverride {
   const CounterpartyOverride({
     required this.id,
+    required this.bankBin,
     required this.bankName,
     required this.accountNumber,
     required this.displayName,
@@ -86,6 +87,7 @@ class CounterpartyOverride {
   });
 
   final String id;
+  final String bankBin;
   final String bankName;
   final String accountNumber;
   final String? displayName;
@@ -94,6 +96,7 @@ class CounterpartyOverride {
 
   factory CounterpartyOverride.fromJson(Map<String, dynamic> json) => CounterpartyOverride(
         id: json['id'] as String,
+        bankBin: json['bankBin'] as String? ?? '',
         bankName: json['bankName'] as String? ?? '',
         accountNumber: json['accountNumber'] as String? ?? '',
         displayName: json['displayName'] as String?,

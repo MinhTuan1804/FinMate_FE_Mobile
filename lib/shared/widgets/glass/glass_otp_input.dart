@@ -73,10 +73,10 @@ class GlassOtpInputState extends State<GlassOtpInput> {
       height: 56,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.45),
+        color: GlassColors.fieldFill,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isActive ? GlassColors.accentSkyBlue : Colors.white.withValues(alpha: 0.75),
+          color: isActive ? GlassColors.accentSkyBlue : GlassColors.fieldBorder,
           width: isActive ? 2 : 1.5,
         ),
         boxShadow: isActive

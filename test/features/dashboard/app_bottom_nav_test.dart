@@ -21,7 +21,7 @@ void main() {
   testWidgets('có bốn tab có nhãn chữ và nút quét QR ở GIỮA', (tester) async {
     await tester.pumpWidget(_app(_router()));
 
-    for (final label in ['Trang chủ', 'Sổ thu chi', 'Kế hoạch', 'Cá nhân']) {
+    for (final label in ['Trang chủ', 'Giao dịch', 'Kế hoạch', 'Phân tích']) {
       expect(find.text(label), findsOneWidget);
     }
     final scan = find.byIcon(LucideIcons.scanQrCode);
@@ -29,7 +29,7 @@ void main() {
 
     // Nút giữa nằm giữa hai tab trái và hai tab phải, đúng giữa chiều ngang màn hình.
     final x = tester.getCenter(scan).dx;
-    expect(tester.getCenter(find.text('Sổ thu chi')).dx, lessThan(x));
+    expect(tester.getCenter(find.text('Giao dịch')).dx, lessThan(x));
     expect(tester.getCenter(find.text('Kế hoạch')).dx, greaterThan(x));
     expect(x, closeTo(tester.view.physicalSize.width / tester.view.devicePixelRatio / 2, 1));
   });

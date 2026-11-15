@@ -31,6 +31,12 @@ abstract class IAuthRepository {
 
   /// POST /auth/logout-all: thu hồi refresh token của MỌI thiết bị (kể cả thiết bị này), rồi xóa token cục bộ.
   Future<void> logoutAllDevices();
+
+  /// POST /auth/change-password: BE thu hồi mọi phiên cũ nên token cục bộ bị xóa theo, người dùng phải đăng nhập lại.
+  Future<void> changePassword({required String currentPassword, required String newPassword});
+
+  /// DELETE /auth/account: BE khóa tài khoản ngay và xóa hẳn dữ liệu sau 30 ngày. Token cục bộ bị xóa theo.
+  Future<void> deleteAccount({required String password});
   Future<bool> isAuthenticated();
 }
 
@@ -199,6 +205,22 @@ class AuthRepository implements IAuthRepository {
   @override
   Future<void> logoutAllDevices() async {
     await apiClient.post('/api/v1/auth/logout-all', fromJsonT: (json) => json);
+    await tokenStorage.clearTokens();
+  }
+
+  @override
+  Future<void> changePassword({required String currentPassword, required String newPassword}) async {
+    await apiClient.post(
+      '/api/v1/auth/change-password',
+      data: {'currentPassword': currentPassword, 'newPassword': newPassword},
+      fromJsonT: (json) => json,
+    );
+    await tokenStorage.clearTokens();
+  }
+
+  @override
+  Future<void> deleteAccount({required String password}) async {
+    await apiClient.delete('/api/v1/auth/account', data: {'password': password});
     await tokenStorage.clearTokens();
   }
 

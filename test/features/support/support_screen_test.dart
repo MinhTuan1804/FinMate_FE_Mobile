@@ -37,29 +37,39 @@ void main() {
       expect(find.text('Không đăng nhập được'), findsOneWidget);
     });
 
-    testWidgets('tạo yêu cầu mới gửi đúng category/subject/body rồi mở màn chi tiết', (tester) async {
-      final adapter = RouteAdapter((o) {
-        if (o.method == 'POST') return respondFixture('support_ticket_detail', status: 201);
-        return respondFixture('support_tickets_empty');
-      });
-      await _pump(tester, adapter);
+    testWidgets('chip trạng thái đếm đúng và lọc; ô tìm kiếm lọc theo tiêu đề', (tester) async {
+      await _pump(tester, RouteAdapter((o) => respondFixture('support_tickets_list')));
+      expect(find.text('Tất cả 2'), findsOneWidget);
+      expect(find.text('Đang xử lý 1'), findsOneWidget); // ca "New"
+      expect(find.text('Đã xong 1'), findsOneWidget); // ca "Resolved"
+
+      await tester.tap(find.byKey(const ValueKey('support-filter-done')));
+      await tester.pumpAndSettle();
+      expect(find.text('Không đăng nhập được'), findsOneWidget);
+      expect(find.text('Giao dịch bị trùng'), findsNothing);
+
+      await tester.tap(find.byKey(const ValueKey('support-filter-all')));
+      await tester.enterText(find.byKey(const ValueKey('support-search')), 'trùng');
+      await tester.pumpAndSettle();
+      expect(find.text('Giao dịch bị trùng'), findsOneWidget);
+      expect(find.text('Không đăng nhập được'), findsNothing);
+
+      await tester.enterText(find.byKey(const ValueKey('support-search')), 'zzz');
+      await tester.pumpAndSettle();
+      expect(find.text('Không có yêu cầu phù hợp.'), findsOneWidget);
+    });
+
+    testWidgets('nút tạo yêu cầu mở màn gửi yêu cầu mới (/support/new)', (tester) async {
+      final router = GoRouter(routes: [
+        GoRoute(path: '/', builder: (c, s) => const SupportScreen()),
+        GoRoute(path: '/support/new', builder: (c, s) => const Scaffold(body: Text('CREATE_PAGE'))),
+      ]);
+      await _pump(tester, RouteAdapter((o) => respondFixture('support_tickets_empty')), router: router);
 
       await tester.tap(find.byKey(const ValueKey('support-create')));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byKey(const ValueKey('support-category')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Giao dịch').last);
-      await tester.pumpAndSettle();
-
-      await tester.enterText(find.byKey(const ValueKey('support-subject')), 'Giao dịch bị trùng');
-      await tester.enterText(find.byKey(const ValueKey('support-body')), 'Nội dung');
-      await tester.tap(find.widgetWithText(ElevatedButton, 'Gửi'));
-      await tester.pumpAndSettle();
-
-      final createReq = adapter.requests.firstWhere((r) => r.method == 'POST');
-      expect(createReq.data, {'category': 'Transaction', 'subject': 'Giao dịch bị trùng', 'body': 'Nội dung'});
-      expect(find.text('TICKET_DETAIL'), findsOneWidget);
+      expect(find.text('CREATE_PAGE'), findsOneWidget);
     });
 
     testWidgets('bấm icon nhật ký truy cập mở đúng màn access-log', (tester) async {

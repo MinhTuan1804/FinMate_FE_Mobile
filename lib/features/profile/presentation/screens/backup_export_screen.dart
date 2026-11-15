@@ -1,14 +1,48 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:finmate/core/database/app_database.dart';
 import 'package:finmate/core/theme/app_colors.dart';
 import 'package:finmate/core/theme/app_spacing.dart';
 import 'package:finmate/core/theme/app_typography.dart';
 import 'package:finmate/core/widgets/glass/liquid_glass.dart';
+import 'package:finmate/features/accounts/presentation/controllers/accounts_controller.dart';
+import 'package:finmate/features/auth/presentation/controllers/auth_controller.dart';
 
-/// Màn H5 & H6: Sao lưu, Xuất & Nhập dữ liệu tài chính (Backup & Data Import/Export Screen)
+/// Số giao dịch trên máy còn chờ gửi lên máy chủ (đọc từ hàng đợi đồng bộ cục bộ).
+final _pendingSyncProvider = FutureProvider.autoDispose<int>((ref) => ref.watch(databaseProvider).pendingSyncCount());
+
+enum _Range { month, quarter, year }
+
+enum _Format { xlsx, pdf, csv, json }
+
+extension on _Format {
+  String get label => switch (this) {
+        _Format.xlsx => 'Excel (.xlsx)',
+        _Format.pdf => 'PDF (.pdf)',
+        _Format.csv => 'CSV (.csv)',
+        _Format.json => 'JSON (.json)',
+      };
+
+  IconData get icon => switch (this) {
+        _Format.xlsx => LucideIcons.sheet,
+        _Format.pdf => LucideIcons.fileText,
+        _Format.csv => LucideIcons.fileSpreadsheet,
+        _Format.json => LucideIcons.fileJson,
+      };
+
+  String get short => switch (this) {
+        _Format.xlsx => 'Excel',
+        _Format.pdf => 'PDF',
+        _Format.csv => 'CSV',
+        _Format.json => 'JSON',
+      };
+}
+
+/// Màn H5: Sao lưu & Xuất dữ liệu (theo Figma). Phần trạng thái đồng bộ, tài khoản và danh sách ví là dữ liệu thật.
+/// BE chưa có API sao lưu và xuất tệp (`me/exports`), nên các lựa chọn xuất chỉ để chọn, còn nút thực hiện bị khóa kèm nhãn "Sắp có";
+/// không giả lập kết quả thành công như bản trước.
 class BackupExportScreen extends ConsumerStatefulWidget {
   const BackupExportScreen({super.key});
 
@@ -17,282 +51,248 @@ class BackupExportScreen extends ConsumerStatefulWidget {
 }
 
 class _BackupExportScreenState extends ConsumerState<BackupExportScreen> {
-  bool _isBackingUp = false;
-  DateTime? _lastBackupTime = DateTime.now().subtract(const Duration(days: 1, hours: 3));
+  _Range _range = _Range.month;
+  _Format _format = _Format.xlsx;
+  String? _accountId;
 
-  Future<void> _handleBackupNow() async {
-    setState(() => _isBackingUp = true);
-    await Future.delayed(const Duration(milliseconds: 1200));
-    if (!mounted) return;
-    setState(() {
-      _isBackingUp = false;
-      _lastBackupTime = DateTime.now();
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Sao lưu cơ sở dữ liệu mã hóa lên đám mây thành công!'),
-        backgroundColor: AppColors.safe,
-      ),
-    );
-  }
+  String _rangeLabel(_Range r) => switch (r) {
+        _Range.month => 'Tháng này',
+        _Range.quarter => 'Quý này',
+        _Range.year => 'Năm ${DateTime.now().year}',
+      };
 
-  void _exportFormat(String format) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Đang tạo và tải tệp xuất định dạng $format...'),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
+  @override
+  Widget build(BuildContext context) {
+    final user = ref.watch(authControllerProvider).valueOrNull;
+    final accounts = ref.watch(accountsControllerProvider).valueOrNull ?? const [];
+    final pending = ref.watch(_pendingSyncProvider);
 
-  void _startImportFlow() {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Sao lưu & Xuất dữ liệu'),
+        centerTitle: true,
+        leading: Padding(
+          padding: const EdgeInsets.all(8),
+          child: LiquidGlassIconButton(icon: LucideIcons.arrowLeft, size: 40, tooltip: 'Quay lại', onPressed: () => context.pop()),
+        ),
       ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+      body: AmbientGlassBackground(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
           children: [
-            Text(
-              'Quy trình nhập dữ liệu (4 bước)',
-              style: AppTypography.h2(context).copyWith(fontSize: 18),
-            ),
-            const SizedBox(height: 14),
-            _stepRow('Bước 1', 'Chọn file sao lưu (.json hoặc .csv từ ngân hàng)'),
-            _stepRow('Bước 2', 'Đối chiếu cột ngày, danh mục và số tiền'),
-            _stepRow('Bước 3', 'Xem trước 10 giao dịch mẫu và kiểm tra trùng lặp'),
-            _stepRow('Bước 4', 'Xác nhận nhập vào sổ thu chi FinMate'),
-            const SizedBox(height: 20),
-            LiquidGlassPillButton(
-              label: 'Chọn tệp từ thiết bị',
-              icon: LucideIcons.fileUp,
-              isFullWidth: true,
-              onPressed: () {
-                Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Chức năng nhập file đang kết nối API backend')),
-                );
-              },
-            ),
+            _statusCard(context, email: user?.email ?? '', walletCount: accounts.length, pending: pending),
+            const SizedBox(height: 16),
+            _exportCard(context, accounts.map((a) => (id: a.id, name: a.name)).toList()),
           ],
         ),
       ),
     );
   }
 
-  Widget _stepRow(String step, String text) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
+  Widget _soon() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(color: AppColors.secondary.withValues(alpha: 0.2), borderRadius: AppSpacing.roundedPill),
+      child: Text('Sắp có', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.slateOn(context))),
+    );
+  }
+
+  Widget _statusCard(BuildContext context, {required String email, required int walletCount, required AsyncValue<int> pending}) {
+    final pendingCount = pending.valueOrNull;
+    final synced = pendingCount == 0;
+    final statusColor = pendingCount == null ? AppColors.textMuted(context) : (synced ? AppColors.safe : AppColors.warning);
+    final statusText = pending.when(
+      loading: () => 'ĐANG KIỂM TRA ĐỒNG BỘ',
+      error: (_, __) => 'KHÔNG ĐỌC ĐƯỢC TRẠNG THÁI ĐỒNG BỘ',
+      data: (n) => n == 0 ? 'ĐÃ ĐỒNG BỘ AN TOÀN' : '$n GIAO DỊCH CHỜ ĐỒNG BỘ',
+    );
+    return LiquidGlassCard(
+      variant: LiquidGlassVariant.iridescentHero,
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            decoration: BoxDecoration(
-              color: AppColors.secondary.withValues(alpha: 0.15),
-              borderRadius: AppSpacing.roundedPill,
-            ),
-            child: Text(step, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+          Row(
+            children: [
+              Container(width: 8, height: 8, decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle)),
+              const SizedBox(width: 8),
+              Expanded(child: Text(statusText, style: AppTypography.sectionLabel(context))),
+            ],
           ),
-          const SizedBox(width: 10),
-          Expanded(child: Text(text, style: const TextStyle(fontSize: 13))),
+          const SizedBox(height: 14),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Tài khoản', style: AppTypography.caption(context).copyWith(fontSize: 12)),
+                    Text(email, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w700)),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text('Ví đang theo dõi', style: AppTypography.caption(context).copyWith(fontSize: 12)),
+                  Text('$walletCount ví', style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w700)),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(color: AppColors.inset(context, 0.7), borderRadius: AppSpacing.roundedPill),
+            child: Row(
+              children: [
+                Icon(LucideIcons.history, size: 16, color: AppColors.textSecondary(context)),
+                const SizedBox(width: 8),
+                Expanded(child: Text('Chưa có bản sao lưu nào', style: AppTypography.caption(context).copyWith(fontSize: 12.5))),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            key: const ValueKey('backup-now'),
+            onPressed: null,
+            icon: const Icon(LucideIcons.refreshCw, size: 16),
+            label: const Text('Sao lưu ngay bây giờ'),
+            style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48), shape: const StadiumBorder()),
+          ),
+          const SizedBox(height: 8),
+          SwitchListTile.adaptive(
+            contentPadding: EdgeInsets.zero,
+            title: Row(
+              children: [
+                Flexible(child: Text('Tự động sao lưu hàng tuần', style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w700, fontSize: 14))),
+                const SizedBox(width: 8),
+                _soon(),
+              ],
+            ),
+            subtitle: Text('Chỉ kích hoạt khi kết nối mạng Wi-Fi', style: AppTypography.caption(context).copyWith(fontSize: 12)),
+            value: false,
+            onChanged: null,
+          ),
         ],
       ),
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Sao lưu & Dữ liệu'),
-        leading: IconButton(
-          icon: const Icon(LucideIcons.arrowLeft),
-          onPressed: () => context.pop(),
-        ),
-      ),
-      body: AmbientGlassBackground(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+  Widget _exportCard(BuildContext context, List<({String id, String name})> accounts) {
+    return LiquidGlassCard(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
             children: [
-              // Hero Cloud Card
-              ZenvestHeroDeck(
-                peekBadgeText: 'CLOUD',
-                child: LiquidGlassCard(
-                  variant: LiquidGlassVariant.iridescentHero,
-                  padding: const EdgeInsets.all(22),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: AppColors.safe.withValues(alpha: 0.16),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(LucideIcons.cloudCheck, color: AppColors.safe, size: 24),
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Đồng bộ đám mây an toàn',
-                                  style: AppTypography.h2(context).copyWith(
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  _lastBackupTime != null
-                                      ? 'Lần sao lưu gần nhất: ${DateFormat('HH:mm - dd/MM/yyyy').format(_lastBackupTime!)}'
-                                      : 'Chưa có bản sao lưu nào',
-                                  style: AppTypography.caption(context).copyWith(fontSize: 12),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 18),
-                      LiquidGlassPillButton(
-                        label: _isBackingUp ? 'Đang tạo bản sao lưu...' : 'Sao lưu ngay lập tức',
-                        icon: LucideIcons.refreshCw,
-                        isFullWidth: true,
-                        onPressed: _isBackingUp ? () {} : _handleBackupNow,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              Text('XUẤT DỮ LIỆU TÀI CHÍNH (EXPORT)', style: AppTypography.sectionLabel(context)),
-              const SizedBox(height: 12),
-
-              ZenvestSurfaceSheet(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-                child: Column(
-                  children: [
-                    _exportTile(
-                      title: 'Xuất file bảng tính Excel (.xlsx)',
-                      subtitle: 'Đầy đủ thu chi, danh mục, ví và công thức tổng',
-                      icon: LucideIcons.sheet,
-                      onTap: () => _exportFormat('Excel (.xlsx)'),
-                    ),
-                    const Divider(height: 16),
-                    _exportTile(
-                      title: 'Xuất file CSV chuẩn (.csv)',
-                      subtitle: 'Tương thích nhập vào Google Sheets hoặc Notion',
-                      icon: LucideIcons.fileSpreadsheet,
-                      onTap: () => _exportFormat('CSV'),
-                    ),
-                    const Divider(height: 16),
-                    _exportTile(
-                      title: 'Bản sao lưu bảo mật (.finmate)',
-                      subtitle: 'File mã hóa đầy đủ để khôi phục trên máy mới',
-                      icon: LucideIcons.shieldCheck,
-                      onTap: () => _exportFormat('FinMate Backup (.finmate)'),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              Text('NHẬP DỮ LIỆU (IMPORT)', style: AppTypography.sectionLabel(context)),
-              const SizedBox(height: 12),
-
-              LiquidGlassCard(
-                padding: const EdgeInsets.all(18),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: AppColors.secondary.withValues(alpha: 0.15),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(LucideIcons.fileDown, color: AppColors.secondary, size: 22),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Nhập từ file sao lưu cũ',
-                            style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w700),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Hỗ trợ CSV sao kê ngân hàng và file dữ liệu FinMate',
-                            style: AppTypography.caption(context).copyWith(fontSize: 12),
-                          ),
-                        ],
-                      ),
-                    ),
-                    OutlinedButton(
-                      style: OutlinedButton.styleFrom(shape: const StadiumBorder()),
-                      onPressed: _startImportFlow,
-                      child: const Text('Nhập file'),
-                    ),
-                  ],
-                ),
-              ),
+              Icon(LucideIcons.download, size: 20, color: AppColors.textSecondary(context)),
+              const SizedBox(width: 8),
+              Expanded(child: Text('Tùy chọn xuất dữ liệu', style: AppTypography.h2(context).copyWith(fontSize: 18, fontWeight: FontWeight.w700))),
+              _soon(),
             ],
           ),
-        ),
+          const SizedBox(height: 14),
+          Text('Khoảng thời gian giao dịch', style: AppTypography.caption(context).copyWith(fontSize: 12)),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            children: [
+              for (final r in _Range.values)
+                ChoiceChip(
+                  key: ValueKey('range-${r.name}'),
+                  label: Text(_rangeLabel(r)),
+                  selected: _range == r,
+                  showCheckmark: false,
+                  shape: const StadiumBorder(),
+                  labelStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _range == r ? AppColors.onPrimaryAction(context) : AppColors.textSecondary(context)),
+                  selectedColor: AppColors.primaryAction(context),
+                  backgroundColor: AppColors.chipFill(context),
+                  onSelected: (_) => setState(() => _range = r),
+                ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text('Phạm vi tài khoản & ví', style: AppTypography.caption(context).copyWith(fontSize: 12)),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<String?>(
+            key: const ValueKey('export-accounts'),
+            initialValue: _accountId,
+            isExpanded: true,
+            decoration: const InputDecoration(prefixIcon: Icon(LucideIcons.wallet, size: 18)),
+            items: [
+              DropdownMenuItem(value: null, child: Text('Tất cả tài khoản & ví (${accounts.length} tài khoản)')),
+              for (final a in accounts) DropdownMenuItem(value: a.id, child: Text(a.name, overflow: TextOverflow.ellipsis)),
+            ],
+            onChanged: (v) => setState(() => _accountId = v),
+          ),
+          const SizedBox(height: 16),
+          Text('Định dạng tệp xuất', style: AppTypography.caption(context).copyWith(fontSize: 12)),
+          const SizedBox(height: 8),
+          for (final f in _Format.values) _formatTile(context, f),
+          const SizedBox(height: 4),
+          SwitchListTile.adaptive(
+            contentPadding: EdgeInsets.zero,
+            secondary: Icon(LucideIcons.lock, size: 18, color: AppColors.textSecondary(context)),
+            title: Row(
+              children: [
+                Flexible(child: Text('Mã hóa tệp bằng mật khẩu', style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w600, fontSize: 14))),
+                const SizedBox(width: 8),
+                _soon(),
+              ],
+            ),
+            value: false,
+            onChanged: null,
+          ),
+          const SizedBox(height: 8),
+          FilledButton.icon(
+            key: const ValueKey('export-run'),
+            onPressed: null,
+            icon: const Icon(LucideIcons.download, size: 18),
+            label: Text('Xuất và tải về (${_format.short})'),
+            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52), shape: const StadiumBorder()),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Xuất tệp cần máy chủ hỗ trợ nên chưa dùng được. Dữ liệu của bạn vẫn an toàn trên tài khoản FinMate.',
+            textAlign: TextAlign.center,
+            style: AppTypography.caption(context).copyWith(fontSize: 11.5),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _exportTile({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: AppSpacing.roundedMedium,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Row(
-          children: [
-            Icon(icon, size: 22, color: AppColors.primaryAction(context)),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: AppTypography.body(context).copyWith(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
-                    ),
-                  ),
-                  Text(
-                    subtitle,
-                    style: AppTypography.caption(context).copyWith(fontSize: 12),
-                  ),
-                ],
-              ),
+  Widget _formatTile(BuildContext context, _Format f) {
+    final selected = _format == f;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Semantics(
+        button: true,
+        selected: selected,
+        label: 'Định dạng ${f.label}',
+        child: InkWell(
+          key: ValueKey('format-${f.name}'),
+          borderRadius: AppSpacing.roundedLarge,
+          onTap: () => setState(() => _format = f),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            decoration: BoxDecoration(
+              color: AppColors.inset(context, 0.6),
+              borderRadius: AppSpacing.roundedLarge,
+              border: Border.all(color: selected ? AppColors.textPrimary(context) : Colors.transparent, width: 2),
             ),
-            const Icon(LucideIcons.chevronRight, size: 18),
-          ],
+            child: Row(
+              children: [
+                Icon(f.icon, size: 22, color: AppColors.textSecondary(context)),
+                const SizedBox(width: 14),
+                Expanded(child: Text(f.label, style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w700, fontSize: 15))),
+                Icon(selected ? LucideIcons.circleCheck : LucideIcons.circle, size: 22, color: selected ? AppColors.textPrimary(context) : AppColors.textMuted(context)),
+              ],
+            ),
+          ),
         ),
       ),
     );

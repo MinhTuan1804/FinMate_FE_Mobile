@@ -1,31 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:finmate/core/network/api_exceptions.dart';
 import 'package:finmate/core/theme/app_colors.dart';
+import 'package:finmate/core/theme/app_spacing.dart';
 import 'package:finmate/core/theme/app_typography.dart';
 import 'package:finmate/core/widgets/glass/liquid_glass.dart';
+import 'package:finmate/features/auth/domain/entities/consent.dart';
+import 'package:finmate/features/auth/domain/entities/user_profile.dart';
+import 'package:finmate/features/auth/presentation/controllers/auth_controller.dart';
+import 'package:finmate/features/auth/presentation/screens/training_consent_screen.dart';
+import 'package:finmate/features/community/presentation/controllers/community_controller.dart';
 
-class ConsentItemData {
-  final String key;
-  final String title;
-  final String description;
-  final bool isRequired;
-  bool isGranted;
-  final DateTime? grantedDate;
-
-  ConsentItemData({
-    required this.key,
-    required this.title,
-    required this.description,
-    this.isRequired = false,
-    required this.isGranted,
-    this.grantedDate,
-  });
-}
-
-/// Màn H11: Quản lý Quyền đồng ý & Dữ liệu (Consent Management Screen)
+/// Màn H11: Quản lý quyền đồng ý. Trạng thái lấy từ hồ sơ người dùng (server tính), bật/tắt gọi server ngay;
+/// lỗi thì công tắc giữ nguyên. Điều khoản là bắt buộc nên không rút lại được ở đây.
 class ConsentManagementScreen extends ConsumerStatefulWidget {
   const ConsentManagementScreen({super.key});
 
@@ -34,202 +23,294 @@ class ConsentManagementScreen extends ConsumerStatefulWidget {
 }
 
 class _ConsentManagementScreenState extends ConsumerState<ConsentManagementScreen> {
-  late List<ConsentItemData> _consents = [
-    ConsentItemData(
-      key: 'terms',
-      title: 'Điều khoản sử dụng & Quy định dịch vụ',
-      description: 'Điều kiện bắt buộc để duy trì và kích hoạt tài khoản FinMate.',
-      isRequired: true,
-      isGranted: true,
-      grantedDate: DateTime(2026, 9, 1),
-    ),
-    ConsentItemData(
-      key: 'ai',
-      title: 'Tính năng Trợ lý AI FinMate',
-      description: 'Cho phép AI phân tích ngôn ngữ tự nhiên để trò chuyện và trích xuất hóa đơn.',
-      isRequired: false,
-      isGranted: true,
-      grantedDate: DateTime(2026, 9, 1),
-    ),
-    ConsentItemData(
-      key: 'training',
-      title: 'Đóng góp huấn luyện mô hình (AI Training)',
-      description: 'Dữ liệu được ẩn danh hóa tuyệt đối để cải thiện độ chính xác của AI.',
-      isRequired: false,
-      isGranted: false,
-      grantedDate: null,
-    ),
-    ConsentItemData(
-      key: 'survey',
-      title: 'Khảo sát hành vi & Phương pháp tài chính',
-      description: 'Cho phép app lưu trữ câu trả lời khảo sát để đề xuất phương pháp hũ chi tiêu.',
-      isRequired: false,
-      isGranted: true,
-      grantedDate: DateTime(2026, 9, 5),
-    ),
-    ConsentItemData(
-      key: 'community',
-      title: 'Chia sẻ trong Diễn đàn Cộng đồng',
-      description: 'Cho phép tài khoản của bạn tham gia thảo luận và đăng bài tại diễn đàn.',
-      isRequired: false,
-      isGranted: true,
-      grantedDate: DateTime(2026, 9, 10),
-    ),
-  ];
+  /// Đang gọi server cho quyền này: khóa công tắc để không bấm chồng.
+  ConsentKind? _busy;
 
-  Future<void> _toggleConsent(ConsentItemData item, bool value) async {
-    if (item.isRequired) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Đây là điều khoản bắt buộc của ứng dụng. Bạn chỉ có thể thu hồi bằng cách Xóa tài khoản.'),
-          backgroundColor: AppColors.warning,
-        ),
-      );
+  void _toast(String message) {
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _toggleAi(bool on) async {
+    setState(() => _busy = ConsentKind.ai);
+    try {
+      final auth = ref.read(authControllerProvider.notifier);
+      await (on ? auth.acceptConsent(ConsentKind.ai) : auth.withdrawConsent(ConsentKind.ai));
+      _toast(on ? 'Đã bật tính năng AI.' : 'Đã tắt tính năng AI.');
+    } on Object catch (e) {
+      _toast(errorMessage(e));
+    } finally {
+      if (mounted) setState(() => _busy = null);
+    }
+  }
+
+  Future<void> _toggleTraining(bool on) async {
+    if (on) {
+      // Màn đồng ý tự ghi đồng ý lên server khi người dùng chấp nhận.
+      await ensureTrainingConsent(context, ref);
       return;
     }
-
-    if (!value) {
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text('Thu hồi quyền "${item.title}"?'),
-          content: Text(
-            'Nếu thu hồi, tính năng liên quan sẽ bị vô hiệu hóa và dữ liệu liên kết sẽ bị xóa.',
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        title: const Text('Tắt đóng góp dữ liệu?'),
+        content: const Text('Từ giờ FinMate không thu thêm dữ liệu của bạn, và dữ liệu bạn đã đóng góp sẽ bị xóa.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialog, false), child: const Text('Hủy')),
+          TextButton(
+            onPressed: () => Navigator.pop(dialog, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.danger),
+            child: const Text('Rút lại và xóa'),
           ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              style: TextButton.styleFrom(foregroundColor: AppColors.danger),
-              child: const Text('Xác nhận thu hồi'),
-            ),
-          ],
-        ),
-      );
-      if (confirmed != true) return;
-    }
-
-    setState(() {
-      item.isGranted = value;
-    });
-
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(value ? 'Đã cấp quyền thành công.' : 'Đã thu hồi quyền thành công.'),
-        duration: const Duration(seconds: 2),
+        ],
       ),
     );
+    if (confirmed != true || !mounted) return;
+    setState(() => _busy = ConsentKind.training);
+    try {
+      await ref.read(authControllerProvider.notifier).withdrawConsent(ConsentKind.training);
+      _toast('Đã rút lại đồng ý đóng góp dữ liệu.');
+    } on Object catch (e) {
+      _toast(errorMessage(e));
+    } finally {
+      if (mounted) setState(() => _busy = null);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final auth = ref.watch(authControllerProvider);
+    final user = auth.valueOrNull;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Quyền đồng ý & Dữ liệu'),
-        leading: IconButton(
-          icon: const Icon(LucideIcons.arrowLeft),
-          onPressed: () => context.pop(),
+        title: const Text('Quản lý quyền & AI'),
+        centerTitle: true,
+        leading: Padding(
+          padding: const EdgeInsets.all(8),
+          child: LiquidGlassIconButton(icon: LucideIcons.arrowLeft, size: 40, tooltip: 'Quay lại', onPressed: () => context.pop()),
         ),
       ),
       body: AmbientGlassBackground(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+        child: user != null
+            ? _content(context, user)
+            : auth.isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _LoadError(
+                    message: auth.hasError ? errorMessage(auth.error!) : 'Không tải được thông tin tài khoản.',
+                    onRetry: () => ref.read(authControllerProvider.notifier).checkAuthStatus(),
+                  ),
+      ),
+    );
+  }
+
+  Widget _content(BuildContext context, UserProfile user) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+      children: [
+        LiquidGlassCard(
+          variant: LiquidGlassVariant.subtle,
+          padding: const EdgeInsets.all(18),
+          child: Row(
             children: [
-              // Hero Info
-              LiquidGlassCard(
-                variant: LiquidGlassVariant.subtle,
-                padding: const EdgeInsets.all(18),
-                child: Row(
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(color: AppColors.safe.withValues(alpha: 0.15), shape: BoxShape.circle),
+                child: const Icon(LucideIcons.shieldCheck, color: AppColors.safe, size: 24),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: AppColors.safe.withValues(alpha: 0.15),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(LucideIcons.shieldCheck, color: AppColors.safe, size: 24),
+                    Text('MINH BẠCH TUYỆT ĐỐI', style: AppTypography.sectionLabel(context)),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Bạn có toàn quyền kiểm soát, bật hoặc thu hồi sự đồng ý đối với dữ liệu của mình bất cứ lúc nào.',
+                      style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w600, fontSize: 14),
                     ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Minh bạch & Quyền riêng tư',
-                            style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w700),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Bạn có toàn quyền kiểm soát cách FinMate sử dụng dữ liệu của mình bất cứ lúc nào.',
-                            style: AppTypography.caption(context).copyWith(fontSize: 12),
-                          ),
-                        ],
-                      ),
+                    const SizedBox(height: 6),
+                    Text('Bản v${ConsentVersions.terms}', style: AppTypography.caption(context).copyWith(fontSize: 12)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+        Row(
+          children: [
+            Expanded(child: Text('Cài đặt sự đồng ý', style: AppTypography.h2(context).copyWith(fontSize: 18, fontWeight: FontWeight.w700))),
+            Text('4 mục cấu hình', style: AppTypography.caption(context).copyWith(fontSize: 12)),
+          ],
+        ),
+        const SizedBox(height: 12),
+        _row(
+          context,
+          switchKey: 'consent-terms',
+          title: 'Điều khoản dịch vụ & Chính sách',
+          description: 'Bắt buộc để sử dụng dịch vụ và đảm bảo tính pháp lý giao dịch tài chính. Chỉ thu hồi được bằng cách Xóa tài khoản.',
+          granted: user.termsAccepted,
+          onChanged: null,
+          badge: 'Bắt buộc',
+          onText: 'Đã đồng ý',
+          offText: 'Chưa đồng ý',
+        ),
+        _row(
+          context,
+          switchKey: 'consent-ai',
+          title: 'Tính năng Trợ lý AI FinMate',
+          description: 'Cho phép gửi tên món và cụm sản phẩm (đã bỏ số tiền) cho dịch vụ AI để trò chuyện và phân loại hóa đơn.',
+          granted: user.aiConsentGranted,
+          onChanged: _busy == null ? _toggleAi : null,
+        ),
+        _row(
+          context,
+          switchKey: 'consent-training',
+          title: 'Đóng góp huấn luyện mô hình (AI Training)',
+          description: 'Chữ hóa đơn đã ẩn thông tin cá nhân được dùng để cải thiện độ chính xác của AI. Tắt thì dữ liệu đã đóng góp bị xóa.',
+          granted: user.trainingConsentGranted,
+          onChanged: _busy == null ? _toggleTraining : null,
+          onText: 'Đang đóng góp',
+          offText: 'Chưa kích hoạt',
+        ),
+        _communityRow(context),
+        const SizedBox(height: 4),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(color: AppColors.warning.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(16)),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(LucideIcons.info, size: 20, color: AppColors.warning),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Lưu ý khi thu hồi quyền', style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w800, fontSize: 14)),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Khi tắt trợ lý AI, các tính năng dùng AI như trò chuyện và phân loại hóa đơn sẽ tạm ngừng. Tắt đóng góp dữ liệu sẽ xóa dữ liệu bạn đã đóng góp.',
+                      style: AppTypography.caption(context).copyWith(fontSize: 12.5),
                     ),
                   ],
                 ),
               ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 
-              const SizedBox(height: 24),
-
-              Text('DANH SÁCH 5 QUYỀN ĐỒNG Ý', style: AppTypography.sectionLabel(context)),
-              const SizedBox(height: 12),
-
-              for (final item in _consents) ...[
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: LiquidGlassCard(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                item.title,
-                                style: AppTypography.body(context).copyWith(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 14.5,
-                                ),
-                              ),
-                            ),
-                            Switch(
-                              value: item.isGranted,
-                              onChanged: (val) => _toggleConsent(item, val),
-                            ),
-                          ],
+  Widget _row(
+    BuildContext context, {
+    required String switchKey,
+    required String title,
+    required String description,
+    required bool granted,
+    required ValueChanged<bool>? onChanged,
+    String? badge,
+    String onText = 'Đang bật',
+    String offText = 'Chưa cấp quyền / Đã thu hồi',
+    Widget? footerAction,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: LiquidGlassCard(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Wrap(
+                    spacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text(title, style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w700, fontSize: 14.5)),
+                      if (badge != null)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(color: AppColors.secondary.withValues(alpha: 0.22), borderRadius: AppSpacing.roundedPill),
+                          child: Text(badge, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppColors.slateOn(context))),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          item.description,
-                          style: AppTypography.caption(context).copyWith(
-                            fontSize: 12.5,
-                            color: AppColors.textSecondary(context),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          item.isGranted && item.grantedDate != null
-                              ? 'Đã đồng ý ngày: ${DateFormat('dd/MM/yyyy').format(item.grantedDate!)}'
-                              : (item.isGranted ? 'Đã bật' : 'Chưa cấp quyền / Đã thu hồi'),
-                          style: AppTypography.caption(context).copyWith(
-                            fontSize: 11,
-                            color: item.isGranted ? AppColors.safe : AppColors.textMuted(context),
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
+                    ],
+                  ),
+                ),
+                Switch(key: ValueKey(switchKey), value: granted, onChanged: onChanged),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              description,
+              style: AppTypography.caption(context).copyWith(fontSize: 12.5, color: AppColors.textSecondary(context)),
+            ),
+            const Divider(height: 20),
+            Row(
+              children: [
+                Icon(granted ? LucideIcons.shieldCheck : LucideIcons.circleOff, size: 14, color: granted ? AppColors.safe : AppColors.textMuted(context)),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    granted ? onText : offText,
+                    style: AppTypography.caption(context).copyWith(
+                      fontSize: 12,
+                      color: granted ? AppColors.safe : AppColors.textMuted(context),
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
+                if (footerAction != null) footerAction,
               ],
-            ],
-          ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Quyền Cộng đồng nằm ở hồ sơ Cộng đồng (không có trong hồ sơ người dùng): chỉ hiện trạng thái, bấm để mở màn đó.
+  Widget _communityRow(BuildContext context) {
+    final profile = ref.watch(communityProfileProvider);
+    return _row(
+      context,
+      switchKey: 'consent-community',
+      title: 'Tính năng Cộng đồng FinMate',
+      description: 'Cho phép hiển thị tên hiển thị và bài viết nếu bạn tham gia thảo luận tài chính cộng đồng.',
+      granted: profile.valueOrNull?.consentGranted ?? false,
+      onChanged: null,
+      onText: 'Đã tham gia',
+      offText: profile.isLoading ? 'Đang kiểm tra...' : (profile.hasError ? 'Không tải được trạng thái' : 'Chưa tham gia'),
+      footerAction: TextButton(
+        key: const ValueKey('open-community-profile'),
+        onPressed: () => context.push('/community-profile'),
+        style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+        child: const Text('Quản lý'),
+      ),
+    );
+  }
+}
+
+class _LoadError extends StatelessWidget {
+  const _LoadError({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(message, textAlign: TextAlign.center, style: AppTypography.body(context)),
+            const SizedBox(height: 16),
+            OutlinedButton(onPressed: onRetry, child: const Text('Thử lại')),
+          ],
         ),
       ),
     );

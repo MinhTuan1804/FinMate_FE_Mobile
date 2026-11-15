@@ -9,80 +9,80 @@ class GlassTypography {
 
   static const _tabular = [FontFeature.tabularFigures()];
 
-  static TextStyle displayHero({Color color = GlassColors.textPrimary}) => GoogleFonts.inter(
+  static TextStyle displayHero({Color? color}) => GoogleFonts.inter(
         fontSize: 30,
         fontWeight: FontWeight.w700,
         height: 38 / 30,
         letterSpacing: -0.02 * 30,
-        color: color,
+        color: color ?? GlassColors.textPrimary,
         fontFeatures: _tabular,
       );
 
-  static TextStyle headlineLg({Color color = GlassColors.textPrimary}) => GoogleFonts.beVietnamPro(
+  static TextStyle headlineLg({Color? color}) => GoogleFonts.beVietnamPro(
         fontSize: 26,
         fontWeight: FontWeight.w700,
         height: 34 / 26,
         letterSpacing: -0.015 * 26,
-        color: color,
+        color: color ?? GlassColors.textPrimary,
       );
 
-  static TextStyle headlineMd({Color color = GlassColors.textPrimary}) => GoogleFonts.beVietnamPro(
+  static TextStyle headlineMd({Color? color}) => GoogleFonts.beVietnamPro(
         fontSize: 20,
         fontWeight: FontWeight.w600,
         height: 28 / 20,
         letterSpacing: -0.01 * 20,
-        color: color,
+        color: color ?? GlassColors.textPrimary,
       );
 
-  static TextStyle headlineSm({Color color = GlassColors.textPrimary}) => GoogleFonts.beVietnamPro(
+  static TextStyle headlineSm({Color? color}) => GoogleFonts.beVietnamPro(
         fontSize: 17,
         fontWeight: FontWeight.w600,
         height: 24 / 17,
-        color: color,
+        color: color ?? GlassColors.textPrimary,
       );
 
-  static TextStyle bodyLg({Color color = GlassColors.textPrimary}) => GoogleFonts.beVietnamPro(
+  static TextStyle bodyLg({Color? color}) => GoogleFonts.beVietnamPro(
         fontSize: 16,
         fontWeight: FontWeight.w400,
         height: 24 / 16,
-        color: color,
+        color: color ?? GlassColors.textPrimary,
       );
 
-  static TextStyle bodyMd({Color color = GlassColors.textSecondary}) => GoogleFonts.beVietnamPro(
+  static TextStyle bodyMd({Color? color}) => GoogleFonts.beVietnamPro(
         fontSize: 14,
         fontWeight: FontWeight.w400,
         height: 20 / 14,
-        color: color,
+        color: color ?? GlassColors.textSecondary,
       );
 
-  static TextStyle bodySm({Color color = GlassColors.textMuted}) => GoogleFonts.beVietnamPro(
+  static TextStyle bodySm({Color? color}) => GoogleFonts.beVietnamPro(
         fontSize: 12,
         fontWeight: FontWeight.w400,
         height: 16 / 12,
-        color: color,
+        color: color ?? GlassColors.textMuted,
       );
 
-  static TextStyle labelNumeric({Color color = GlassColors.textPrimary}) => GoogleFonts.inter(
+  static TextStyle labelNumeric({Color? color}) => GoogleFonts.inter(
         fontSize: 15,
         fontWeight: FontWeight.w600,
         height: 20 / 15,
         letterSpacing: -0.01 * 15,
-        color: color,
+        color: color ?? GlassColors.textPrimary,
         fontFeatures: _tabular,
       );
 
-  static TextStyle labelCaps({Color color = GlassColors.textMuted}) => GoogleFonts.inter(
+  static TextStyle labelCaps({Color? color}) => GoogleFonts.inter(
         fontSize: 11,
         fontWeight: FontWeight.w600,
         height: 14 / 11,
         letterSpacing: 0.06 * 11,
-        color: color,
+        color: color ?? GlassColors.textMuted,
       );
 
-  static TextStyle buttonText({Color color = Colors.white}) => GoogleFonts.beVietnamPro(
+  static TextStyle buttonText({Color? color}) => GoogleFonts.beVietnamPro(
         fontSize: 15,
         fontWeight: FontWeight.w600,
         height: 20 / 15,
-        color: color,
+        color: color ?? GlassColors.onInk,
       );
 }

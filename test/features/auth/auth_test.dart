@@ -154,6 +154,25 @@ class FakeAuthRepository implements IAuthRepository {
 
   bool loggedOutAll = false;
 
+  String? changedPasswordTo;
+  String? deletedWithPassword;
+
+  @override
+  Future<void> changePassword({required String currentPassword, required String newPassword}) async {
+    if (currentPassword == 'sai') throw ApiException(message: 'Mật khẩu hiện tại không đúng.', code: 'INVALID_CREDENTIALS');
+    changedPasswordTo = newPassword;
+    isAuthed = false;
+    mockUser = null;
+  }
+
+  @override
+  Future<void> deleteAccount({required String password}) async {
+    if (password == 'sai') throw ApiException(message: 'Mật khẩu không đúng.', code: 'INVALID_CREDENTIALS');
+    deletedWithPassword = password;
+    isAuthed = false;
+    mockUser = null;
+  }
+
   @override
   Future<void> logoutAllDevices() async {
     loggedOutAll = true;
@@ -240,6 +259,26 @@ void main() {
       await controller.login('test@finmate.com', 'Password123!');
       await controller.logoutAllDevices();
       expect(fakeRepo.loggedOutAll, isTrue);
+      expect(controller.state.value, isNull);
+    });
+
+    test('changePassword thành công thì đăng xuất cục bộ; sai mật khẩu hiện tại thì ném lỗi và giữ phiên', () async {
+      await controller.login('test@finmate.com', 'Password123!');
+      await expectLater(controller.changePassword(currentPassword: 'sai', newPassword: 'MatKhauMoi123'), throwsA(isA<ApiException>()));
+      expect(controller.state.value, isNotNull);
+
+      await controller.changePassword(currentPassword: 'Password123!', newPassword: 'MatKhauMoi123');
+      expect(fakeRepo.changedPasswordTo, 'MatKhauMoi123');
+      expect(controller.state.value, isNull);
+    });
+
+    test('deleteAccount thành công thì đăng xuất cục bộ; sai mật khẩu thì ném lỗi và giữ phiên', () async {
+      await controller.login('test@finmate.com', 'Password123!');
+      await expectLater(controller.deleteAccount(password: 'sai'), throwsA(isA<ApiException>()));
+      expect(controller.state.value, isNotNull);
+
+      await controller.deleteAccount(password: 'Password123!');
+      expect(fakeRepo.deletedWithPassword, 'Password123!');
       expect(controller.state.value, isNull);
     });
 

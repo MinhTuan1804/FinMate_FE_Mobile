@@ -44,9 +44,9 @@ class _CategoryReportScreenState extends ConsumerState<CategoryReportScreen> {
               Container(
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  color: AppColors.surfaceLightSubtle.withValues(alpha: 0.7),
+                  color: AppColors.surfaceSubtle(context).withValues(alpha: 0.7),
                   borderRadius: AppSpacing.roundedPill,
-                  border: Border.all(color: AppColors.borderLight, width: 1),
+                  border: Border.all(color: AppColors.border(context), width: 1),
                 ),
                 child: Row(
                   children: [

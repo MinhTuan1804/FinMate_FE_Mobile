@@ -76,7 +76,12 @@ class RecommendationController extends StateNotifier<AsyncValue<RecommendationEn
       state = AsyncValue.data(await repository.getLatestRecommendation());
     } catch (e) {
       if (e is ApiException && e.code == 'NOT_FOUND') {
-        state = const AsyncValue.data(null);
+        // Chưa có gợi ý nào: tự tạo từ khảo sát đã nộp (nộp khảo sát không tự tạo gợi ý). 422 = chưa làm khảo sát → giữ "chưa có".
+        try {
+          state = AsyncValue.data(await repository.generateRecommendation());
+        } catch (_) {
+          state = const AsyncValue.data(null);
+        }
       } else {
         state = AsyncValue.error(e, StackTrace.current);
       }

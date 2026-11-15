@@ -113,7 +113,7 @@ class AccountsScreen extends ConsumerWidget {
                   children: [
                     Row(
                       children: [
-                        const Icon(LucideIcons.wallet, color: AppColors.primary, size: 22),
+                        Icon(LucideIcons.wallet, color: AppColors.primaryAction(context), size: 22),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Column(

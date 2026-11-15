@@ -10,6 +10,7 @@ RouteAdapter _adapter({
   String catalogFixture = 'finance_methods_catalog',
   String? latestRecommendationFixture,
   String generateRecommendationFixture = 'finance_recommendation',
+  int generateStatus = 200,
   String skipRecommendationFixture = 'finance_recommendation_skipped',
   String chooseMethodFixture = 'my_method_chosen',
   String goalSuggestionsFixture = 'goal_suggestions',
@@ -21,7 +22,7 @@ RouteAdapter _adapter({
           : respondFixture(latestRecommendationFixture);
     }
     if (o.path.contains('/skip')) return respondFixture(skipRecommendationFixture);
-    if (o.path.contains('/recommendations') && o.method == 'POST') return respondFixture(generateRecommendationFixture);
+    if (o.path.contains('/recommendations') && o.method == 'POST') return respondFixture(generateRecommendationFixture, status: generateStatus);
     if (o.path.contains('/finance-methods') && o.method == 'GET') return respondFixture(catalogFixture);
     if (o.path.contains('/me/methods') && o.method == 'POST') return respondFixture(chooseMethodFixture);
     if (o.path.contains('/goal-suggestions')) return respondFixture(goalSuggestionsFixture);
@@ -42,8 +43,8 @@ Future<void> _pump(WidgetTester tester, RouteAdapter adapter) async {
 
 void main() {
   group('RecommendationsScreen (B4)', () {
-    testWidgets('hiện catalog, chưa có gợi ý, mẫu mục tiêu', (tester) async {
-      await _pump(tester, _adapter());
+    testWidgets('hiện catalog, chưa làm khảo sát (422) nên chưa có gợi ý, mẫu mục tiêu', (tester) async {
+      await _pump(tester, _adapter(generateRecommendationFixture: 'finance_recommendation_not_found', generateStatus: 422));
 
       expect(find.byKey(const ValueKey('method-catalog-category_budget')), findsOneWidget);
       expect(find.byKey(const ValueKey('method-choose-primary-category_budget')), findsOneWidget);
@@ -53,6 +54,13 @@ void main() {
 
       expect(find.text('Chưa có gợi ý nào.'), findsOneWidget);
       expect(find.byKey(const ValueKey('goal-suggestion-emergency_fund')), findsOneWidget);
+    });
+
+    testWidgets('chưa có gợi ý (404) nhưng đã có khảo sát: tự tạo và hiện luôn', (tester) async {
+      await _pump(tester, _adapter());
+
+      expect(find.byKey(const ValueKey('method-recommendation-result')), findsOneWidget);
+      expect(find.text('Chưa có gợi ý nào.'), findsNothing);
     });
 
     testWidgets('tạo gợi ý mới: hiện cách chính, lý do và nút bỏ qua', (tester) async {

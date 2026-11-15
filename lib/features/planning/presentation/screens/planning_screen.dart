@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:finmate/core/format/money.dart';
@@ -13,6 +14,7 @@ import 'package:finmate/features/categories/presentation/category_icons.dart';
 import 'package:finmate/features/planning/domain/entities/budget_entity.dart';
 import 'package:finmate/features/planning/domain/entities/savings_goal_entity.dart';
 import 'package:finmate/features/planning/presentation/controllers/planning_controller.dart';
+import 'package:finmate/shared/widgets/glass/main_bottom_nav.dart';
 
 class PlanningScreen extends ConsumerStatefulWidget {
   const PlanningScreen({super.key});
@@ -178,17 +180,26 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> with SingleTick
     return Scaffold(
       appBar: AppBar(
         title: const Text('Kế hoạch tài chính'),
+        actions: [
+          IconButton(
+            key: const ValueKey('open-recurring'),
+            tooltip: 'Giao dịch định kỳ',
+            icon: const Icon(LucideIcons.repeat),
+            onPressed: () => context.push('/planning/recurring'),
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
-          labelColor: AppColors.primary,
+          labelColor: AppColors.primaryAction(context),
           unselectedLabelColor: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-          indicatorColor: AppColors.primary,
+          indicatorColor: AppColors.primaryAction(context),
           tabs: const [
             Tab(icon: Icon(LucideIcons.wallet, size: 18), text: 'Hạn mức ngân sách'),
             Tab(icon: Icon(LucideIcons.piggyBank, size: 18), text: 'Mục tiêu tiết kiệm'),
           ],
         ),
       ),
+      bottomNavigationBar: const MainBottomNav(currentIndex: 2),
       body: state.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, _) => Center(
@@ -298,8 +309,8 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> with SingleTick
           ElevatedButton(
             onPressed: () => _addOrEditBudget(planning, total: true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
+              backgroundColor: AppColors.primaryAction(context),
+              foregroundColor: AppColors.onPrimaryAction(context),
               shape: const RoundedRectangleBorder(borderRadius: AppSpacing.roundedPill),
             ),
             child: const Text('Tạo ngân sách tháng'),
@@ -335,12 +346,12 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> with SingleTick
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.15),
+                    color: AppColors.primaryAction(context).withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
                     'Còn ${planning.daysRemainingInMonth} ngày',
-                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.primary),
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.primaryAction(context)),
                   ),
                 ),
               ],
@@ -454,8 +465,8 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> with SingleTick
                 icon: const Icon(LucideIcons.plus, size: 16),
                 label: const Text('Mục tiêu mới'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
+                  backgroundColor: AppColors.primaryAction(context),
+                  foregroundColor: AppColors.onPrimaryAction(context),
                   shape: const RoundedRectangleBorder(borderRadius: AppSpacing.roundedPill),
                 ),
               ),
@@ -562,6 +573,12 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> with SingleTick
                 key: ValueKey('goal-detail-${goal.id}'),
                 onPressed: () => _showGoalDetail(goal),
                 child: const Text('Xem tiến độ'),
+              ),
+              IconButton(
+                key: ValueKey('goal-screen-${goal.id}'),
+                tooltip: 'Chi tiết mục tiêu',
+                icon: const Icon(LucideIcons.chevronRight, size: 20),
+                onPressed: () => context.push('/planning/goal', extra: goal),
               ),
               IconButton(
                 key: ValueKey('edit-goal-${goal.id}'),

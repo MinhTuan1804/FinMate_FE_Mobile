@@ -52,53 +52,65 @@ class GlassBottomNav extends StatelessWidget {
   Widget _tab(BuildContext context, int index) {
     final tab = _tabs[index];
     final selected = index == currentIndex;
-    return InkWell(
-      borderRadius: BorderRadius.circular(999),
-      onTap: () => onDestinationSelected(index),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: selected ? GlassColors.ink : Colors.transparent,
-          borderRadius: BorderRadius.circular(999),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(tab.icon, size: 20, color: selected ? Colors.white : GlassColors.textMuted),
-            const SizedBox(height: 2),
-            Text(
-              tab.label,
-              style: GlassTypography.labelCaps(color: selected ? Colors.white : GlassColors.textMuted).copyWith(fontSize: 10, fontWeight: FontWeight.w600),
-            ),
-          ],
+    // Expanded: 4 tab + nút giữa chia đều bề rộng nên không tràn ở máy 360dp; nhãn tự co nếu hẹp
+    return Expanded(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(999),
+        onTap: () => onDestinationSelected(index),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+          decoration: BoxDecoration(
+            color: selected ? GlassColors.ink : Colors.transparent,
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(tab.icon, size: 20, color: selected ? GlassColors.onInk : GlassColors.textMuted),
+              const SizedBox(height: 2),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  tab.label,
+                  maxLines: 1,
+                  style: GlassTypography.labelCaps(color: selected ? GlassColors.onInk : GlassColors.textMuted).copyWith(fontSize: 10, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _scanButton(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(999),
-      onTap: () => onDestinationSelected(-1),
-      child: Transform.translate(
-        offset: const Offset(0, -14),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                color: GlassColors.ink,
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white.withValues(alpha: 0.9), width: 4),
-                boxShadow: [GlassColors.level2Shadow()],
+    return Expanded(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(999),
+        onTap: () => onDestinationSelected(-1),
+        child: Transform.translate(
+          offset: const Offset(0, -14),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: GlassColors.ink,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: GlassColors.glassInnerHighlight, width: 4),
+                  boxShadow: [GlassColors.level2Shadow()],
+                ),
+                child: Icon(LucideIcons.scanLine, color: GlassColors.onInk, size: 22),
               ),
-              child: const Icon(LucideIcons.scanLine, color: Colors.white, size: 22),
-            ),
-            const SizedBox(height: 2),
-            Text('Quét QR', style: GlassTypography.labelCaps(color: GlassColors.textPrimary).copyWith(fontSize: 10, fontWeight: FontWeight.w600)),
-          ],
+              const SizedBox(height: 2),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text('Quét QR', maxLines: 1, style: GlassTypography.labelCaps(color: GlassColors.textPrimary).copyWith(fontSize: 10, fontWeight: FontWeight.w600)),
+              ),
+            ],
+          ),
         ),
       ),
     );

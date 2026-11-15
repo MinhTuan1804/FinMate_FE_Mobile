@@ -52,7 +52,7 @@ class GlassNotificationCard extends StatelessWidget {
                     child: Container(
                       width: 10,
                       height: 10,
-                      decoration: const BoxDecoration(color: GlassColors.danger, shape: BoxShape.circle),
+                      decoration: BoxDecoration(color: GlassColors.danger, shape: BoxShape.circle),
                     ),
                   ),
               ],
@@ -72,7 +72,7 @@ class GlassNotificationCard extends StatelessWidget {
             ),
             if (onDismiss != null)
               IconButton(
-                icon: const Icon(Icons.close, size: 18, color: GlassColors.textMuted),
+                icon: Icon(Icons.close, size: 18, color: GlassColors.textMuted),
                 onPressed: onDismiss,
               ),
           ],

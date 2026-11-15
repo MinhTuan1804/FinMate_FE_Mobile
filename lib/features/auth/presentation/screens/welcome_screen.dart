@@ -33,8 +33,8 @@ class WelcomeScreen extends StatelessWidget {
                       color: GlassColors.ink,
                       borderRadius: BorderRadius.circular(28),
                     ),
-                    child: const Center(
-                      child: Icon(LucideIcons.wallet, size: 36, color: Colors.white),
+                    child: Center(
+                      child: Icon(LucideIcons.wallet, size: 36, color: GlassColors.onInk),
                     ),
                   ),
                 ),
@@ -51,7 +51,7 @@ class WelcomeScreen extends StatelessWidget {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(LucideIcons.shieldCheck, size: 22, color: GlassColors.success),
+                      Icon(LucideIcons.shieldCheck, size: 22, color: GlassColors.success),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
@@ -70,7 +70,7 @@ class WelcomeScreen extends StatelessWidget {
                             const SizedBox(height: 10),
                             Row(
                               children: [
-                                const Icon(LucideIcons.lock, size: 13, color: GlassColors.textMuted),
+                                Icon(LucideIcons.lock, size: 13, color: GlassColors.textMuted),
                                 const SizedBox(width: 6),
                                 Text('Tiêu chuẩn bảo mật ngân hàng 256-bit', style: GlassTypography.bodySm()),
                               ],

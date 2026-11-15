@@ -8,6 +8,7 @@ import 'package:finmate/features/auth/domain/entities/user_profile.dart';
 import 'package:finmate/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:finmate/features/profile/presentation/screens/profile_screen.dart';
 import '../auth/consent_fakes.dart';
+import '../../fixtures/fixture.dart';
 
 class MockAuthController extends StateNotifier<AsyncValue<UserProfile?>> implements AuthController {
   int logouts = 0;
@@ -49,6 +50,13 @@ void main() {
       overrides: [
         authControllerProvider.overrideWith((ref) => controller ?? auth),
         databaseProvider.overrideWithValue(db),
+        // Màn đọc thêm danh sách ví, ngưỡng cảnh báo và gói đăng ký: trả fixture thay vì gọi mạng thật.
+        apiClientProvider.overrideWithValue(testApiClient(RouteAdapter((o) {
+          if (o.path.contains('/financial-accounts')) return respondFixture('accounts');
+          if (o.path.contains('/alert-thresholds')) return respondFixture('alert_thresholds');
+          if (o.path.contains('/subscriptions/me')) return respondFixture('subscriptions_me');
+          return respondJson({'success': true, 'data': null});
+        }))),
       ],
       child: MaterialApp.router(
         routerConfig: GoRouter(initialLocation: '/profile', routes: [
@@ -69,6 +77,53 @@ void main() {
     expect(find.textContaining('XP'), findsNothing);
     expect(find.text('TỦ ĐỒ LINH VẬT FINNY'), findsNothing);
     expect(find.text('Đăng xuất tài khoản'), findsOneWidget);
+  });
+
+  testWidgets('hiện thu nhập dự kiến, ví đã liên kết, ngưỡng cảnh báo và số quyền đồng ý đang bật từ dữ liệu thật', (tester) async {
+    final withIncome = UserProfile(
+      id: 'u1',
+      email: 'probe@example.com',
+      displayName: 'Probe',
+      monthlyIncomeCents: 35000000,
+      isEmailVerified: true,
+      notificationPrefs: NotificationPrefs.defaultPrefs(),
+      createdAt: DateTime(2026),
+      termsAccepted: true,
+      aiConsentGranted: true,
+    );
+    await pumpProfile(tester, controller: MockAuthController(AsyncValue.data(withIncome)));
+
+    expect(find.text('Cài đặt & Tài khoản'), findsOneWidget);
+    expect(find.text('35.000.000 ₫/tháng'), findsOneWidget);
+    expect(find.text('Nhắc ở 70% và 90%'), findsOneWidget);
+    expect(find.textContaining('tài khoản đã liên kết'), findsOneWidget);
+    expect(find.text('2/3 đang bật'), findsOneWidget);
+    expect(find.text('PRO'), findsNothing, reason: 'gói miễn phí không có huy hiệu');
+  });
+
+  testWidgets('ở 360dp với tên và thu nhập dài không tràn bố cục', (tester) async {
+    final longName = UserProfile(
+      id: 'u1',
+      email: 'ten.rat.dai.cua.nguoi.dung@example.com',
+      displayName: 'Nguyễn Văn Một Cái Tên Rất Là Dài',
+      monthlyIncomeCents: 1234567890,
+      isEmailVerified: true,
+      notificationPrefs: NotificationPrefs.defaultPrefs(),
+      createdAt: DateTime(2026),
+    );
+    await pumpProfile(tester, controller: MockAuthController(AsyncValue.data(longName)));
+    tester.view.physicalSize = const Size(360, 2400);
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('chưa đặt thu nhập thì ghi "Chưa đặt", không bịa số; chế độ giao diện đổi được', (tester) async {
+    await pumpProfile(tester);
+    expect(find.text('Chưa đặt'), findsOneWidget);
+
+    await tester.tap(find.text('Tối'));
+    await tester.pumpAndSettle();
+    expect(tester.widget<SegmentedButton<ThemeMode>>(find.byKey(const ValueKey('theme-mode'))).selected, {ThemeMode.dark});
   });
 
   testWidgets('đăng xuất khi còn giao dịch chưa gửi: hỏi xác nhận, Hủy thì không đăng xuất', (tester) async {
@@ -95,124 +150,9 @@ void main() {
     expect(find.text('WELCOME'), findsOneWidget);
   });
 
-  bool switchValue(WidgetTester tester, String key) =>
-      tester.widget<Switch>(find.descendant(of: find.byKey(ValueKey(key)), matching: find.byType(Switch))).value;
-
-  testWidgets('phân loại bằng AI: công tắc riêng, bật sẵn sau khi đồng ý Điều khoản; đóng góp dữ liệu là công tắc khác', (tester) async {
-    final repo = ConsentRepo(consentTestUser(terms: true, ai: true));
-    await pumpProfile(tester, controller: AuthController(repository: repo));
-
-    expect(find.byType(SwitchListTile), findsNWidgets(2));
-    expect(switchValue(tester, 'ai-consent-switch'), isTrue);
-    expect(switchValue(tester, 'training-consent-switch'), isFalse);
-    expect(find.textContaining('Đang bật'), findsWidgets);
-    expect(find.text('Rút lại đồng ý'), findsNothing);
-  });
-
-  testWidgets('tắt AI: gọi server ngay (không hỏi lại), công tắc tắt; bật lại thì ghi đồng ý AI, không qua màn nào', (tester) async {
-    final repo = ConsentRepo(consentTestUser(terms: true, ai: true));
-    await pumpProfile(tester, controller: AuthController(repository: repo));
-
-    await tester.tap(find.byKey(const ValueKey('ai-consent-switch')));
-    await tester.pumpAndSettle();
-    expect(repo.calls, ['withdraw:ai']);
-    expect(switchValue(tester, 'ai-consent-switch'), isFalse);
-    expect(find.textContaining('Đang tắt'), findsWidgets);
-
-    await tester.tap(find.byKey(const ValueKey('ai-consent-switch')));
-    await tester.pumpAndSettle();
-    expect(repo.calls, ['withdraw:ai', 'accept:ai']);
-    expect(switchValue(tester, 'ai-consent-switch'), isTrue);
-  });
-
-  testWidgets('tắt AI bị lỗi mạng: báo lỗi và công tắc vẫn bật (không giả vờ đã tắt)', (tester) async {
-    final repo = ConsentRepo(consentTestUser(terms: true, ai: true))..failNext = true;
-    await pumpProfile(tester, controller: AuthController(repository: repo));
-
-    await tester.tap(find.byKey(const ValueKey('ai-consent-switch')));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Không lưu được, thử lại nhé'), findsOneWidget);
-    expect(switchValue(tester, 'ai-consent-switch'), isTrue);
-  });
-
-  testWidgets('đóng góp dữ liệu: mặc định tắt; bật phải qua màn đồng ý, rồi công tắc bật', (tester) async {
-    final repo = ConsentRepo(consentTestUser(terms: true));
-    await pumpProfile(tester, controller: AuthController(repository: repo));
-    final toggle = find.byKey(const ValueKey('training-consent-switch'));
-    expect(tester.widget<Switch>(find.descendant(of: toggle, matching: find.byType(Switch))).value, isFalse);
-
-    await tester.tap(toggle);
-    await tester.pumpAndSettle();
-    expect(repo.calls, isEmpty); // chưa ghi gì: đang ở màn đồng ý
-    expect(find.textContaining('Tôi đồng ý đóng góp'), findsOneWidget);
-    await tester.tap(find.byType(Checkbox));
-    await tester.pump();
-    await tester.tap(find.widgetWithText(FilledButton, 'Đồng ý và tiếp tục'));
-    await tester.pumpAndSettle();
-
-    expect(repo.calls, ['accept:training']);
-    expect(tester.widget<Switch>(find.descendant(of: toggle, matching: find.byType(Switch))).value, isTrue);
-  });
-
-  testWidgets('đóng góp dữ liệu: "Để sau" ở màn đồng ý thì công tắc vẫn tắt', (tester) async {
-    final repo = ConsentRepo(consentTestUser(terms: true));
-    await pumpProfile(tester, controller: AuthController(repository: repo));
-    final toggle = find.byKey(const ValueKey('training-consent-switch'));
-
-    await tester.tap(toggle);
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Để sau'));
-    await tester.pumpAndSettle();
-
-    expect(repo.calls, isEmpty);
-    expect(tester.widget<Switch>(find.descendant(of: toggle, matching: find.byType(Switch))).value, isFalse);
-  });
-
-  testWidgets('đóng góp dữ liệu đang bật: tắt có hỏi xác nhận (nói rõ dữ liệu bị xóa) rồi gọi server', (tester) async {
-    final repo = ConsentRepo(consentTestUser(terms: true, training: true));
-    await pumpProfile(tester, controller: AuthController(repository: repo));
-    final toggle = find.byKey(const ValueKey('training-consent-switch'));
-
-    await tester.tap(toggle);
-    await tester.pumpAndSettle();
-    expect(find.textContaining('dữ liệu bạn đã đóng góp sẽ bị xóa'), findsOneWidget);
-    await tester.tap(find.text('Hủy'));
-    await tester.pumpAndSettle();
-    expect(repo.calls, isEmpty);
-
-    await tester.tap(toggle);
-    await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(TextButton, 'Rút lại và xóa'));
-    await tester.pumpAndSettle();
-
-    expect(repo.calls, ['withdraw:training']);
-    expect(tester.widget<Switch>(find.descendant(of: toggle, matching: find.byType(Switch))).value, isFalse);
-  });
-
-  testWidgets('rút lại đóng góp dữ liệu bị lỗi mạng: báo lỗi và công tắc vẫn bật (không giả vờ đã rút)', (tester) async {
-    final repo = ConsentRepo(consentTestUser(terms: true, training: true))..failNext = true;
-    await pumpProfile(tester, controller: AuthController(repository: repo));
-    final toggle = find.byKey(const ValueKey('training-consent-switch'));
-
-    await tester.tap(toggle);
-    await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(TextButton, 'Rút lại và xóa'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Không lưu được, thử lại nhé'), findsOneWidget);
-    expect(tester.widget<Switch>(find.descendant(of: toggle, matching: find.byType(Switch))).value, isTrue);
-  });
-
-  testWidgets('đóng góp dữ liệu độc lập với đồng ý AI: bật AI không bật nó, rút AI không tắt nó', (tester) async {
-    final repo = ConsentRepo(consentTestUser(terms: true, ai: true, training: true));
-    await pumpProfile(tester, controller: AuthController(repository: repo));
-    final toggle = find.byKey(const ValueKey('training-consent-switch'));
-
-    await tester.tap(find.byKey(const ValueKey('ai-consent-switch')));
-    await tester.pumpAndSettle();
-
-    expect(repo.calls, ['withdraw:ai']);
-    expect(tester.widget<Switch>(find.descendant(of: toggle, matching: find.byType(Switch))).value, isTrue);
+  testWidgets('Hồ sơ không còn công tắc quyền riêng tư; rút lại đồng ý nằm ở "Quyền đồng ý"', (tester) async {
+    await pumpProfile(tester, controller: AuthController(repository: ConsentRepo(consentTestUser(terms: true, ai: true, training: true))));
+    expect(find.byKey(const ValueKey('ai-consent-switch')), findsNothing);
+    expect(find.byKey(const ValueKey('training-consent-switch')), findsNothing);
   });
 }

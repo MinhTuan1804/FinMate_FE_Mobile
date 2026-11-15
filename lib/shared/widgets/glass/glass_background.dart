@@ -14,7 +14,7 @@ class GlassBackground extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: const BoxDecoration(gradient: GlassColors.canvasGradient),
+      decoration: BoxDecoration(gradient: GlassColors.canvasGradient),
       child: Stack(
         children: [
           if (showAurora) ...[

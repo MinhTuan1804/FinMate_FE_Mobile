@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:finmate/core/format/money.dart';
@@ -26,6 +27,14 @@ class QrHistoryScreen extends StatelessWidget {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Lịch sử quét QR'),
+          actions: [
+            IconButton(
+              key: const ValueKey('open-saved-counterparties'),
+              tooltip: 'Người nhận đã lưu',
+              icon: const Icon(LucideIcons.bookUser),
+              onPressed: () => context.push('/qr-counterparties'),
+            ),
+          ],
           bottom: TabBar(
             indicatorColor: actionColor,
             labelColor: actionColor,

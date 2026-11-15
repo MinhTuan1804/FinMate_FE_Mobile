@@ -3,261 +3,293 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:finmate/core/format/money.dart';
+import 'package:finmate/core/network/api_exceptions.dart';
 import 'package:finmate/core/theme/app_colors.dart';
 import 'package:finmate/core/theme/app_spacing.dart';
 import 'package:finmate/core/theme/app_typography.dart';
 import 'package:finmate/core/widgets/glass/liquid_glass.dart';
+import 'package:finmate/features/forecast/domain/forecast.dart';
+import 'package:finmate/features/forecast/presentation/controllers/forecast_controller.dart';
 
-class SpendingAnomaly {
-  final String id;
-  final String title;
-  final String description;
-  final BigInt amountCents;
-  final DateTime date;
-  final String category;
-  final double variancePercent;
-  bool? isHelpful;
+final _timeFormat = DateFormat('HH:mm - dd/MM');
 
-  SpendingAnomaly({
-    required this.id,
-    required this.title,
-    required this.description,
-    required this.amountCents,
-    required this.date,
-    required this.category,
-    required this.variancePercent,
-    this.isHelpful,
-  });
+String _kindTitle(AnomalyEntity a) {
+  final merchant = a.merchantName;
+  return switch (a.kind) {
+    'category_spike' => 'Chi tiêu danh mục cao bất thường',
+    'merchant_spike' => merchant == null ? 'Chi tiêu cao bất thường' : 'Chi tiêu tại $merchant cao bất thường',
+    'duplicate' => 'Giao dịch có thể bị ghi trùng',
+    _ => a.kind,
+  };
 }
 
-/// Màn F4: Cảnh báo và phát hiện bất thường chi tiêu (Spending Anomalies Screen)
-class SpendingAnomaliesScreen extends ConsumerStatefulWidget {
+String _resolutionLabel(String value) => switch (value) {
+      'normal' => 'Bình thường',
+      'one_off' => 'Chi một lần',
+      'wrong_entry' => 'Nhập sai',
+      'suspicious' => 'Giao dịch lạ',
+      _ => value,
+    };
+
+/// Màn F4: Cảnh báo dự báo và khoản chi bất thường, dữ liệu thật từ `/api/v1/forecast/*`.
+class SpendingAnomaliesScreen extends ConsumerWidget {
   const SpendingAnomaliesScreen({super.key});
 
-  @override
-  ConsumerState<SpendingAnomaliesScreen> createState() => _SpendingAnomaliesScreenState();
-}
-
-class _SpendingAnomaliesScreenState extends ConsumerState<SpendingAnomaliesScreen> {
-  final List<SpendingAnomaly> _anomalies = [
-    SpendingAnomaly(
-      id: 'a1',
-      title: 'Chi tiêu Ăn uống đột biến',
-      description: 'Giao dịch 450.000 ₫ tại Nhà hàng lẩu cao hơn 180% so với mức trung bình bữa tối thường ngày của bạn.',
-      amountCents: BigInt.from(450000),
-      date: DateTime.now().subtract(const Duration(hours: 18)),
-      category: 'Ăn uống',
-      variancePercent: 180,
-    ),
-    SpendingAnomaly(
-      id: 'a2',
-      title: 'Khoản trừ phí đăng ký bất thường',
-      description: 'Phát hiện khoản trừ 249.000 ₫ cho dịch vụ phần mềm chưa từng xuất hiện trong lịch sử 3 tháng qua.',
-      amountCents: BigInt.from(249000),
-      date: DateTime.now().subtract(const Duration(days: 2)),
-      category: 'Dịch vụ mạng',
-      variancePercent: 100,
-    ),
-    SpendingAnomaly(
-      id: 'a3',
-      title: 'Tần suất mua sắm dày đặc',
-      description: 'Bạn đã thực hiện 5 giao dịch mua sắm thương mại điện tử trong vòng 48 giờ.',
-      amountCents: BigInt.from(1280000),
-      date: DateTime.now().subtract(const Duration(days: 4)),
-      category: 'Mua sắm',
-      variancePercent: 95,
-    ),
-  ];
-
-  void _rateFeedback(String id, bool helpful) {
-    setState(() {
-      final index = _anomalies.indexWhere((a) => a.id == id);
-      if (index != -1) {
-        _anomalies[index].isHelpful = helpful;
+  Future<void> _anomalyFeedback(BuildContext context, WidgetRef ref, String id, String resolution) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final result = await ref.read(anomaliesControllerProvider.notifier).sendFeedback(id, resolution);
+      if (result.guidance != null && context.mounted) {
+        await showDialog<void>(
+          context: context,
+          builder: (dialog) => AlertDialog(
+            title: const Text('Giao dịch lạ'),
+            content: Text(result.guidance!),
+            actions: [TextButton(onPressed: () => Navigator.pop(dialog), child: const Text('Đã hiểu'))],
+          ),
+        );
+      } else {
+        messenger.showSnackBar(const SnackBar(content: Text('Đã ghi nhận phản hồi của bạn.')));
       }
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(helpful ? 'Cảm ơn phản hồi của bạn!' : 'FinMate đã ghi nhận và sẽ điều chỉnh thuật toán.'),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    } on Object catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(errorMessage(e))));
+    }
+  }
+
+  Future<void> _alertFeedback(BuildContext context, WidgetRef ref, String id) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref.read(forecastAlertsControllerProvider.notifier).markInaccurate(id);
+    } on Object catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(errorMessage(e))));
+    }
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final anomalies = ref.watch(anomaliesControllerProvider);
+    final alerts = ref.watch(forecastAlertsControllerProvider);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Cảnh báo & Bất thường'),
         leading: IconButton(
           icon: const Icon(LucideIcons.arrowLeft),
+          tooltip: 'Quay lại',
           onPressed: () => context.pop(),
         ),
       ),
       body: AmbientGlassBackground(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 14, 20, 32),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+        child: RefreshIndicator(
+          onRefresh: () async {
+            await Future.wait([
+              ref.read(anomaliesControllerProvider.notifier).load(),
+              ref.read(forecastAlertsControllerProvider.notifier).load(),
+            ]);
+          },
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 32),
             children: [
-              // Header Summary Card
-              ZenvestHeroDeck(
-                peekBadgeText: 'ANOMALY',
-                child: LiquidGlassCard(
-                  variant: LiquidGlassVariant.iridescentHero,
-                  padding: const EdgeInsets.all(20),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: AppColors.warning.withValues(alpha: 0.16),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(LucideIcons.triangleAlert, color: AppColors.warning, size: 24),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Phát hiện ${_anomalies.length} bất thường',
-                              style: AppTypography.h2(context).copyWith(fontSize: 16),
-                            ),
-                            const SizedBox(height: 3),
-                            Text(
-                              'Hệ thống đối chiếu lịch sử để bảo vệ ngân sách của bạn kịp thời.',
-                              style: AppTypography.caption(context),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
+              _summary(context, anomalies),
               const SizedBox(height: 20),
+              Text('KHOẢN CHI BẤT THƯỜNG', style: AppTypography.sectionLabel(context)),
+              const SizedBox(height: 12),
+              _section<AnomalyEntity>(
+                context: context,
+                async: anomalies,
+                emptyText: 'Không có khoản chi bất thường nào cần xem.',
+                onRetry: () => ref.invalidate(anomaliesControllerProvider),
+                builder: (a) => _anomalyCard(context, ref, a),
+              ),
+              const SizedBox(height: 20),
+              Text('CẢNH BÁO DỰ BÁO', style: AppTypography.sectionLabel(context)),
+              const SizedBox(height: 12),
+              _section<ForecastAlertEntity>(
+                context: context,
+                async: alerts,
+                emptyText: 'Chưa có cảnh báo dự báo nào.',
+                onRetry: () => ref.invalidate(forecastAlertsControllerProvider),
+                builder: (a) => _alertCard(context, ref, a),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
-              for (final item in _anomalies) ...[
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 14),
-                  child: LiquidGlassCard(
-                    padding: const EdgeInsets.all(18),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: AppColors.danger.withValues(alpha: 0.12),
-                                borderRadius: AppSpacing.roundedPill,
-                              ),
-                              child: Text(
-                                '+${item.variancePercent.toInt()}% so với kỳ vọng',
-                                style: const TextStyle(
-                                  color: AppColors.danger,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                            const Spacer(),
-                            Text(
-                              DateFormat('HH:mm - dd/MM').format(item.date),
-                              style: AppTypography.caption(context).copyWith(fontSize: 11.5),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          item.title,
-                          style: AppTypography.body(context).copyWith(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 15,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          item.description,
-                          style: AppTypography.caption(context).copyWith(
-                            fontSize: 13,
-                            color: AppColors.textSecondary(context),
-                            height: 1.4,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              formatVnd(item.amountCents),
-                              style: AppTypography.displayBalance(context).copyWith(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.danger,
-                              ),
-                            ),
-                            Row(
-                              children: [
-                                Text(
-                                  'Hữu ích?',
-                                  style: AppTypography.caption(context).copyWith(fontSize: 12),
-                                ),
-                                const SizedBox(width: 8),
-                                InkWell(
-                                  onTap: () => _rateFeedback(item.id, true),
-                                  borderRadius: BorderRadius.circular(16),
-                                  child: Container(
-                                    padding: const EdgeInsets.all(6),
-                                    decoration: BoxDecoration(
-                                      color: item.isHelpful == true
-                                          ? AppColors.safe.withValues(alpha: 0.2)
-                                          : Colors.transparent,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: Icon(
-                                      LucideIcons.thumbsUp,
-                                      size: 16,
-                                      color: item.isHelpful == true ? AppColors.safe : AppColors.textMuted(context),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                                InkWell(
-                                  onTap: () => _rateFeedback(item.id, false),
-                                  borderRadius: BorderRadius.circular(16),
-                                  child: Container(
-                                    padding: const EdgeInsets.all(6),
-                                    decoration: BoxDecoration(
-                                      color: item.isHelpful == false
-                                          ? AppColors.danger.withValues(alpha: 0.2)
-                                          : Colors.transparent,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: Icon(
-                                      LucideIcons.thumbsDown,
-                                      size: 16,
-                                      color: item.isHelpful == false ? AppColors.danger : AppColors.textMuted(context),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ],
+  Widget _summary(BuildContext context, AsyncValue<List<AnomalyEntity>> anomalies) {
+    final open = anomalies.valueOrNull?.where((a) => !a.isResolved).length;
+    final title = open == null
+        ? 'Đang kiểm tra chi tiêu'
+        : open == 0
+            ? 'Không có bất thường nào'
+            : 'Phát hiện $open bất thường';
+    return ZenvestHeroDeck(
+      peekBadgeText: 'ANOMALY',
+      child: LiquidGlassCard(
+        variant: LiquidGlassVariant.iridescentHero,
+        padding: const EdgeInsets.all(20),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: AppColors.warning.withValues(alpha: 0.16),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(LucideIcons.triangleAlert, color: AppColors.warning, size: 24),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: AppTypography.h2(context).copyWith(fontSize: 16)),
+                  const SizedBox(height: 3),
+                  Text(
+                    'Hệ thống đối chiếu lịch sử để bảo vệ ngân sách của bạn kịp thời.',
+                    style: AppTypography.caption(context),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _section<T>({
+    required BuildContext context,
+    required AsyncValue<List<T>> async,
+    required String emptyText,
+    required VoidCallback onRetry,
+    required Widget Function(T) builder,
+  }) {
+    return async.when(
+      loading: () => const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator())),
+      error: (e, _) => LiquidGlassCard(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(errorMessage(e), style: AppTypography.body(context)),
+            const SizedBox(height: 8),
+            OutlinedButton(onPressed: onRetry, child: const Text('Thử lại')),
+          ],
+        ),
+      ),
+      data: (items) => items.isEmpty
+          ? Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text(emptyText, style: AppTypography.caption(context)),
+            )
+          : Column(children: [for (final i in items) builder(i)]),
+    );
+  }
+
+  Widget _anomalyCard(BuildContext context, WidgetRef ref, AnomalyEntity a) {
+    final ratio = (a.ratioPercent / 100).toStringAsFixed(1);
+    final high = a.severity == 'high';
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: LiquidGlassCard(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: (high ? AppColors.danger : AppColors.warning).withValues(alpha: 0.12),
+                    borderRadius: AppSpacing.roundedPill,
+                  ),
+                  child: Text(
+                    'Gấp $ratio lần mức thường',
+                    style: TextStyle(
+                      color: high ? AppColors.danger : AppColors.warning,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
+                const Spacer(),
+                if (a.transactedAt != null)
+                  Text(_timeFormat.format(a.transactedAt!), style: AppTypography.caption(context).copyWith(fontSize: 11.5)),
               ],
-            ],
-          ),
+            ),
+            const SizedBox(height: 10),
+            Text(_kindTitle(a), style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w700, fontSize: 15)),
+            const SizedBox(height: 4),
+            Text(
+              'Khoản ${a.formattedAmount}, trong khi mức thường là ${a.formattedTypical}.',
+              style: AppTypography.caption(context).copyWith(
+                fontSize: 13,
+                color: AppColors.textSecondary(context),
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 12),
+            if (a.isResolved)
+              Text(
+                'Đã phản hồi: ${_resolutionLabel(a.resolution!)}',
+                style: AppTypography.caption(context).copyWith(color: AppColors.safe, fontWeight: FontWeight.w600),
+              )
+            else
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: [
+                  for (final r in const ['normal', 'one_off', 'wrong_entry', 'suspicious'])
+                    ActionChip(
+                      label: Text(_resolutionLabel(r)),
+                      onPressed: () => _anomalyFeedback(context, ref, a.id, r),
+                    ),
+                ],
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _alertCard(BuildContext context, WidgetRef ref, ForecastAlertEntity a) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: LiquidGlassCard(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(a.title, style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w700, fontSize: 15)),
+            const SizedBox(height: 4),
+            Text(
+              a.body,
+              style: AppTypography.caption(context).copyWith(
+                fontSize: 13,
+                color: AppColors.textSecondary(context),
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Text(_timeFormat.format(a.createdAt), style: AppTypography.caption(context).copyWith(fontSize: 11.5)),
+                const Spacer(),
+                if (a.markedInaccurate)
+                  Text('Đã báo không chính xác', style: AppTypography.caption(context).copyWith(color: AppColors.warning))
+                else
+                  TextButton(
+                    onPressed: () => _alertFeedback(context, ref, a.id),
+                    child: const Text('Báo không chính xác'),
+                  ),
+              ],
+            ),
+          ],
         ),
       ),
     );

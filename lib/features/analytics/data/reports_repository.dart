@@ -38,4 +38,17 @@ class ReportsRepository {
     );
     return response.data ?? Forecast.empty;
   }
+
+  Future<List<SpendingInsight>> getInsights({bool unreadOnly = false}) async {
+    final response = await apiClient.get(
+      '/api/v1/reports/insights',
+      queryParameters: {'unreadOnly': unreadOnly},
+      fromJsonT: (json) => (json as List).map((e) => SpendingInsight.fromJson(e as Map<String, dynamic>)).toList(),
+    );
+    return response.data ?? const [];
+  }
+
+  Future<void> markInsightRead(String id) async {
+    await apiClient.patch('/api/v1/reports/insights/$id/read', fromJsonT: (json) => json);
+  }
 }

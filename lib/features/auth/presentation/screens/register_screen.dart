@@ -85,7 +85,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           backgroundColor: Colors.transparent,
           elevation: 0,
           leading: IconButton(
-            icon: const Icon(LucideIcons.arrowLeft, color: GlassColors.ink),
+            icon: Icon(LucideIcons.arrowLeft, color: GlassColors.ink),
             onPressed: () => context.canPop() ? context.pop() : context.go('/'),
           ),
         ),
@@ -112,7 +112,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       padding: const EdgeInsets.all(14),
                       child: Row(
                         children: [
-                          const Icon(LucideIcons.alertCircle, color: GlassColors.danger, size: 20),
+                          Icon(LucideIcons.alertCircle, color: GlassColors.danger, size: 20),
                           const SizedBox(width: 10),
                           Expanded(child: Text(_errorMessage!, style: GlassTypography.bodySm(color: GlassColors.danger))),
                         ],
@@ -174,7 +174,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     prefixIcon: LucideIcons.lock,
                     onChanged: (_) => setState(() {}),
                     suffixIcon: passwordsMatch
-                        ? const Icon(LucideIcons.checkCircle2, color: GlassColors.success, size: 20)
+                        ? Icon(LucideIcons.checkCircle2, color: GlassColors.success, size: 20)
                         : null,
                     validator: (value) {
                       if (value != _passwordController.text) return 'Mật khẩu xác nhận không khớp';
@@ -209,7 +209,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     padding: const EdgeInsets.all(12),
                     child: Row(
                       children: [
-                        const Icon(LucideIcons.shieldCheck, color: GlassColors.success, size: 20),
+                        Icon(LucideIcons.shieldCheck, color: GlassColors.success, size: 20),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
@@ -265,12 +265,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   Widget _socialDivider() {
     return Row(
       children: [
-        const Expanded(child: Divider(color: GlassColors.secondarySurface, thickness: 1)),
+        Expanded(child: Divider(color: GlassColors.secondarySurface, thickness: 1)),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Text('Hoặc đăng ký nhanh với', style: GlassTypography.bodySm()),
         ),
-        const Expanded(child: Divider(color: GlassColors.secondarySurface, thickness: 1)),
+        Expanded(child: Divider(color: GlassColors.secondarySurface, thickness: 1)),
       ],
     );
   }

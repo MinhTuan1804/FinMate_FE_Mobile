@@ -164,6 +164,21 @@ class AppColors {
   static Color onPrimaryAction(BuildContext context) =>
       isDark(context) ? backgroundDark : surfaceLightElevated;
 
+  /// Nền cho hộp/ô lồng trong thẻ kính: trắng mờ [lightAlpha] ở giao diện sáng, trắng rất nhạt ở giao diện tối
+  /// (trắng 60% trên nền tối thành xám đục, lạc tông).
+  static Color inset(BuildContext context, [double lightAlpha = 0.6]) =>
+      isDark(context) ? Colors.white.withValues(alpha: 0.07) : Colors.white.withValues(alpha: lightAlpha);
+
+  /// Viền mảnh của ô nhập/nút kính lồng trong nền.
+  static Color insetBorder(BuildContext context) =>
+      isDark(context) ? Colors.white.withValues(alpha: 0.14) : Colors.white.withValues(alpha: 0.85);
+
+  /// Màu nhấn xanh slate cho chữ/icon nhỏ: đậm ở giao diện sáng, xanh nhạt ở giao diện tối (slateAction đậm gần như chìm trên nền tối).
+  static Color slateOn(BuildContext context) => isDark(context) ? const Color(0xFF9CC3EA) : slateAction;
+
+  /// Nền chip/thanh chọn chưa được chọn.
+  static Color chipFill(BuildContext context) => isDark(context) ? glassFillSubtleDark : const Color(0xB3E6EEFF);
+
   static List<Color> activeChartPalette(BuildContext context) =>
       isDark(context) ? chartPaletteDark : chartPalette;
 }

@@ -117,7 +117,7 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
           backgroundColor: Colors.transparent,
           elevation: 0,
           leading: IconButton(
-            icon: const Icon(LucideIcons.arrowLeft, color: GlassColors.ink),
+            icon: Icon(LucideIcons.arrowLeft, color: GlassColors.ink),
             onPressed: () => context.canPop() ? context.pop() : context.go('/'),
           ),
         ),
@@ -144,7 +144,7 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                 const SizedBox(height: 20),
                 Row(
                   children: [
-                    const Icon(LucideIcons.shieldCheck, size: 14, color: GlassColors.textMuted),
+                    Icon(LucideIcons.shieldCheck, size: 14, color: GlassColors.textMuted),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(

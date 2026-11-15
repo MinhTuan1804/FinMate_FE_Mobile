@@ -16,7 +16,7 @@ import 'package:finmate/features/transactions/domain/entities/transaction_entity
 import 'package:finmate/features/transactions/presentation/controllers/transaction_controller.dart';
 import 'package:finmate/features/transactions/presentation/widgets/create_transaction_bottom_sheet.dart';
 import 'package:finmate/shared/widgets/glass/glass_background.dart';
-import 'package:finmate/shared/widgets/glass/glass_bottom_nav.dart';
+import 'package:finmate/shared/widgets/glass/main_bottom_nav.dart';
 import 'package:finmate/shared/widgets/glass/glass_card.dart';
 import 'package:finmate/shared/widgets/glass/glass_circular_progress.dart';
 import 'package:finmate/shared/widgets/glass/glass_transaction_row.dart';
@@ -52,11 +52,11 @@ class HomeScreen extends ConsumerWidget {
                     Row(
                       children: [
                         IconButton(
-                          icon: const Icon(LucideIcons.bell, size: 22, color: GlassColors.textPrimary),
+                          icon: Icon(LucideIcons.bell, size: 22, color: GlassColors.textPrimary),
                           onPressed: () => context.push('/notifications'),
                         ),
                         IconButton(
-                          icon: const Icon(LucideIcons.circleUser, size: 24, color: GlassColors.textPrimary),
+                          icon: Icon(LucideIcons.circleUser, size: 24, color: GlassColors.textPrimary),
                           onPressed: () => context.push('/profile'),
                         ),
                       ],
@@ -117,7 +117,7 @@ class HomeScreen extends ConsumerWidget {
             ),
           ),
         ),
-        bottomNavigationBar: GlassBottomNav(currentIndex: 0, onDestinationSelected: (idx) => _onNavSelected(context, idx)),
+        bottomNavigationBar: const MainBottomNav(currentIndex: 0),
       ),
     );
   }
@@ -276,7 +276,7 @@ class HomeScreen extends ConsumerWidget {
               color: highlight ? GlassColors.ink : GlassColors.secondarySurface,
               borderRadius: BorderRadius.circular(16),
             ),
-            child: Icon(icon, size: 22, color: highlight ? Colors.white : GlassColors.slateAnchor),
+            child: Icon(icon, size: 22, color: highlight ? GlassColors.onInk : GlassColors.slateAnchor),
           ),
           const SizedBox(height: 8),
           Text(label, style: GlassTypography.bodySm(color: GlassColors.textPrimary).copyWith(fontWeight: FontWeight.w600)),
@@ -298,8 +298,8 @@ class HomeScreen extends ConsumerWidget {
             Container(
               width: 40,
               height: 40,
-              decoration: const BoxDecoration(color: GlassColors.secondarySurface, shape: BoxShape.circle),
-              child: const Icon(LucideIcons.wallet, size: 20, color: GlassColors.slateAnchor),
+              decoration: BoxDecoration(color: GlassColors.secondarySurface, shape: BoxShape.circle),
+              child: Icon(LucideIcons.wallet, size: 20, color: GlassColors.slateAnchor),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -311,7 +311,7 @@ class HomeScreen extends ConsumerWidget {
                 ],
               ),
             ),
-            const Icon(LucideIcons.chevronRight, size: 18, color: GlassColors.textMuted),
+            Icon(LucideIcons.chevronRight, size: 18, color: GlassColors.textMuted),
           ],
         ),
       ),
@@ -341,20 +341,6 @@ class HomeScreen extends ConsumerWidget {
   }
 
   // idx == -1: nút "Quét QR" nổi giữa thanh nav (không phải 1 trong 4 tab thường).
-  void _onNavSelected(BuildContext context, int idx) {
-    switch (idx) {
-      case 0:
-        context.go('/home');
-      case 1:
-        context.push('/transactions');
-      case -1:
-        context.push('/qr-transfers');
-      case 2:
-        context.push('/planning');
-      case 3:
-        context.push('/analytics');
-    }
-  }
 }
 
 /// Dãy chip tài khoản — chỉ trang trí (hiển thị tên + số dư mỗi tài khoản), không đổi dữ liệu
@@ -396,13 +382,13 @@ class _AccountChipRowState extends ConsumerState<_AccountChipRow> {
                 children: [
                   Text(
                     account.name,
-                    style: GlassTypography.bodySm(color: isSelected ? Colors.white : GlassColors.textSecondary)
+                    style: GlassTypography.bodySm(color: isSelected ? GlassColors.onInk : GlassColors.textSecondary)
                         .copyWith(fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(width: 6),
                   Text(
                     formatVnd(account.balanceCents),
-                    style: GlassTypography.labelNumeric(color: isSelected ? Colors.white : GlassColors.textPrimary),
+                    style: GlassTypography.labelNumeric(color: isSelected ? GlassColors.onInk : GlassColors.textPrimary),
                   ),
                 ],
               ),

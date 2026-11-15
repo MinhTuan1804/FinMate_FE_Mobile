@@ -72,7 +72,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
           backgroundColor: Colors.transparent,
           elevation: 0,
           leading: IconButton(
-            icon: const Icon(LucideIcons.arrowLeft, color: GlassColors.ink),
+            icon: Icon(LucideIcons.arrowLeft, color: GlassColors.ink),
             onPressed: () => context.pop(),
           ),
         ),

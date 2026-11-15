@@ -56,7 +56,7 @@ class GlassRadioCard extends StatelessWidget {
                 color: selected ? GlassColors.ink : Colors.transparent,
                 border: Border.all(color: selected ? GlassColors.ink : GlassColors.textMuted, width: 1.5),
               ),
-              child: selected ? const Icon(Icons.check, size: 16, color: Colors.white) : null,
+              child: selected ? Icon(Icons.check, size: 16, color: GlassColors.onInk) : null,
             ),
           ],
         ),

@@ -149,6 +149,13 @@ class AuthController extends StateNotifier<AsyncValue<UserProfile?>> {
     state = AsyncValue.data(updated);
   }
 
+  /// Lưu tùy chọn thông báo lên server rồi mới cập nhật hồ sơ trên máy; lỗi được ném lại và hồ sơ giữ nguyên.
+  Future<void> updateNotificationPrefs(NotificationPrefs prefs) async {
+    final currentUser = _requireUser();
+    await repository.updateNotificationPrefs(prefs);
+    if (mounted) state = AsyncValue.data(currentUser.copyWith(notificationPrefs: prefs));
+  }
+
   /// Ghi đồng ý rồi cập nhật hồ sơ. Lỗi được ném lại cho màn hình (đặt state = error sẽ bị coi là đã đăng xuất).
   Future<void> acceptConsent(ConsentKind kind) async {
     _requireUser();
@@ -174,6 +181,18 @@ class AuthController extends StateNotifier<AsyncValue<UserProfile?>> {
   /// Đăng xuất MỌI thiết bị (kể cả thiết bị này). Lỗi được ném lại cho màn hình.
   Future<void> logoutAllDevices() async {
     await repository.logoutAllDevices();
+    await _signOutLocally();
+  }
+
+  /// Đổi mật khẩu: BE thu hồi mọi phiên nên thành công là đăng xuất cục bộ. Lỗi (sai mật khẩu hiện tại...) được ném lại cho màn hình.
+  Future<void> changePassword({required String currentPassword, required String newPassword}) async {
+    await repository.changePassword(currentPassword: currentPassword, newPassword: newPassword);
+    await _signOutLocally();
+  }
+
+  /// Xóa tài khoản: BE xác thực bằng mật khẩu rồi khóa tài khoản. Lỗi được ném lại, chưa đăng xuất cục bộ.
+  Future<void> deleteAccount({required String password}) async {
+    await repository.deleteAccount(password: password);
     await _signOutLocally();
   }
 

@@ -76,10 +76,26 @@ void main() {
     expect(find.text('ăn phở 45k'), findsOneWidget);
     expect(find.text('tháng này tôi tiêu bao nhiêu?'), findsOneWidget);
 
+    await tester.ensureVisible(find.text('ăn phở 45k')); // hàng chip cuộn ngang, chip có thể nằm ngoài màn hình
     await tester.tap(find.text('ăn phở 45k'));
     await tester.pump();
 
     expect(assistant.sent, ['ăn phở 45k']);
+  });
+
+  testWidgets('đang gõ: nút + và mic thu lại thành ">", bấm ">" mở lại', (tester) async {
+    await pumpChat(tester);
+    expect(find.byKey(const ValueKey('scan-button')), findsOneWidget);
+
+    await tester.tap(find.byType(TextField));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('scan-button')), findsNothing);
+    expect(find.byKey(const ValueKey('mic-button')), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('expand-actions')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('scan-button')), findsOneWidget);
+    expect(find.byKey(const ValueKey('mic-button')), findsOneWidget);
   });
 
   testWidgets('nhập rồi gửi gọi send và xóa ô nhập; nút gửi khóa khi ô trống', (tester) async {
@@ -114,7 +130,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('cafe highlands 55k'), findsOneWidget);
-    expect(find.text('Đã ghi giao dịch'), findsOneWidget);
+    expect(find.text('Đã ghi nhận giao dịch thành công!'), findsOneWidget);
     expect(find.text('-55.000 ₫'), findsOneWidget);
     expect(find.textContaining('Ăn uống'), findsWidgets);
   });
@@ -125,7 +141,7 @@ void main() {
     assistant.put([SummaryCard(0, summary)]);
     await tester.pump();
 
-    expect(find.textContaining('tháng này'), findsOneWidget);
+    expect(find.textContaining('Tóm tắt chi tiêu tháng này'), findsOneWidget);
     expect(find.text('Tổng chi'), findsOneWidget);
     expect(find.textContaining('${(summary.items.first.share * 100).round()}%'), findsOneWidget);
     expect(find.text(summary.items.first.name), findsOneWidget);
