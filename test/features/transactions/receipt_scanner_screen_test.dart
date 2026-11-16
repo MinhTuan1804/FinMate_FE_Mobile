@@ -64,6 +64,9 @@ void main() {
     expect(find.text('WinMart'), findsWidgets);
     expect(find.text('55.000 ₫'), findsWidgets);
     expect(find.text('Ăn uống'), findsOneWidget);
+    // chip đè lên ảnh: tổng tiền + bảng "Trích xuất sơ bộ"
+    expect(find.text('Tổng tiền: 55.000 ₫'), findsOneWidget);
+    expect(find.text('TRÍCH XUẤT SƠ BỘ'), findsOneWidget);
 
     await tester.tap(find.text('Tiếp tục với kết quả này'));
     await tester.pumpAndSettle();

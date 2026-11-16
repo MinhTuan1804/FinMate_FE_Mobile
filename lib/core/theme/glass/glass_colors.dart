@@ -21,11 +21,16 @@ class GlassColors {
         colors: [canvasStart, canvasMid, canvasEnd],
       );
 
-  /// Màu nhấn chính dùng làm nền nút/chip đang chọn (đen mực ở sáng, xanh nhạt ở tối). Chữ/icon trên nền này dùng [onInk].
-  static Color get ink => dark ? const Color(0xFF7CA9D6) : const Color(0xFF111827);
+  /// Màu nhấn chính dùng làm nền nút/chip đang chọn (xanh slate ở sáng, xanh nhạt ở tối). Chữ/icon trên nền này dùng [onInk].
+  static Color get ink => dark ? const Color(0xFF7CA9D6) : const Color(0xFF42638E);
 
   /// Màu chữ/icon đặt trên nền [ink].
   static Color get onInk => dark ? const Color(0xFF0C1220) : Colors.white;
+
+  /// Mục ĐANG CHỌN (tab, chip lọc): nền xanh trời dịu + chữ/icon [activeFg]. Nút hành động chính vẫn dùng [ink].
+  static Color get activeFill => accentSkyBlue.withValues(alpha: dark ? 0.25 : 0.28);
+  static Color get activeBorder => accentSkyBlue.withValues(alpha: 0.5);
+  static Color get activeFg => slateAnchor;
 
   // Mặt kính (Level 1 - thẻ/feed)
   static Color get glassFill => dark ? const Color(0xA6151F32) : const Color(0xB8F4F7FC);

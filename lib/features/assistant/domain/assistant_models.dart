@@ -16,17 +16,20 @@ enum DraftKind { expense, transfer }
 
 const _genericReply = 'Mình chưa hiểu phản hồi này. Bạn thử lại nhé.';
 
-DateTime? _parseDate(Object? value) => value == null ? null : DateTime.tryParse(value.toString())?.toLocal();
+DateTime? _parseDate(Object? value) =>
+    value == null ? null : DateTime.tryParse(value.toString())?.toLocal();
 
-BigInt? _parseOptionalCents(Object? value) => value == null ? null : parseCents(value);
+BigInt? _parseOptionalCents(Object? value) =>
+    value == null ? null : parseCents(value);
 
-TransactionType? _parseOptionalType(Object? value) => value == null ? null : TransactionType.fromApi(value.toString());
+TransactionType? _parseOptionalType(Object? value) =>
+    value == null ? null : TransactionType.fromApi(value.toString());
 
 /// Các trường bắt buộc mà bản nháp từ parse/scan chưa có
-List<String> _deriveMissing({required BigInt? amount, required String? categorySlug}) => [
-      if (amount == null) 'amount',
-      if (categorySlug == null) 'category',
-    ];
+List<String> _deriveMissing({
+  required BigInt? amount,
+  required String? categorySlug,
+}) => [if (amount == null) 'amount', if (categorySlug == null) 'category'];
 
 /// Một món trên hóa đơn; số tiền là giá gốc (chưa trừ giảm giá)
 class ReceiptGroupItem {
@@ -35,7 +38,8 @@ class ReceiptGroupItem {
 
   const ReceiptGroupItem({required this.name, required this.amountCents});
 
-  factory ReceiptGroupItem.fromJson(Map<String, dynamic> json) => ReceiptGroupItem(
+  factory ReceiptGroupItem.fromJson(Map<String, dynamic> json) =>
+      ReceiptGroupItem(
         name: json['name'] is String ? json['name'] as String : '',
         amountCents: parseCents(json['amountCents']),
       );
@@ -51,27 +55,59 @@ class ReceiptGroup {
   /// Mã giao dịch cùng số tiền vừa ghi gần đây (BE chỉ cảnh báo, không chặn); null = không thấy trùng
   final String? possibleDuplicateId;
 
-  const ReceiptGroup({this.categorySlug, required this.amountCents, this.items = const [], this.possibleDuplicateId});
+  const ReceiptGroup({
+    this.categorySlug,
+    required this.amountCents,
+    this.items = const [],
+    this.possibleDuplicateId,
+  });
 
   /// Giá trị `receiptGroup` gửi khi lưu: slug gốc của nhóm, hoặc "unknown" khi nhóm không có slug
   String get apiKey => categorySlug ?? 'unknown';
 
   /// clientRequestId cố định theo lần quét + nhóm: mở lại thẻ rồi lưu lại thì BE trả giao dịch đã có thay vì tạo trùng.
   /// Không có [scanId] thì không có gì để cố định, dùng id ngẫu nhiên.
-  String requestId(String? scanId) =>
-      scanId == null ? const Uuid().v4() : const Uuid().v5(Namespace.url.value, 'finmate:receipt:$scanId:$apiKey');
+  String requestId(String? scanId) => scanId == null
+      ? const Uuid().v4()
+      : const Uuid().v5(Namespace.url.value, 'finmate:receipt:$scanId:$apiKey');
 
   factory ReceiptGroup.fromJson(Map<String, dynamic> json) => ReceiptGroup(
-        categorySlug: json['categorySlug'] is String ? json['categorySlug'] as String : null,
-        amountCents: parseCents(json['amountCents']),
-        items: _parseList(json['items'], ReceiptGroupItem.fromJson),
-        possibleDuplicateId: json['possibleDuplicateTransactionId'] as String?,
-      );
+    categorySlug: json['categorySlug'] is String
+        ? json['categorySlug'] as String
+        : null,
+    amountCents: parseCents(json['amountCents']),
+    items: _parseList(json['items'], ReceiptGroupItem.fromJson),
+    possibleDuplicateId: json['possibleDuplicateTransactionId'] as String?,
+  );
 }
 
 /// Bỏ qua phần tử không phải object thay vì ném (BE cũ không trả, phản hồi lạ)
 List<T> _parseList<T>(Object? value, T Function(Map<String, dynamic>) parse) =>
-    value is List ? value.whereType<Map<String, dynamic>>().map(parse).toList() : <T>[];
+    value is List
+    ? value.whereType<Map<String, dynamic>>().map(parse).toList()
+    : <T>[];
+
+/// Câu xác nhận sau khi ghi. Khi ngày ghi không phải hôm nay (ví dụ hóa đơn in ngày cũ) thì nói rõ ngày,
+/// để người dùng biết phải tìm giao dịch ở đâu trong lịch sử thay vì tưởng nó bị mất.
+String savedSummary(int count, BigInt totalCents, DateTime? at) {
+  final base = 'Đã ghi $count giao dịch: ${formatVnd(totalCents)}';
+  if (at == null) return base;
+  final now = DateTime.now();
+  if (at.year == now.year && at.month == now.month && at.day == now.day) return base;
+  final d = '${at.day.toString().padLeft(2, '0')}/${at.month.toString().padLeft(2, '0')}/${at.year}';
+  return '$base · ngày $d';
+}
+
+/// Ngày chung của một loạt bản nháp; null khi các bản nháp rơi vào những ngày khác nhau (hoặc không có ngày).
+DateTime? commonDay(Iterable<DateTime?> dates) {
+  DateTime? first;
+  for (final d in dates) {
+    if (d == null) return null;
+    first ??= d;
+    if (d.year != first.year || d.month != first.month || d.day != first.day) return null;
+  }
+  return first;
+}
 
 /// Bản nháp giao dịch do AI trích xuất (từ chat `confirm`, `parse` hoặc `scan-receipt`); người dùng rà soát rồi mới lưu.
 class DraftTransaction {
@@ -100,9 +136,11 @@ class DraftTransaction {
   final bool needsReview;
 
   /// Cả bill hoặc một nhóm trong bill có thể trùng với giao dịch đã ghi
-  bool get hasPossibleDuplicate => possibleDuplicateId != null || hasGroupDuplicate;
+  bool get hasPossibleDuplicate =>
+      possibleDuplicateId != null || hasGroupDuplicate;
 
-  bool get hasGroupDuplicate => receiptGroups.any((g) => g.possibleDuplicateId != null);
+  bool get hasGroupDuplicate =>
+      receiptGroups.any((g) => g.possibleDuplicateId != null);
 
   const DraftTransaction({
     this.kind = DraftKind.expense,
@@ -123,17 +161,26 @@ class DraftTransaction {
   });
 
   /// Từ `draft` của `POST /transactions/chat` (action == confirm)
-  factory DraftTransaction.fromChatJson(Map<String, dynamic> json, {DraftSource source = DraftSource.chat}) {
-    final kind = json['kind'] == 'transfer' ? DraftKind.transfer : DraftKind.expense;
+  factory DraftTransaction.fromChatJson(
+    Map<String, dynamic> json, {
+    DraftSource source = DraftSource.chat,
+  }) {
+    final kind = json['kind'] == 'transfer'
+        ? DraftKind.transfer
+        : DraftKind.expense;
     return DraftTransaction(
       kind: kind,
       amountCents: _parseOptionalCents(json['amountCents']),
-      type: kind == DraftKind.transfer ? TransactionType.transfer : _parseOptionalType(json['transactionType']),
+      type: kind == DraftKind.transfer
+          ? TransactionType.transfer
+          : _parseOptionalType(json['transactionType']),
       merchantName: json['merchantName'] as String?,
       description: json['description'] as String?,
       categorySlug: json['categorySlug'] as String?,
       suggestedAccountId: json['suggestedFinancialAccountId'] as String?,
-      missingFields: ((json['missingFields'] as List?) ?? const []).map((e) => e.toString()).toList(),
+      missingFields: ((json['missingFields'] as List?) ?? const [])
+          .map((e) => e.toString())
+          .toList(),
       source: source,
       // `occurredAt`: ngày nói trong câu ("hôm qua"); không có thì để trống, màn rà soát dùng giờ hiện tại
       transactedAt: _parseDate(json['occurredAt'] ?? json['transactedAt']),
@@ -142,7 +189,10 @@ class DraftTransaction {
   }
 
   /// Từ `data` của `POST /transactions/parse` (stateless, mọi trường có thể null)
-  factory DraftTransaction.fromParseJson(Map<String, dynamic> json, {DraftSource source = DraftSource.chat}) {
+  factory DraftTransaction.fromParseJson(
+    Map<String, dynamic> json, {
+    DraftSource source = DraftSource.chat,
+  }) {
     final amount = _parseOptionalCents(json['amountCents']);
     final slug = json['categorySlug'] as String?;
     return DraftTransaction(
@@ -222,7 +272,14 @@ class ReceiptScan {
   /// Số đơn bị cắt dở ở mép ảnh nên chưa đọc được tiền
   final int incompleteOrders;
 
-  const ReceiptScan({required this.success, required this.draft, this.scanId, this.groups = const [], this.orders = const [], this.incompleteOrders = 0});
+  const ReceiptScan({
+    required this.success,
+    required this.draft,
+    this.scanId,
+    this.groups = const [],
+    this.orders = const [],
+    this.incompleteOrders = 0,
+  });
 
   factory ReceiptScan.fromJson(Map<String, dynamic> json) {
     final amount = _parseOptionalCents(json['amountCents']);
@@ -258,9 +315,15 @@ class ChatSummaryItem {
   final BigInt amountCents;
   final double share;
 
-  const ChatSummaryItem({required this.slug, required this.name, required this.amountCents, required this.share});
+  const ChatSummaryItem({
+    required this.slug,
+    required this.name,
+    required this.amountCents,
+    required this.share,
+  });
 
-  factory ChatSummaryItem.fromJson(Map<String, dynamic> json) => ChatSummaryItem(
+  factory ChatSummaryItem.fromJson(Map<String, dynamic> json) =>
+      ChatSummaryItem(
         slug: json['categorySlug'] as String? ?? '',
         name: json['categoryName'] as String? ?? 'Chưa phân loại',
         amountCents: parseCents(json['amountCents']),
@@ -289,14 +352,16 @@ class ChatSummary {
   });
 
   factory ChatSummary.fromJson(Map<String, dynamic> json) => ChatSummary(
-        metric: json['metric'] as String? ?? 'expense',
-        periodLabel: json['periodLabel'] as String? ?? '',
-        totalCents: parseCents(json['totalCents']),
-        incomeCents: parseCents(json['incomeCents']),
-        expenseCents: parseCents(json['expenseCents']),
-        leftCents: parseCents(json['leftCents']),
-        items: ((json['items'] as List?) ?? const []).map((e) => ChatSummaryItem.fromJson(e as Map<String, dynamic>)).toList(),
-      );
+    metric: json['metric'] as String? ?? 'expense',
+    periodLabel: json['periodLabel'] as String? ?? '',
+    totalCents: parseCents(json['totalCents']),
+    incomeCents: parseCents(json['incomeCents']),
+    expenseCents: parseCents(json['expenseCents']),
+    leftCents: parseCents(json['leftCents']),
+    items: ((json['items'] as List?) ?? const [])
+        .map((e) => ChatSummaryItem.fromJson(e as Map<String, dynamic>))
+        .toList(),
+  );
 }
 
 /// Phản hồi của `POST /transactions/voice`: câu STT nghe được + kết quả chat y hệt gõ chữ
@@ -307,9 +372,11 @@ class VoiceReply {
   const VoiceReply({required this.transcript, required this.chat});
 
   factory VoiceReply.fromJson(Map<String, dynamic> json) => VoiceReply(
-        transcript: (json['transcript'] as String?)?.trim() ?? '',
-        chat: ChatReply.fromJson((json['chat'] as Map<String, dynamic>?) ?? const {}),
-      );
+    transcript: (json['transcript'] as String?)?.trim() ?? '',
+    chat: ChatReply.fromJson(
+      (json['chat'] as Map<String, dynamic>?) ?? const {},
+    ),
+  );
 }
 
 /// Một khoản trong phản hồi `POST /chat/analyze` (backend chỉ HIỂU câu, không ghi gì)
@@ -368,35 +435,53 @@ class GoalDraft {
   final DateTime? deadline;
   final String? deadlineText;
 
-  const GoalDraft({required this.name, this.nameIsDefault = false, required this.targetCents, this.deadline, this.deadlineText});
+  const GoalDraft({
+    required this.name,
+    this.nameIsDefault = false,
+    required this.targetCents,
+    this.deadline,
+    this.deadlineText,
+  });
 
   factory GoalDraft.fromJson(Map<String, dynamic> json) {
     final deadline = json['deadline'] as String?;
     return GoalDraft(
-      name: (json['name'] as String?)?.trim().isNotEmpty == true ? (json['name'] as String).trim() : 'Mục tiêu tiết kiệm',
+      name: (json['name'] as String?)?.trim().isNotEmpty == true
+          ? (json['name'] as String).trim()
+          : 'Mục tiêu tiết kiệm',
       nameIsDefault: json['nameIsDefault'] == true,
       targetCents: parseCents(json['targetCents']),
-      deadline: deadline == null ? null : DateTime.tryParse(deadline)?.toLocal(),
+      deadline: deadline == null
+          ? null
+          : DateTime.tryParse(deadline)?.toLocal(),
       deadlineText: json['deadlineText'] as String?,
     );
   }
 
   /// Sửa tên thì không còn là tên mặc định; [clearDeadline] bỏ hạn (không hạn là hợp lệ)
-  GoalDraft copyWith({String? name, BigInt? targetCents, DateTime? deadline, bool clearDeadline = false}) => GoalDraft(
-        name: name ?? this.name,
-        nameIsDefault: name != null ? false : nameIsDefault,
-        targetCents: targetCents ?? this.targetCents,
-        deadline: clearDeadline ? null : (deadline ?? this.deadline),
-        // đổi hạn bằng tay thì cụm đã nói không còn đúng nữa
-        deadlineText: clearDeadline || deadline != null ? null : deadlineText,
-      );
+  GoalDraft copyWith({
+    String? name,
+    BigInt? targetCents,
+    DateTime? deadline,
+    bool clearDeadline = false,
+  }) => GoalDraft(
+    name: name ?? this.name,
+    nameIsDefault: name != null ? false : nameIsDefault,
+    targetCents: targetCents ?? this.targetCents,
+    deadline: clearDeadline ? null : (deadline ?? this.deadline),
+    // đổi hạn bằng tay thì cụm đã nói không còn đúng nữa
+    deadlineText: clearDeadline || deadline != null ? null : deadlineText,
+  );
 
   /// Số tiền cần nạp mỗi tháng để kịp hạn (làm tròn lên, tối thiểu 1 tháng); null nếu không có hạn. Cùng công thức với `SavingsGoalEntity.requiredPerMonth`.
   BigInt? requiredPerMonth({DateTime? asOf}) {
     final due = deadline;
     if (due == null) return null;
     final now = asOf ?? DateTime.now();
-    final months = ((due.year - now.year) * 12 + due.month - now.month).clamp(1, 1200);
+    final months = ((due.year - now.year) * 12 + due.month - now.month).clamp(
+      1,
+      1200,
+    );
     return (targetCents + BigInt.from(months - 1)) ~/ BigInt.from(months);
   }
 }
@@ -437,12 +522,20 @@ class ChatAnalysis {
     return ChatAnalysis(
       intent: json['intent'] as String? ?? 'out_of_scope',
       replyText: json['replyText'] as String?,
-      entries: entries.isNotEmpty ? entries : (single is Map<String, dynamic> ? [AnalyzedEntry.fromJson(single)] : const []),
+      entries: entries.isNotEmpty
+          ? entries
+          : (single is Map<String, dynamic>
+                ? [AnalyzedEntry.fromJson(single)]
+                : const []),
       hasQuery: json['query'] != null,
       totalAmount: (json['totalAmount'] as num?)?.toInt(),
       totalMismatch: json['totalMismatch'] == true,
-      skipped: ((json['skipped'] as List?) ?? const []).map((e) => e.toString()).toList(),
-      goal: json['goal'] is Map<String, dynamic> ? GoalDraft.fromJson(json['goal'] as Map<String, dynamic>) : null,
+      skipped: ((json['skipped'] as List?) ?? const [])
+          .map((e) => e.toString())
+          .toList(),
+      goal: json['goal'] is Map<String, dynamic>
+          ? GoalDraft.fromJson(json['goal'] as Map<String, dynamic>)
+          : null,
     );
   }
 }
@@ -455,9 +548,11 @@ class VoiceAnalysis {
   const VoiceAnalysis({required this.transcript, required this.analysis});
 
   factory VoiceAnalysis.fromJson(Map<String, dynamic> json) => VoiceAnalysis(
-        transcript: (json['transcript'] as String?)?.trim() ?? '',
-        analysis: ChatAnalysis.fromJson((json['parse'] as Map<String, dynamic>?) ?? const {}),
-      );
+    transcript: (json['transcript'] as String?)?.trim() ?? '',
+    analysis: ChatAnalysis.fromJson(
+      (json['parse'] as Map<String, dynamic>?) ?? const {},
+    ),
+  );
 }
 
 /// Khoản ĐỊNH mua mà AI đọc ra từ câu "mua X được không?". Không phải giao dịch: app chỉ gửi nó tới `POST /forecast/purchase-check` để backend đánh giá.
@@ -467,14 +562,19 @@ class PurchaseDraft {
   final DateTime? purchaseDate;
   final String? categorySlug;
 
-  const PurchaseDraft({this.item, required this.amountCents, this.purchaseDate, this.categorySlug});
+  const PurchaseDraft({
+    this.item,
+    required this.amountCents,
+    this.purchaseDate,
+    this.categorySlug,
+  });
 
   factory PurchaseDraft.fromJson(Map<String, dynamic> json) => PurchaseDraft(
-        item: json['item'] as String?,
-        amountCents: parseCents(json['amountCents']),
-        purchaseDate: _parseDate(json['purchaseDate']),
-        categorySlug: json['categorySlug'] as String?,
-      );
+    item: json['item'] as String?,
+    amountCents: parseCents(json['amountCents']),
+    purchaseDate: _parseDate(json['purchaseDate']),
+    categorySlug: json['categorySlug'] as String?,
+  );
 }
 
 /// Kết luận của backend cho một khoản định mua (`POST /forecast/purchase-check`); câu [summary] do backend sinh, không phải AI.
@@ -486,12 +586,22 @@ class PurchaseAssessment {
   final BigInt? maxAffordableCents;
   final DateTime? earliestSafeDate;
 
-  const PurchaseAssessment({required this.verdict, required this.summary, this.warnings = const [], this.maxAffordableCents, this.earliestSafeDate});
+  const PurchaseAssessment({
+    required this.verdict,
+    required this.summary,
+    this.warnings = const [],
+    this.maxAffordableCents,
+    this.earliestSafeDate,
+  });
 
-  factory PurchaseAssessment.fromJson(Map<String, dynamic> json) => PurchaseAssessment(
+  factory PurchaseAssessment.fromJson(Map<String, dynamic> json) =>
+      PurchaseAssessment(
         verdict: json['verdict'] as String? ?? 'insufficient_data',
         summary: json['summary'] as String? ?? '',
-        warnings: _parseList(json['warnings'], (w) => w['message'] as String? ?? '').where((m) => m.isNotEmpty).toList(),
+        warnings: _parseList(
+          json['warnings'],
+          (w) => w['message'] as String? ?? '',
+        ).where((m) => m.isNotEmpty).toList(),
         maxAffordableCents: _parseOptionalCents(json['maxAffordableCents']),
         earliestSafeDate: _parseDate(json['earliestSafeDate']),
       );
@@ -517,43 +627,90 @@ class ChatReply {
   /// Khoản định mua khi [action] là [ChatAction.purchase]
   final PurchaseDraft? purchase;
 
-  const ChatReply({required this.action, this.intent, this.replyText, this.transaction, this.draft, this.drafts = const [], this.summary, this.goal, this.purchase});
+  const ChatReply({
+    required this.action,
+    this.intent,
+    this.replyText,
+    this.transaction,
+    this.draft,
+    this.drafts = const [],
+    this.summary,
+    this.goal,
+    this.purchase,
+  });
 
   /// Phản hồi lạ hoặc thiếu dữ liệu tương ứng với `action` → trả lời văn bản chung, không ném
   factory ChatReply.fromJson(Map<String, dynamic> json) {
     final intent = json['intent'] as String?;
     final replyText = json['replyText'] as String?;
-    ChatReply generic() => ChatReply(action: ChatAction.reply, intent: intent, replyText: replyText ?? _genericReply);
+    ChatReply generic() => ChatReply(
+      action: ChatAction.reply,
+      intent: intent,
+      replyText: replyText ?? _genericReply,
+    );
 
     try {
       switch (json['action']) {
         case 'saved':
           final tx = json['transaction'];
           if (tx is! Map<String, dynamic>) return generic();
-          return ChatReply(action: ChatAction.saved, intent: intent, transaction: TransactionEntity.fromJson(tx));
+          return ChatReply(
+            action: ChatAction.saved,
+            intent: intent,
+            transaction: TransactionEntity.fromJson(tx),
+          );
         case 'summary':
           final summary = json['summary'];
           if (summary is! Map<String, dynamic>) return generic();
-          return ChatReply(action: ChatAction.summary, intent: intent, summary: ChatSummary.fromJson(summary));
+          return ChatReply(
+            action: ChatAction.summary,
+            intent: intent,
+            summary: ChatSummary.fromJson(summary),
+          );
         case 'confirm':
           final draft = json['draft'];
           if (draft is! Map<String, dynamic>) return generic();
-          final drafts = _parseList(json['drafts'], DraftTransaction.fromChatJson);
+          final drafts = _parseList(
+            json['drafts'],
+            DraftTransaction.fromChatJson,
+          );
           // `draft` luôn là bản đầu: dùng cùng một đối tượng để hai chỗ không lệch nhau.
-          final all = drafts.isEmpty ? [DraftTransaction.fromChatJson(draft)] : drafts;
-          return ChatReply(action: ChatAction.confirm, intent: intent, replyText: replyText, draft: all.first, drafts: all);
+          final all = drafts.isEmpty
+              ? [DraftTransaction.fromChatJson(draft)]
+              : drafts;
+          return ChatReply(
+            action: ChatAction.confirm,
+            intent: intent,
+            replyText: replyText,
+            draft: all.first,
+            drafts: all,
+          );
         case 'goal':
           final goal = json['goal'];
           if (goal is! Map<String, dynamic>) return generic();
-          return ChatReply(action: ChatAction.goal, intent: intent, replyText: replyText, goal: GoalDraft.fromJson(goal));
+          return ChatReply(
+            action: ChatAction.goal,
+            intent: intent,
+            replyText: replyText,
+            goal: GoalDraft.fromJson(goal),
+          );
         case 'purchase':
           final purchase = json['purchase'];
           if (purchase is! Map<String, dynamic>) return generic();
           final draft = PurchaseDraft.fromJson(purchase);
           if (draft.amountCents <= BigInt.zero) return generic();
-          return ChatReply(action: ChatAction.purchase, intent: intent, replyText: replyText, purchase: draft);
+          return ChatReply(
+            action: ChatAction.purchase,
+            intent: intent,
+            replyText: replyText,
+            purchase: draft,
+          );
         case 'reply':
-          return ChatReply(action: ChatAction.reply, intent: intent, replyText: replyText ?? _genericReply);
+          return ChatReply(
+            action: ChatAction.reply,
+            intent: intent,
+            replyText: replyText ?? _genericReply,
+          );
         default:
           return generic();
       }

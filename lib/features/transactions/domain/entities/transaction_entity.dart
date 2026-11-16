@@ -147,8 +147,12 @@ class TransactionEntity {
       date: DateTime.parse(json['transactedAt'] as String).toLocal(),
       accountId: json['financialAccountId'] as String? ?? '',
       toAccountId: json['counterAccountId'] as String?,
-      status: (json['status'] as String?)?.toLowerCase() == 'draft' ? TransactionStatus.draft : TransactionStatus.confirmed,
-      balanceAfterCents: json['balanceAfterCents'] == null ? null : parseCents(json['balanceAfterCents']),
+      status: (json['status'] as String?)?.toLowerCase() == 'draft'
+          ? TransactionStatus.draft
+          : TransactionStatus.confirmed,
+      balanceAfterCents: json['balanceAfterCents'] == null
+          ? null
+          : parseCents(json['balanceAfterCents']),
       source: json['source'] as String? ?? 'Manual',
       groupId: json['groupId'] as String?,
     );

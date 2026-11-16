@@ -92,8 +92,8 @@ class _TransactionDetailScreenState
     final isExpense = _tx.type == TransactionType.expense;
     final isTransfer = _tx.isInternalTransfer;
     final typeColor = isTransfer
-        ? AppColors.transfer
-        : (isExpense ? AppColors.expense : AppColors.income);
+        ? AppColors.transferOn(context)
+        : (isExpense ? AppColors.expenseOn(context) : AppColors.incomeOn(context));
     final prefix = isTransfer ? '' : (isExpense ? '-' : '+');
     final categories = ref.watch(categoriesProvider).valueOrNull ?? const [];
     final slug = categories
@@ -210,7 +210,7 @@ class _TransactionDetailScreenState
             child: Icon(
               isTransfer ? LucideIcons.arrowLeftRight : categoryIcon(slug),
               size: 24,
-              color: AppColors.slateAction,
+              color: AppColors.slateOn(context),
             ),
           ),
           const SizedBox(height: 12),
@@ -289,10 +289,10 @@ class _TransactionDetailScreenState
               color: AppColors.secondary.withValues(alpha: 0.7),
               shape: BoxShape.circle,
             ),
-            child: const Icon(
+            child: Icon(
               LucideIcons.sparkles,
               size: 16,
-              color: AppColors.slateAction,
+              color: AppColors.slateOn(context),
             ),
           ),
           const SizedBox(width: 8),
@@ -386,8 +386,8 @@ class _TransactionDetailScreenState
                 Container(
                   width: 8,
                   height: 8,
-                  decoration: const BoxDecoration(
-                    color: AppColors.slateAction,
+                  decoration: BoxDecoration(
+                    color: AppColors.slateOn(context),
                     shape: BoxShape.circle,
                   ),
                 ),

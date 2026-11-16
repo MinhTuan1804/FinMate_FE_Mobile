@@ -190,9 +190,9 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> with SingleTick
         ],
         bottom: TabBar(
           controller: _tabController,
-          labelColor: AppColors.primaryAction(context),
+          labelColor: AppColors.activeFg(context),
           unselectedLabelColor: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-          indicatorColor: AppColors.primaryAction(context),
+          indicatorColor: AppColors.activeFg(context),
           tabs: const [
             Tab(icon: Icon(LucideIcons.wallet, size: 18), text: 'Hạn mức ngân sách'),
             Tab(icon: Icon(LucideIcons.piggyBank, size: 18), text: 'Mục tiêu tiết kiệm'),

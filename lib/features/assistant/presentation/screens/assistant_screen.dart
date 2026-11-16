@@ -42,14 +42,6 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
 
   static const _maxRecording = Duration(seconds: 55);
 
-  /// Gợi ý nhanh: chạm chip gửi đúng nội dung chip
-  static const _suggestions = <(IconData, String)>[
-    (LucideIcons.trendingUp, 'Hôm nay tôi đã chi bao nhiêu?'),
-    (LucideIcons.utensils, 'Phân tích ăn uống tháng này'),
-    (LucideIcons.pencil, 'ăn phở 45k'),
-    (LucideIcons.chartLine, 'tháng này tôi tiêu bao nhiêu?'),
-  ];
-
   final _sentAt = <int, DateTime>{};
 
   @override
@@ -233,9 +225,6 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
     }
   }
 
-  void _send(String text) =>
-      ref.read(assistantControllerProvider.notifier).send(text);
-
   Future<void> _submitInput() async {
     final text = _input.text;
     if (text.trim().isEmpty) return;
@@ -275,7 +264,6 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
           child: Column(
             children: [
               _buildHeader(context),
-              _buildSuggestions(context, state.isSending),
               Expanded(
                 child: messages.isEmpty && !state.isSending
                     ? _buildEmpty(context)
@@ -532,64 +520,6 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  /// Hàng chip gợi ý cuộn ngang; chạm chip gửi đúng nội dung của nó
-  Widget _buildSuggestions(BuildContext context, bool sending) {
-    return SizedBox(
-      height: 52,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        child: Row(
-          children: [
-            for (final (icon, label) in _suggestions)
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: Semantics(
-                  button: true,
-                  enabled: !sending,
-                  child: Material(
-                    color: Colors.transparent,
-                    child: Ink(
-                      decoration: _pillDecoration(context),
-                      child: InkWell(
-                        customBorder: const StadiumBorder(),
-                        onTap: sending ? null : () => _send(label),
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(minHeight: 40),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 15),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  icon,
-                                  size: 14,
-                                  color: AppColors.slateOn(context),
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  label,
-                                  style: AppTypography.caption(context)
-                                      .copyWith(
-                                        fontWeight: FontWeight.w400,
-                                        color: AppColors.textPrimary(context),
-                                      ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
       ),
     );
   }

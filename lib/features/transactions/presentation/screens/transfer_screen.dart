@@ -52,14 +52,15 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
   bool _isLoading = false;
   String? _errorMessage;
 
-  static const _quickAmounts = [500000, 1000000, 2000000];
-
   @override
   void dispose() {
     _amountController.dispose();
     _noteController.dispose();
     super.dispose();
   }
+
+  /// Mức cộng nhanh vào ô số tiền (tiện nhập, không phải dữ liệu tài chính)
+  static const _quickAmounts = [500000, 1000000, 2000000];
 
   int get _amount =>
       int.tryParse(_amountController.text.replaceAll(RegExp(r'\D'), '')) ?? 0;
@@ -145,7 +146,7 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
       builder: (ctx) => AlertDialog(
         title: const Text('Quy tắc chuyển ví nội bộ'),
         content: const Text(
-          'Chuyển giữa các ví của bạn không tính vào chi tiêu hay thu nhập, và không mất phí. Ví nguồn và ví đích phải khác nhau.',
+          'Chuyển giữa các ví của bạn không tính vào chi tiêu hay thu nhập. Ví nguồn và ví đích phải khác nhau.',
         ),
         actions: [
           TextButton(
@@ -379,10 +380,10 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
               shape: BoxShape.circle,
               border: Border.all(color: AppColors.glassBorder(context)),
             ),
-            child: const Icon(
+            child: Icon(
               LucideIcons.wallet,
               size: 20,
-              color: AppColors.slateAction,
+              color: AppColors.slateOn(context),
             ),
           ),
           const SizedBox(width: 12),
@@ -506,6 +507,7 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
                   ),
                   const SizedBox(width: 8),
                 ],
+                // Số dư lấy từ ví nguồn (dữ liệu BE)
                 _chip(
                   context,
                   'Tất cả số dư',
@@ -617,23 +619,6 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
               ],
             ),
           ),
-          Divider(height: 1, color: AppColors.glassBorder(context)),
-          ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 48),
-            child: Row(
-              children: [
-                label(LucideIcons.badgePercent, 'Phí chuyển'),
-                const Spacer(),
-                Text(
-                  '0 ₫ (Miễn phí)',
-                  style: AppTypography.bodyMedium(context).copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.safe,
-                  ),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );
@@ -665,7 +650,7 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
               width: 32,
               height: 32,
               decoration: BoxDecoration(
-                color: enough ? AppColors.slateAction : AppColors.warning,
+                color: enough ? AppColors.slateOn(context) : AppColors.warning,
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -685,7 +670,7 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 0.55,
-                      color: AppColors.slateAction,
+                      color: AppColors.slateOn(context),
                     ),
                   ),
                   const SizedBox(height: 2),

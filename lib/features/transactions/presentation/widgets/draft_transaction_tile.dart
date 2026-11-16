@@ -24,9 +24,21 @@ class DraftTransactionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (color, prefix, icon) = switch (draft.type) {
-      TransactionType.expense => (AppColors.expense, '-', LucideIcons.arrowDownLeft),
-      TransactionType.income => (AppColors.income, '+', LucideIcons.arrowUpRight),
-      TransactionType.transfer => (AppColors.transfer, '', LucideIcons.arrowLeftRight),
+      TransactionType.expense => (
+        AppColors.expense,
+        '-',
+        LucideIcons.arrowDownLeft,
+      ),
+      TransactionType.income => (
+        AppColors.income,
+        '+',
+        LucideIcons.arrowUpRight,
+      ),
+      TransactionType.transfer => (
+        AppColors.transfer,
+        '',
+        LucideIcons.arrowLeftRight,
+      ),
     };
     final merchant = draft.merchantName?.trim() ?? '';
     final title = merchant.isNotEmpty
@@ -49,7 +61,9 @@ class DraftTransactionTile extends StatelessWidget {
             title,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w600),
+            style: AppTypography.body(
+              context,
+            ).copyWith(fontWeight: FontWeight.w600),
           ),
           subtitle: Text(
             '${draft.categoryName ?? 'Chưa phân loại'} · ${DateFormat('dd/MM/yyyy HH:mm').format(draft.date)}',
@@ -60,10 +74,9 @@ class DraftTransactionTile extends StatelessWidget {
           trailing: Text(
             '$prefix${draft.formattedAmount}',
             style: AppTypography.tabular(
-              AppTypography.bodyLarge(context).copyWith(
-                fontWeight: FontWeight.w700,
-                color: color,
-              ),
+              AppTypography.bodyLarge(
+                context,
+              ).copyWith(fontWeight: FontWeight.w700, color: color),
             ),
           ),
         ),

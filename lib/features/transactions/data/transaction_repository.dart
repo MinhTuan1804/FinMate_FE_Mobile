@@ -19,7 +19,10 @@ final transactionRepositoryProvider = Provider<TransactionRepository>((ref) {
 });
 
 final syncServiceProvider = Provider<SyncService>((ref) {
-  return SyncService(db: ref.watch(databaseProvider), apiClient: ref.watch(apiClientProvider));
+  return SyncService(
+    db: ref.watch(databaseProvider),
+    apiClient: ref.watch(apiClientProvider),
+  );
 });
 
 /// Một giao dịch mới để ghi theo nhóm (xem [TransactionRepository.createTransactionsLocally])
@@ -81,40 +84,61 @@ class TransactionRepository {
           if (categoryId != null) 'categoryId': categoryId,
           'limit': limit,
         },
-        fromJsonT: (json) => (json as List).map((e) => TransactionEntity.fromJson(e as Map<String, dynamic>)).toList(),
+        fromJsonT: (json) => (json as List)
+            .map((e) => TransactionEntity.fromJson(e as Map<String, dynamic>))
+            .toList(),
       );
 
       final items = response.data ?? const <TransactionEntity>[];
-      for (final tx in items.where((t) => t.status != TransactionStatus.draft)) {
-        await database.insertLocalTransaction(toCompanion(tx.copyWith(isSynced: true)));
+      for (final tx in items.where(
+        (t) => t.status != TransactionStatus.draft,
+      )) {
+        await database.insertLocalTransaction(
+          toCompanion(tx.copyWith(isSynced: true)),
+        );
       }
-      return TransactionPage(items: items, nextCursor: response.meta?.nextCursor);
+      return TransactionPage(
+        items: items,
+        nextCursor: response.meta?.nextCursor,
+      );
     } on NetworkException {
       // Nháp chỉ có trên server nên offline không có gì để hiện.
-      if (status == TransactionStatus.draft) return const TransactionPage(items: []);
-      return TransactionPage(items: await _cached(type: type, fromDate: fromDate, toDate: toDate));
+      if (status == TransactionStatus.draft)
+        return const TransactionPage(items: []);
+      return TransactionPage(
+        items: await _cached(type: type, fromDate: fromDate, toDate: toDate),
+      );
     }
   }
 
-  Future<List<TransactionEntity>> _cached({TransactionType? type, DateTime? fromDate, DateTime? toDate}) async {
+  Future<List<TransactionEntity>> _cached({
+    TransactionType? type,
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
     final rows = await database.getAllTransactions();
-    final list = rows
-        .map(fromRow)
-        .where((t) => t.status == TransactionStatus.confirmed)
-        .where((t) => type == null || t.type == type)
-        .where((t) => fromDate == null || !t.date.isBefore(fromDate))
-        .where((t) => toDate == null || !t.date.isAfter(toDate))
-        .toList()
-      ..sort((a, b) => b.date.compareTo(a.date));
+    final list =
+        rows
+            .map(fromRow)
+            .where((t) => t.status == TransactionStatus.confirmed)
+            .where((t) => type == null || t.type == type)
+            .where((t) => fromDate == null || !t.date.isBefore(fromDate))
+            .where((t) => toDate == null || !t.date.isAfter(toDate))
+            .toList()
+          ..sort((a, b) => b.date.compareTo(a.date));
     return list;
   }
 
   /// Xác nhận một nháp (POST .../confirm). Cần mạng: không xếp hàng đồng bộ; lỗi (vd 409 khi không còn là nháp) được ném lại.
-  Future<TransactionEntity> confirmDraft(String id, {String? categoryId}) async {
+  Future<TransactionEntity> confirmDraft(
+    String id, {
+    String? categoryId,
+  }) async {
     final response = await apiClient.post(
       '$_transactionsPath/$id/confirm',
       data: {if (categoryId != null) 'categoryId': categoryId},
-      fromJsonT: (json) => TransactionEntity.fromJson(json as Map<String, dynamic>),
+      fromJsonT: (json) =>
+          TransactionEntity.fromJson(json as Map<String, dynamic>),
     );
     return response.data!;
   }
@@ -142,7 +166,8 @@ class TransactionRepository {
         'merchantName': merchantName,
         'description': description,
       },
-      fromJsonT: (json) => TransactionEntity.fromJson(json as Map<String, dynamic>),
+      fromJsonT: (json) =>
+          TransactionEntity.fromJson(json as Map<String, dynamic>),
     );
     return response.data!;
   }
@@ -187,7 +212,9 @@ class TransactionRepository {
   /// Ghi cả nhóm giao dịch (một câu nhiều khoản) ở MÁY trong một lần: được tất cả hoặc không gì. Mỗi khoản có một mục hàng đợi đồng bộ với
   /// mã chống trùng của nó. Không gọi mạng: gửi lên server là việc của đồng bộ (`SyncService.processQueue`), mất mạng hay không đều xong ngay.
   /// Server từ chối khi đồng bộ thì bản ghi ở máy được giữ và đánh dấu `failed`, không bị xóa.
-  Future<List<TransactionEntity>> createTransactionsLocally(List<NewTransaction> items) {
+  Future<List<TransactionEntity>> createTransactionsLocally(
+    List<NewTransaction> items,
+  ) {
     return database.transaction(() async {
       final saved = <TransactionEntity>[];
       for (final item in items) {
@@ -245,7 +272,11 @@ class TransactionRepository {
 
   /// Chia sẻ giao dịch của mình vào nhóm (PUT .../group). Ví/số dư không đổi; cần mạng
   /// (tính năng Nhóm không có hỗ trợ offline) nên lỗi được ném thẳng, không xếp hàng đồng bộ.
-  Future<void> shareTransaction({required String id, required String groupId, String? groupCategoryId}) async {
+  Future<void> shareTransaction({
+    required String id,
+    required String groupId,
+    String? groupCategoryId,
+  }) async {
     await apiClient.put<void>(
       '$_transactionsPath/$id/group',
       data: {'groupId': groupId, 'groupCategoryId': groupCategoryId},
@@ -258,7 +289,10 @@ class TransactionRepository {
     await apiClient.delete('$_transactionsPath/$id/group');
   }
 
-  Future<TransactionEntity> _submit(TransactionEntity entity, String endpoint) async {
+  Future<TransactionEntity> _submit(
+    TransactionEntity entity,
+    String endpoint,
+  ) async {
     final clientRequestId = entity.clientRequestId!;
     await database.insertLocalTransaction(toCompanion(entity));
 
@@ -266,7 +300,8 @@ class TransactionRepository {
       final response = await apiClient.post(
         endpoint,
         data: entity.toRequestJson(),
-        fromJsonT: (json) => TransactionEntity.fromJson(json as Map<String, dynamic>),
+        fromJsonT: (json) =>
+            TransactionEntity.fromJson(json as Map<String, dynamic>),
       );
       final server = response.data!.copyWith(isSynced: true);
       await database.deleteTransactionByClientRequestId(clientRequestId);

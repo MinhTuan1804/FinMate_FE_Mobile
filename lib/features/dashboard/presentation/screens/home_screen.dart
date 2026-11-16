@@ -371,9 +371,9 @@ class _AccountChipRow extends ConsumerWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
-              color: isSelected ? GlassColors.ink : GlassColors.glassFill,
+              color: isSelected ? GlassColors.activeFill : GlassColors.glassFill,
               borderRadius: GlassRadius.roundedPill,
-              border: Border.all(color: isSelected ? GlassColors.ink : GlassColors.glassBorder),
+              border: Border.all(color: isSelected ? GlassColors.activeBorder : GlassColors.glassBorder),
             ),
             child: child,
           ),
@@ -393,7 +393,7 @@ class _AccountChipRow extends ConsumerWidget {
               isSelected: isSelected,
               child: Text(
                 'Tất cả',
-                style: GlassTypography.bodySm(color: isSelected ? Colors.white : GlassColors.textSecondary)
+                style: GlassTypography.bodySm(color: isSelected ? GlassColors.activeFg : GlassColors.textSecondary)
                     .copyWith(fontWeight: FontWeight.w600),
               ),
             );
@@ -408,13 +408,13 @@ class _AccountChipRow extends ConsumerWidget {
               children: [
                 Text(
                   account.name,
-                  style: GlassTypography.bodySm(color: isSelected ? Colors.white : GlassColors.textSecondary)
+                  style: GlassTypography.bodySm(color: isSelected ? GlassColors.activeFg : GlassColors.textSecondary)
                       .copyWith(fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(width: 6),
                 Text(
                   formatVnd(account.balanceCents),
-                  style: GlassTypography.labelNumeric(color: isSelected ? Colors.white : GlassColors.textPrimary),
+                  style: GlassTypography.labelNumeric(color: isSelected ? GlassColors.activeFg : GlassColors.textPrimary),
                 ),
               ],
             ),

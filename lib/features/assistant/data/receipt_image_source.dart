@@ -51,8 +51,11 @@ Future<String?> scanWithMlKit() async {
 class ImagePickerSource implements ReceiptImageSource {
   /// [scanDocument] và [useScanner] chỉ để thay trong test.
   ImagePickerSource({Future<String?> Function()? scanDocument, bool? useScanner})
-      : _scanDocument = scanDocument ?? scanWithMlKit,
-        _useScanner = useScanner ?? Platform.isAndroid; // ponytail: ML Kit Document Scanner chỉ có trên Android, iOS dùng camera thường
+    : _scanDocument = scanDocument ?? scanWithMlKit,
+      _useScanner =
+          useScanner ??
+          Platform
+              .isAndroid; // ponytail: ML Kit Document Scanner chỉ có trên Android, iOS dùng camera thường
 
   final ImagePicker _picker = ImagePicker();
   final Future<String?> Function() _scanDocument;
@@ -61,7 +64,12 @@ class ImagePickerSource implements ReceiptImageSource {
   Future<String?> _pick(ImageSource source, String deniedMessage) async {
     try {
       // Chỉ thu nhỏ ảnh quá lớn (ảnh camera 12MP) để dưới giới hạn 5MB; ảnh chụp màn hình giữ nguyên cỡ
-      final file = await _picker.pickImage(source: source, maxWidth: receiptMaxSide, maxHeight: receiptMaxSide, imageQuality: receiptJpegQuality);
+      final file = await _picker.pickImage(
+        source: source,
+        maxWidth: receiptMaxSide,
+        maxHeight: receiptMaxSide,
+        imageQuality: receiptJpegQuality,
+      );
       return file?.path;
     } on PlatformException {
       throw ImageSourceException(deniedMessage);
@@ -81,10 +89,18 @@ class ImagePickerSource implements ReceiptImageSource {
   }
 
   @override
-  Future<String?> pickFromCamera() => _pick(ImageSource.camera, 'Cần quyền camera để chụp hóa đơn. Hãy bật quyền trong Cài đặt.');
+  Future<String?> pickFromCamera() => _pick(
+    ImageSource.camera,
+    'Cần quyền camera để chụp hóa đơn. Hãy bật quyền trong Cài đặt.',
+  );
 
   @override
-  Future<String?> pickFromGallery() => _pick(ImageSource.gallery, 'Cần quyền truy cập ảnh để chọn hóa đơn. Hãy bật quyền trong Cài đặt.');
+  Future<String?> pickFromGallery() => _pick(
+    ImageSource.gallery,
+    'Cần quyền truy cập ảnh để chọn hóa đơn. Hãy bật quyền trong Cài đặt.',
+  );
 }
 
-final receiptImageSourceProvider = Provider<ReceiptImageSource>((ref) => ImagePickerSource());
+final receiptImageSourceProvider = Provider<ReceiptImageSource>(
+  (ref) => ImagePickerSource(),
+);

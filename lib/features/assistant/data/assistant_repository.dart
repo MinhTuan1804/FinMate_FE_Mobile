@@ -17,7 +17,11 @@ class AssistantRepository {
   AssistantRepository({required this.apiClient});
 
   /// `clientRequestId` giúp backend chống trùng khi người dùng gửi lại cùng một tin nhắn
-  Future<ChatReply> chat(String text, {String? accountId, String? clientRequestId}) async {
+  Future<ChatReply> chat(
+    String text, {
+    String? accountId,
+    String? clientRequestId,
+  }) async {
     final response = await apiClient.post(
       '/api/v1/transactions/chat',
       data: {
@@ -39,17 +43,29 @@ class AssistantRepository {
         'amountCents': draft.amountCents.toInt(),
         if (draft.item != null) 'item': draft.item,
         if (draft.categorySlug != null) 'categorySlug': draft.categorySlug,
-        if (date != null) 'purchaseDate': '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}',
+        if (date != null)
+          'purchaseDate':
+              '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}',
       },
-      fromJsonT: (json) => PurchaseAssessment.fromJson(json as Map<String, dynamic>),
+      fromJsonT: (json) =>
+          PurchaseAssessment.fromJson(json as Map<String, dynamic>),
     );
-    return response.data ?? const PurchaseAssessment(verdict: 'insufficient_data', summary: '');
+    return response.data ??
+        const PurchaseAssessment(verdict: 'insufficient_data', summary: '');
   }
 
   /// Gửi tệp ghi âm (multipart, field `file`): backend đổi giọng thành chữ rồi xử lý như câu chat (ưu tiên Rasa)
-  Future<VoiceReply> voiceChat(String filePath, {String? accountId, String? clientRequestId}) async {
+  Future<VoiceReply> voiceChat(
+    String filePath, {
+    String? accountId,
+    String? clientRequestId,
+  }) async {
     final formData = FormData.fromMap({
-      'file': await MultipartFile.fromFile(filePath, filename: p.basename(filePath), contentType: DioMediaType('audio', 'mp4')),
+      'file': await MultipartFile.fromFile(
+        filePath,
+        filename: p.basename(filePath),
+        contentType: DioMediaType('audio', 'mp4'),
+      ),
       if (accountId != null) 'financialAccountId': accountId,
       if (clientRequestId != null) 'clientRequestId': clientRequestId,
     });
@@ -74,22 +90,36 @@ class AssistantRepository {
   /// Ghi âm -> chữ -> hiểu câu, vẫn không ghi gì phía server
   Future<VoiceAnalysis> analyzeVoice(String filePath) async {
     final formData = FormData.fromMap({
-      'file': await MultipartFile.fromFile(filePath, filename: p.basename(filePath), contentType: DioMediaType('audio', 'mp4')),
+      'file': await MultipartFile.fromFile(
+        filePath,
+        filename: p.basename(filePath),
+        contentType: DioMediaType('audio', 'mp4'),
+      ),
     });
     final response = await apiClient.uploadFile(
       '/api/v1/chat/analyze-voice',
       formData: formData,
       fromJsonT: (json) => VoiceAnalysis.fromJson(json as Map<String, dynamic>),
     );
-    return response.data ?? const VoiceAnalysis(transcript: '', analysis: ChatAnalysis(intent: 'out_of_scope'));
+    return response.data ??
+        const VoiceAnalysis(
+          transcript: '',
+          analysis: ChatAnalysis(intent: 'out_of_scope'),
+        );
   }
 
   /// Phân tích một câu thành bản nháp (stateless, không lưu gì)
-  Future<DraftTransaction> parse(String text, {DraftSource source = DraftSource.chat}) async {
+  Future<DraftTransaction> parse(
+    String text, {
+    DraftSource source = DraftSource.chat,
+  }) async {
     final response = await apiClient.post(
       '/api/v1/transactions/parse',
       data: {'text': text},
-      fromJsonT: (json) => DraftTransaction.fromParseJson(json as Map<String, dynamic>, source: source),
+      fromJsonT: (json) => DraftTransaction.fromParseJson(
+        json as Map<String, dynamic>,
+        source: source,
+      ),
     );
     return response.data ?? DraftTransaction(source: source);
   }
@@ -97,7 +127,10 @@ class AssistantRepository {
   /// Gửi ảnh hóa đơn (multipart, field `file`) và nhận kết quả OCR
   Future<ReceiptScan> scanReceipt(String filePath) async {
     final formData = FormData.fromMap({
-      'file': await MultipartFile.fromFile(filePath, filename: p.basename(filePath)),
+      'file': await MultipartFile.fromFile(
+        filePath,
+        filename: p.basename(filePath),
+      ),
     });
     final response = await apiClient.uploadFile(
       '/api/v1/transactions/scan-receipt',

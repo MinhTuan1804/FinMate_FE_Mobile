@@ -13,16 +13,29 @@ class LocalFirstChat {
   final DraftSaver saver;
 
   /// Người dùng xác nhận [description] (tại [merchant]) thuộc danh mục [slug]
-  final Future<void> Function(String? merchant, String? description, String slug) remember;
+  final Future<void> Function(
+    String? merchant,
+    String? description,
+    String slug,
+  )
+  remember;
 
-  const LocalFirstChat({required this.decider, required this.saver, required this.remember});
+  const LocalFirstChat({
+    required this.decider,
+    required this.saver,
+    required this.remember,
+  });
 
   factory LocalFirstChat.fromRef(Ref ref) {
     final db = ref.read(databaseProvider);
     return LocalFirstChat(
       decider: LocalChatDecider(db: db),
       saver: DraftSaver.fromRef(ref),
-      remember: (merchant, description, slug) => db.rememberCategory(merchantKey: memoryKey(merchant), itemKey: memoryKey(description), categorySlug: slug),
+      remember: (merchant, description, slug) => db.rememberCategory(
+        merchantKey: memoryKey(merchant),
+        itemKey: memoryKey(description),
+        categorySlug: slug,
+      ),
     );
   }
 }

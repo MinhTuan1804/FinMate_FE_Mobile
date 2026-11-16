@@ -301,7 +301,7 @@ void main() {
     expect(find.text('Tự động ghi nhận giao dịch'), findsOneWidget);
     await tester.tap(find.text('Bỏ qua (có thể bật sau trong Cá nhân)'));
     await tester.pumpAndSettle();
-    expect(find.text('Khảo sát đầu vào'), findsOneWidget);
+    expect(find.text('Phương pháp quản lý'), findsOneWidget);
     expect(find.text('Xin chào,'), findsNothing);
     expect(backend.income, 15000000);
     expect(backend.accounts.single['accountType'], 'Cash');

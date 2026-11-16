@@ -30,9 +30,18 @@ class RecordVoiceRecorder implements VoiceRecorder {
     try {
       if (!await _recorder.hasPermission()) return VoiceStart.denied;
       final dir = await getTemporaryDirectory();
-      final path = '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+      final path =
+          '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
       // 16 kHz mono: đúng tần số model STT dùng, tệp nhỏ (~16 KB/giây)
-      await _recorder.start(const RecordConfig(encoder: AudioEncoder.aacLc, sampleRate: 16000, numChannels: 1, bitRate: 32000), path: path);
+      await _recorder.start(
+        const RecordConfig(
+          encoder: AudioEncoder.aacLc,
+          sampleRate: 16000,
+          numChannels: 1,
+          bitRate: 32000,
+        ),
+        path: path,
+      );
       return VoiceStart.started;
     } catch (_) {
       return VoiceStart.failed;
@@ -40,7 +49,8 @@ class RecordVoiceRecorder implements VoiceRecorder {
   }
 
   @override
-  Stream<double> levels(Duration interval) => _recorder.onAmplitudeChanged(interval).map((a) => a.current);
+  Stream<double> levels(Duration interval) =>
+      _recorder.onAmplitudeChanged(interval).map((a) => a.current);
 
   @override
   Future<String?> stop() => _recorder.stop();
@@ -56,4 +66,6 @@ class RecordVoiceRecorder implements VoiceRecorder {
   }
 }
 
-final voiceRecorderProvider = Provider<VoiceRecorder>((ref) => RecordVoiceRecorder());
+final voiceRecorderProvider = Provider<VoiceRecorder>(
+  (ref) => RecordVoiceRecorder(),
+);

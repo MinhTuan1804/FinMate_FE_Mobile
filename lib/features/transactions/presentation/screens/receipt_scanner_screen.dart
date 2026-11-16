@@ -595,10 +595,10 @@ class _ReceiptScannerScreenState extends ConsumerState<ReceiptScannerScreen> {
       children: [
         Row(
           children: [
-            const Icon(
+            Icon(
               LucideIcons.scanText,
               size: 16,
-              color: AppColors.slateAction,
+              color: AppColors.slateOn(context),
             ),
             const SizedBox(width: 8),
             Text(

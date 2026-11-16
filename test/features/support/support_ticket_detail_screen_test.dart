@@ -31,6 +31,7 @@ RouteAdapter _adapter({
   String accessRequestsFixture = 'support_access_requests_empty',
 }) {
   return RouteAdapter((o) {
+    if (o.path.endsWith('/financial-accounts')) return respondJson({'success': true, 'data': <dynamic>[]});
     if (o.path.contains('/access-requests')) {
       // BE trả về 1 object SupportAccessRequestDto cho cả 3 hành động, không phải danh sách rỗng.
       if (o.method == 'POST' && o.path.contains('/approve')) return respondFixture('support_access_request_approved');
@@ -166,6 +167,17 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(adapter.requests.any((r) => r.path.contains('/approve')), isTrue);
+    });
+
+    testWidgets('yêu cầu có quyền tạo giao dịch nháp mà chưa có ví: báo cần ví, không gọi /approve (BE sẽ 422)', (tester) async {
+      final adapter = _adapter(accessRequestsFixture: 'support_access_requests_draft');
+      await _pump(tester, adapter);
+
+      await tester.tap(find.byKey(const ValueKey('support-access-approve-dddddddd-0000-0000-0000-000000000001')));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('ít nhất một ví'), findsOneWidget);
+      expect(adapter.requests.any((r) => r.path.contains('/approve')), isFalse);
     });
 
     testWidgets('yêu cầu đã đồng ý: hiện nút thu hồi, bấm gọi đúng API /revoke', (tester) async {

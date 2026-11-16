@@ -1,26 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:finmate/core/format/money.dart';
 import 'package:finmate/core/network/api_exceptions.dart';
-import 'package:finmate/core/theme/app_colors.dart';
-import 'package:finmate/core/theme/app_spacing.dart';
-import 'package:finmate/core/theme/app_typography.dart';
-import 'package:finmate/core/widgets/glass/liquid_glass.dart';
+import 'package:finmate/core/theme/glass/glass_colors.dart';
+import 'package:finmate/core/theme/glass/glass_radius.dart';
+import 'package:finmate/core/theme/glass/glass_typography.dart';
 import 'package:finmate/features/auth/domain/entities/user_profile.dart';
 import 'package:finmate/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:finmate/features/finance_methods/domain/finance_method.dart';
 import 'package:finmate/features/finance_methods/presentation/controllers/finance_methods_controller.dart';
 import 'package:finmate/features/planning/presentation/controllers/planning_controller.dart';
-
-/// Nền cho hộp lồng bên trong thẻ kính: trắng mờ ở giao diện sáng, trắng rất nhạt ở giao diện tối (trắng 60% trên nền tối thành xám đục).
-Color _insetFill(BuildContext context) =>
-    Theme.of(context).brightness == Brightness.dark ? Colors.white.withValues(alpha: 0.06) : Colors.white.withValues(alpha: 0.6);
+import 'package:finmate/shared/widgets/glass/glass_app_bar.dart';
+import 'package:finmate/shared/widgets/glass/glass_background.dart';
+import 'package:finmate/shared/widgets/glass/glass_badge.dart';
+import 'package:finmate/shared/widgets/glass/glass_bottom_dock.dart';
+import 'package:finmate/shared/widgets/glass/glass_buttons.dart';
+import 'package:finmate/shared/widgets/glass/glass_card.dart';
 
 /// H4 / B7 — Ngưỡng cảnh báo chi tiêu (theo Figma). Hai mức T1 (nhắc sớm) và T2 (báo động) chỉnh bằng thanh trượt, lưu hoặc xóa về mặc định;
 /// ví dụ bằng tiền tính từ ngân sách tổng của người dùng (không có ngân sách thì ẩn). Phần "Phương thức gửi" là tùy chọn thông báo thật của hồ sơ.
-/// Báo cáo cuối ngày, cảnh báo giao dịch lớn và âm thanh trong Figma chưa có ở BE nên không hiển thị.
+/// Ngưỡng riêng từng hũ, chặn giao dịch không thiết yếu và bù trừ bằng AI trong Figma chưa có ở BE nên không hiển thị.
 class AlertThresholdsScreen extends ConsumerStatefulWidget {
   const AlertThresholdsScreen({super.key});
 
@@ -45,7 +45,7 @@ class _AlertThresholdsScreenState extends ConsumerState<AlertThresholdsScreen> {
       await ref.read(alertThresholdsControllerProvider.notifier).setPersonal(t1Pct: _t1!, t2Pct: _t2!);
       messenger.showSnackBar(const SnackBar(content: Text('Đã lưu ngưỡng cảnh báo.')));
     } on Object catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text(errorMessage(e)), backgroundColor: AppColors.danger));
+      messenger.showSnackBar(SnackBar(content: Text(errorMessage(e)), backgroundColor: GlassColors.danger));
     }
   }
 
@@ -58,7 +58,7 @@ class _AlertThresholdsScreenState extends ConsumerState<AlertThresholdsScreen> {
         _t2 = null;
       });
     } on Object catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text(errorMessage(e)), backgroundColor: AppColors.danger));
+      messenger.showSnackBar(SnackBar(content: Text(errorMessage(e)), backgroundColor: GlassColors.danger));
     }
   }
 
@@ -68,7 +68,7 @@ class _AlertThresholdsScreenState extends ConsumerState<AlertThresholdsScreen> {
     try {
       await ref.read(authControllerProvider.notifier).updateNotificationPrefs(next);
     } on Object catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text(errorMessage(e)), backgroundColor: AppColors.danger));
+      messenger.showSnackBar(SnackBar(content: Text(errorMessage(e)), backgroundColor: GlassColors.danger));
     } finally {
       if (mounted) setState(() => _savingPrefs = false);
     }
@@ -86,74 +86,74 @@ class _AlertThresholdsScreenState extends ConsumerState<AlertThresholdsScreen> {
     final prefs = ref.watch(authControllerProvider).valueOrNull?.notificationPrefs;
     final limit = ref.watch(planningControllerProvider).valueOrNull?.overallBudget?.limitAmountCents;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Ngưỡng cảnh báo chi tiêu'),
-        centerTitle: true,
-        leading: Padding(
-          padding: const EdgeInsets.all(8),
-          child: LiquidGlassIconButton(icon: LucideIcons.arrowLeft, size: 40, tooltip: 'Quay lại', onPressed: () => context.pop()),
+    return GlassBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: glassAppBar(
+          context,
+          title: 'Ngưỡng cảnh báo',
+          actions: [
+            TextButton(
+              onPressed: _clear,
+              child: Text('Mặc định', style: GlassTypography.bodyMd(color: GlassColors.slateAnchor).copyWith(fontWeight: FontWeight.w600)),
+            ),
+          ],
         ),
-        actions: [TextButton(onPressed: _clear, child: const Text('Mặc định'))],
-      ),
-      body: AmbientGlassBackground(
-        child: async.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(errorMessage(e), style: AppTypography.body(context), textAlign: TextAlign.center),
-                  const SizedBox(height: 12),
-                  OutlinedButton(onPressed: () => ref.read(alertThresholdsControllerProvider.notifier).load(), child: const Text('Thử lại')),
-                ],
+        body: SafeArea(
+          child: async.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, _) => Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(errorMessage(e), style: GlassTypography.bodyMd(), textAlign: TextAlign.center),
+                    const SizedBox(height: 12),
+                    GlassSecondaryButton(label: 'Thử lại', onPressed: () => ref.read(alertThresholdsControllerProvider.notifier).load()),
+                  ],
+                ),
               ),
             ),
-          ),
-          data: (t) {
-            _syncFrom(t);
-            return Column(
-              children: [
-                Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                    children: [
-                      _intro(context),
-                      const SizedBox(height: 16),
-                      _levels(context, t, limit),
-                      if (prefs != null) ...[
+            data: (t) {
+              _syncFrom(t);
+              return Column(
+                children: [
+                  Expanded(
+                    child: ListView(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                      children: [
+                        _intro(),
                         const SizedBox(height: 16),
-                        _delivery(context, prefs),
+                        _levels(context, t, limit),
+                        if (prefs != null) ...[
+                          const SizedBox(height: 16),
+                          _delivery(prefs),
+                        ],
                       ],
-                    ],
-                  ),
-                ),
-                SafeArea(
-                  top: false,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-                    child: LiquidGlassPillButton(
-                      key: const ValueKey('threshold-save'),
-                      label: 'Lưu cài đặt cảnh báo',
-                      icon: LucideIcons.circleCheck,
-                      isFullWidth: true,
-                      onPressed: _save,
                     ),
                   ),
-                ),
-              ],
-            );
-          },
+                  GlassBottomDock(
+                    actions: [
+                      GlassPrimaryButton(
+                        key: const ValueKey('threshold-save'),
+                        label: 'Lưu cấu hình cảnh báo',
+                        icon: LucideIcons.circleCheck,
+                        onPressed: _save,
+                      ),
+                    ],
+                  ),
+                ],
+              );
+            },
+          ),
         ),
       ),
     );
   }
 
-  Widget _intro(BuildContext context) {
-    return LiquidGlassCard(
-      variant: LiquidGlassVariant.iridescentHero,
+  Widget _intro() {
+    return GlassCard(
       padding: const EdgeInsets.all(16),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -161,19 +161,19 @@ class _AlertThresholdsScreenState extends ConsumerState<AlertThresholdsScreen> {
           Container(
             width: 44,
             height: 44,
-            decoration: BoxDecoration(color: AppColors.secondary.withValues(alpha: 0.22), shape: BoxShape.circle),
-            child: Icon(LucideIcons.slidersHorizontal, size: 20, color: AppColors.slateOn(context)),
+            decoration: BoxDecoration(color: GlassColors.accentSkyBlue.withValues(alpha: 0.25), shape: BoxShape.circle),
+            child: Icon(LucideIcons.slidersHorizontal, size: 20, color: GlassColors.slateAnchor),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('HỖ TRỢ THÔNG MINH', style: AppTypography.sectionLabel(context)),
+                Text('HỖ TRỢ THÔNG MINH', style: GlassTypography.labelCaps(color: GlassColors.slateAnchor)),
                 const SizedBox(height: 4),
                 Text(
                   'Nhận nhắc nhẹ ở mức 1 và cảnh báo mạnh ở mức 2 khi chi tiêu chạm các mốc này để tránh vượt ngân sách.',
-                  style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w600, fontSize: 14),
+                  style: GlassTypography.bodyMd(color: GlassColors.textPrimary).copyWith(fontWeight: FontWeight.w600),
                 ),
               ],
             ),
@@ -186,7 +186,7 @@ class _AlertThresholdsScreenState extends ConsumerState<AlertThresholdsScreen> {
   Widget _levels(BuildContext context, AlertThresholdSettingsEntity t, BigInt? limit) {
     final t1 = _t1 ?? t.t1Pct;
     final t2 = _t2 ?? t.t2Pct;
-    return LiquidGlassCard(
+    return GlassCard(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -198,58 +198,46 @@ class _AlertThresholdsScreenState extends ConsumerState<AlertThresholdsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Mức cảnh báo', style: AppTypography.h2(context).copyWith(fontSize: 18, fontWeight: FontWeight.w700)),
-                    Text('Kéo để chỉnh điểm chạm', style: AppTypography.caption(context)),
+                    Semantics(header: true, child: Text('Mức cảnh báo', style: GlassTypography.headlineSm())),
+                    Text('Kéo để chỉnh điểm chạm', style: GlassTypography.bodySm()),
                   ],
                 ),
               ),
-              if (limit != null)
-                Flexible(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(color: AppColors.secondary.withValues(alpha: 0.18), borderRadius: AppSpacing.roundedPill),
-                    child: Text(
-                      'Hạn mức ${formatVnd(limit)}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.slateOn(context)),
-                    ),
-                  ),
-                ),
+              if (limit != null) Flexible(child: GlassBadge(text: 'Hạn mức ${formatVnd(limit)}')),
             ],
           ),
           const SizedBox(height: 12),
           Text(
             'Đang áp dụng: $t1% · $t2% (${_sourceLabel(t)})',
             key: const ValueKey('threshold-effective'),
-            style: AppTypography.caption(context).copyWith(fontSize: 12.5),
+            style: GlassTypography.bodySm(color: GlassColors.textSecondary),
           ),
           Text(
             'Mặc định hệ thống: ${t.systemDefault.t1Pct}% · ${t.systemDefault.t2Pct}%',
-            style: AppTypography.caption(context).copyWith(fontSize: 12.5),
+            style: GlassTypography.bodySm(color: GlassColors.textSecondary),
           ),
           const SizedBox(height: 14),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _legendDot(AppColors.safe, '0%'),
-              _legendDot(AppColors.warning, '$t1%'),
-              _legendDot(AppColors.danger, '100%'),
+              _legendDot(GlassColors.success, '0%'),
+              _legendDot(GlassColors.warning, '$t1%'),
+              _legendDot(GlassColors.danger, '100%'),
             ],
           ),
           const SizedBox(height: 6),
           Container(
             height: 8,
             decoration: BoxDecoration(
-              borderRadius: AppSpacing.roundedPill,
-              gradient: const LinearGradient(colors: [AppColors.safe, AppColors.warning, AppColors.danger]),
+              borderRadius: GlassRadius.roundedPill,
+              gradient: LinearGradient(colors: [GlassColors.success, GlassColors.warning, GlassColors.danger]),
             ),
           ),
           const SizedBox(height: 16),
           _level(
             context,
             icon: LucideIcons.bellRing,
-            color: AppColors.warning,
+            color: GlassColors.warning,
             title: 'Mức 1: Cảnh báo sớm',
             sliderKey: 'threshold-t1-input',
             value: t1,
@@ -263,7 +251,7 @@ class _AlertThresholdsScreenState extends ConsumerState<AlertThresholdsScreen> {
           _level(
             context,
             icon: LucideIcons.triangleAlert,
-            color: AppColors.danger,
+            color: GlassColors.danger,
             title: 'Mức 2: Báo động khẩn',
             sliderKey: 'threshold-t2-input',
             value: t2,
@@ -283,7 +271,7 @@ class _AlertThresholdsScreenState extends ConsumerState<AlertThresholdsScreen> {
       children: [
         Container(width: 7, height: 7, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
         const SizedBox(width: 4),
-        Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: color)),
+        Text(label, style: GlassTypography.labelCaps(color: color).copyWith(letterSpacing: 0)),
       ],
     );
   }
@@ -303,7 +291,11 @@ class _AlertThresholdsScreenState extends ConsumerState<AlertThresholdsScreen> {
   }) {
     return Container(
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: _insetFill(context), borderRadius: AppSpacing.roundedLarge),
+      decoration: BoxDecoration(
+        color: GlassColors.fieldFill,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: GlassColors.fieldBorder),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -316,12 +308,12 @@ class _AlertThresholdsScreenState extends ConsumerState<AlertThresholdsScreen> {
                 child: Icon(icon, size: 16, color: color),
               ),
               const SizedBox(width: 10),
-              Expanded(child: Text(title, style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w700, fontSize: 14))),
+              Expanded(child: Text(title, style: GlassTypography.bodyMd(color: GlassColors.textPrimary).copyWith(fontWeight: FontWeight.w700))),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text('$value%', style: AppTypography.tabular(TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: color))),
-                  Text('ngân sách', style: AppTypography.caption(context).copyWith(fontSize: 11)),
+                  Text('$value%', style: GlassTypography.labelNumeric(color: color).copyWith(fontSize: 22, fontWeight: FontWeight.w800, height: 1.2)),
+                  Text('ngân sách', style: GlassTypography.bodySm()),
                 ],
               ),
             ],
@@ -330,7 +322,7 @@ class _AlertThresholdsScreenState extends ConsumerState<AlertThresholdsScreen> {
             data: SliderTheme.of(context).copyWith(
               activeTrackColor: color,
               inactiveTrackColor: color.withValues(alpha: 0.18),
-              thumbColor: AppColors.textPrimary(context),
+              thumbColor: GlassColors.ink,
               overlayColor: color.withValues(alpha: 0.15),
               thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
               trackHeight: 6,
@@ -348,15 +340,15 @@ class _AlertThresholdsScreenState extends ConsumerState<AlertThresholdsScreen> {
           if (limit != null)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              decoration: BoxDecoration(color: _insetFill(context), borderRadius: BorderRadius.circular(8)),
+              decoration: BoxDecoration(color: GlassColors.fieldFill, borderRadius: BorderRadius.circular(12)),
               child: Row(
                 children: [
-                  Expanded(child: Text('$exampleLabel:', style: AppTypography.caption(context).copyWith(fontSize: 12))),
+                  Expanded(child: Text('$exampleLabel:', style: GlassTypography.bodySm())),
                   Flexible(
                     child: Text(
                       '${formatVnd(limit * BigInt.from(value) ~/ BigInt.from(100))} / ${formatVnd(limit)}',
                       textAlign: TextAlign.right,
-                      style: AppTypography.tabular(AppTypography.body(context).copyWith(fontWeight: FontWeight.w700, fontSize: 12.5)),
+                      style: GlassTypography.labelNumeric().copyWith(fontSize: 12.5),
                     ),
                   ),
                 ],
@@ -367,7 +359,7 @@ class _AlertThresholdsScreenState extends ConsumerState<AlertThresholdsScreen> {
     );
   }
 
-  Widget _delivery(BuildContext context, NotificationPrefs prefs) {
+  Widget _delivery(NotificationPrefs prefs) {
     Widget toggle({
       required String key,
       required IconData icon,
@@ -376,29 +368,35 @@ class _AlertThresholdsScreenState extends ConsumerState<AlertThresholdsScreen> {
       required bool value,
       required NotificationPrefs Function(bool) next,
     }) {
-      return SwitchListTile.adaptive(
-        key: ValueKey(key),
-        contentPadding: EdgeInsets.zero,
-        secondary: Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(color: AppColors.secondary.withValues(alpha: 0.18), shape: BoxShape.circle),
-          child: Icon(icon, size: 18, color: AppColors.textSecondary(context)),
+      // Material trong suốt: GlassCard tự vẽ nền nên ListTile cần Material riêng để hiệu ứng chạm không bị che.
+      return Material(
+        type: MaterialType.transparency,
+        child: SwitchListTile.adaptive(
+          key: ValueKey(key),
+          contentPadding: EdgeInsets.zero,
+          secondary: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(color: GlassColors.accentSkyBlue.withValues(alpha: 0.2), shape: BoxShape.circle),
+            child: Icon(icon, size: 18, color: GlassColors.slateAnchor),
+          ),
+          title: Text(title, style: GlassTypography.bodyMd(color: GlassColors.textPrimary).copyWith(fontWeight: FontWeight.w700)),
+          subtitle: Text(subtitle, style: GlassTypography.bodySm()),
+          value: value,
+          activeThumbColor: GlassColors.onInk,
+          activeTrackColor: GlassColors.ink,
+          onChanged: _savingPrefs ? null : (v) => _setPrefs(next(v)),
         ),
-        title: Text(title, style: AppTypography.body(context).copyWith(fontSize: 14.5, fontWeight: FontWeight.w700)),
-        subtitle: Text(subtitle, style: AppTypography.caption(context).copyWith(fontSize: 12)),
-        value: value,
-        onChanged: _savingPrefs ? null : (v) => _setPrefs(next(v)),
       );
     }
 
-    return LiquidGlassCard(
+    return GlassCard(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Phương thức & Thời điểm gửi', style: AppTypography.h2(context).copyWith(fontSize: 18, fontWeight: FontWeight.w700)),
-          const Divider(height: 20),
+          Semantics(header: true, child: Text('Phương thức & Thời điểm gửi', style: GlassTypography.headlineSm())),
+          Divider(height: 20, color: GlassColors.glassBorder),
           toggle(
             key: 'pref-push',
             icon: LucideIcons.messageSquareDot,

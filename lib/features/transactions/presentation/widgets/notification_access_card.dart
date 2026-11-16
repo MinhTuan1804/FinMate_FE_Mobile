@@ -38,9 +38,9 @@ class NotificationAccessCard extends StatelessWidget {
                 children: [
                   Text(
                     'Chưa bật quyền đọc thông báo',
-                    style: AppTypography.bodyMedium(context).copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: AppTypography.bodyMedium(
+                      context,
+                    ).copyWith(fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(

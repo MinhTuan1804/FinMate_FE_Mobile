@@ -44,6 +44,19 @@ class MethodEntity {
   final List<ParamEntity> params;
   final bool available;
 
+  /// Các khối BE muốn hiện cho cách này ở màn "Cách của tôi". Rỗng = BE không khai báo, dùng [effectiveLayout].
+  final List<HomeBlockEntity> homeLayout;
+
+  /// Bố cục mặc định của BE khi cách không cấu hình riêng: tiền khả dụng, tham số, mục tiêu, bước bắt đầu.
+  List<HomeBlockEntity> get effectiveLayout => homeLayout.isNotEmpty
+      ? homeLayout
+      : const [
+          HomeBlockEntity(type: 'spendable'),
+          HomeBlockEntity(type: 'params'),
+          HomeBlockEntity(type: 'goals'),
+          HomeBlockEntity(type: 'starter_steps'),
+        ];
+
   const MethodEntity({
     required this.code,
     required this.name,
@@ -54,6 +67,7 @@ class MethodEntity {
     required this.starterSteps,
     required this.params,
     required this.available,
+    this.homeLayout = const [],
   });
 
   bool get canBePrimary => role == 'primary' || role == 'both';
@@ -69,6 +83,29 @@ class MethodEntity {
         starterSteps: (json['starterSteps'] as List).map((e) => e as String).toList(),
         params: (json['params'] as List).map((e) => ParamEntity.fromJson(e as Map<String, dynamic>)).toList(),
         available: json['available'] as bool? ?? true,
+        homeLayout: [
+          for (final b in (json['homeLayout'] as List?) ?? const [])
+            if (b is Map && b['type'] is String) HomeBlockEntity.fromJson(Map<String, dynamic>.from(b)),
+        ],
+      );
+}
+
+/// Một khối trong `homeLayout`. [type]: 'spendable' | 'jars' | 'params' | 'goals' | 'starter_steps'.
+/// Với 'params': [title] là tiêu đề nhóm, [keys] lọc các tham số cần hiện (null = tất cả),
+/// [display] là 'list' hoặc 'allocation' (thanh tỷ lệ chia, cộng 100%).
+class HomeBlockEntity {
+  final String type;
+  final String? title;
+  final List<String>? keys;
+  final String display;
+
+  const HomeBlockEntity({required this.type, this.title, this.keys, this.display = 'list'});
+
+  factory HomeBlockEntity.fromJson(Map<String, dynamic> json) => HomeBlockEntity(
+        type: json['type'] as String,
+        title: json['title'] as String?,
+        keys: (json['keys'] as List?)?.whereType<String>().toList(),
+        display: json['display'] as String? ?? 'list',
       );
 }
 

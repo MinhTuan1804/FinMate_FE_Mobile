@@ -141,7 +141,7 @@ class _CycleToggle extends ConsumerWidget {
             onTap: () => ref.read(_yearlyProvider.notifier).state = value,
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 10),
-              decoration: BoxDecoration(color: selected ? AppColors.primaryAction(context) : Colors.transparent, borderRadius: AppSpacing.roundedPill),
+              decoration: BoxDecoration(color: selected ? AppColors.activeFill(context) : Colors.transparent, borderRadius: AppSpacing.roundedPill),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -150,7 +150,7 @@ class _CycleToggle extends ConsumerWidget {
                       label,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: selected ? AppColors.onPrimaryAction(context) : AppColors.textPrimary(context)),
+                      style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: selected ? AppColors.activeFg(context) : AppColors.textPrimary(context)),
                     ),
                   ),
                   if (badge != null) ...[

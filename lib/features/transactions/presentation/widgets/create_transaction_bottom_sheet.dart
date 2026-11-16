@@ -27,7 +27,8 @@ class CreateTransactionBottomSheet extends ConsumerStatefulWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => CreateTransactionBottomSheet(initialTab: initialTab),
+      builder: (context) =>
+          CreateTransactionBottomSheet(initialTab: initialTab),
     );
   }
 
@@ -171,7 +172,9 @@ class _CreateTransactionBottomSheetState
     if (balance == null || !mounted) return;
 
     try {
-      await ref.read(accountsControllerProvider.notifier).create(
+      await ref
+          .read(accountsControllerProvider.notifier)
+          .create(
             name: 'Ví tiền mặt',
             type: AccountType.cash,
             initialBalanceCents: balance,
@@ -209,7 +212,9 @@ class _CreateTransactionBottomSheetState
                     width: 42,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: AppColors.textMuted(context).withValues(alpha: 0.45),
+                      color: AppColors.textMuted(
+                        context,
+                      ).withValues(alpha: 0.45),
                       borderRadius: AppSpacing.roundedPill,
                     ),
                   ),
@@ -226,10 +231,22 @@ class _CreateTransactionBottomSheetState
                     fontSize: 13,
                   ),
                   tabs: const [
-                    Tab(icon: Icon(LucideIcons.sparkles, size: 18), text: 'AI Text'),
-                    Tab(icon: Icon(LucideIcons.mic, size: 18), text: 'Giọng nói'),
-                    Tab(icon: Icon(LucideIcons.scanLine, size: 18), text: 'Hóa đơn'),
-                    Tab(icon: Icon(LucideIcons.pencil, size: 18), text: 'Thủ công'),
+                    Tab(
+                      icon: Icon(LucideIcons.sparkles, size: 18),
+                      text: 'AI Text',
+                    ),
+                    Tab(
+                      icon: Icon(LucideIcons.mic, size: 18),
+                      text: 'Giọng nói',
+                    ),
+                    Tab(
+                      icon: Icon(LucideIcons.scanLine, size: 18),
+                      text: 'Hóa đơn',
+                    ),
+                    Tab(
+                      icon: Icon(LucideIcons.pencil, size: 18),
+                      text: 'Thủ công',
+                    ),
                   ],
                 ),
                 Expanded(
@@ -264,13 +281,13 @@ class _CreateTransactionBottomSheetState
   }
 
   Widget _errorText(String message) => Padding(
-        padding: const EdgeInsets.only(top: 12),
-        child: Text(
-          message,
-          textAlign: TextAlign.center,
-          style: const TextStyle(color: AppColors.danger, fontSize: 13),
-        ),
-      );
+    padding: const EdgeInsets.only(top: 12),
+    child: Text(
+      message,
+      textAlign: TextAlign.center,
+      style: const TextStyle(color: AppColors.danger, fontSize: 13),
+    ),
+  );
 
   Widget _buildAssistantTab({
     IconData icon = LucideIcons.sparkles,
@@ -318,7 +335,9 @@ class _CreateTransactionBottomSheetState
   }
 
   Widget _buildClassicTab() {
-    return ref.watch(accountsControllerProvider).when(
+    return ref
+        .watch(accountsControllerProvider)
+        .when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(
             child: Padding(
@@ -336,8 +355,9 @@ class _CreateTransactionBottomSheetState
               ),
             ),
           ),
-          data: (accounts) =>
-              accounts.isEmpty ? _buildNoAccount() : _buildClassicForm(accounts),
+          data: (accounts) => accounts.isEmpty
+              ? _buildNoAccount()
+              : _buildClassicForm(accounts),
         );
   }
 
@@ -353,9 +373,9 @@ class _CreateTransactionBottomSheetState
             const SizedBox(height: 12),
             Text(
               'Bạn chưa có tài khoản nào',
-              style: AppTypography.body(context).copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+              style: AppTypography.body(
+                context,
+              ).copyWith(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 4),
             Text(

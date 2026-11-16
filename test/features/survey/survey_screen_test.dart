@@ -42,7 +42,6 @@ void main() {
       expect(find.text('Thu nhập của bạn thường đến theo cách nào?'), findsOneWidget);
       // saving_style có showIf phụ thuộc main_goal/month_end_balance, chưa trả lời main_goal → ẩn.
       expect(find.text('Bạn muốn dành tiền cho mục tiêu theo cách nào?'), findsNothing);
-      expect(find.textContaining('Chưa làm'), findsOneWidget);
     });
 
     testWidgets('chọn main_goal=B và month_end_balance=A thì saving_style hiện ra ngay trên máy', (tester) async {
@@ -112,7 +111,6 @@ void main() {
         ],
       });
       expect(find.textContaining('Đã gửi khảo sát'), findsOneWidget);
-      expect(find.textContaining('Đã làm xong'), findsOneWidget);
     });
 
     testWidgets('bỏ qua khảo sát gọi đúng API và cập nhật trạng thái', (tester) async {
@@ -124,15 +122,13 @@ void main() {
 
       expect(adapter.requests.any((r) => r.method == 'POST' && r.path.contains('/skip')), isTrue);
       expect(find.textContaining('Đã bỏ qua khảo sát'), findsOneWidget);
-      expect(find.textContaining('Đã bỏ qua'), findsWidgets);
     });
 
     testWidgets('xóa khảo sát: hủy ở hộp thoại thì không gọi API xóa', (tester) async {
       final adapter = _adapterWith();
       await _pump(tester, adapter);
 
-      await tester.scrollUntilVisible(find.text('Xóa khảo sát (reset)'), 300);
-      await tester.tap(find.text('Xóa khảo sát (reset)'));
+      await tester.tap(find.byTooltip('Xóa khảo sát (reset)'));
       await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(TextButton, 'Hủy'));
       await tester.pumpAndSettle();
@@ -143,11 +139,9 @@ void main() {
     testWidgets('xóa khảo sát: xác nhận thì gọi DELETE rồi GET lại, về trạng thái chưa làm', (tester) async {
       final adapter = _adapterWith(getFixture: 'survey_completed');
       await _pump(tester, adapter);
-      expect(find.textContaining('Đã làm xong'), findsOneWidget);
-
-      // survey_completed có đủ 10 câu (saving_style cũng hiện vì đã có main_goal), dài hơn viewport test.
-      await tester.scrollUntilVisible(find.text('Xóa khảo sát (reset)'), 300);
-      await tester.tap(find.text('Xóa khảo sát (reset)'));
+      // Đã làm xong và chưa sửa: dock hiện nút xem gợi ý thay cho Gửi khảo sát.
+      expect(find.byKey(const ValueKey('survey-go-to-recommendations')), findsOneWidget);
+      await tester.tap(find.byTooltip('Xóa khảo sát (reset)'));
       await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(TextButton, 'Xóa'));
       await tester.pumpAndSettle();

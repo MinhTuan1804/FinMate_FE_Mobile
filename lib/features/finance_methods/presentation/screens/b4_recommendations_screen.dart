@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:finmate/core/network/api_exceptions.dart';
 import 'package:finmate/core/theme/glass/glass_colors.dart';
+import 'package:finmate/core/theme/glass/glass_radius.dart';
 import 'package:finmate/core/theme/glass/glass_typography.dart';
 import 'package:finmate/features/finance_methods/data/finance_methods_repository.dart';
 import 'package:finmate/features/finance_methods/domain/finance_method.dart';
 import 'package:finmate/features/finance_methods/presentation/controllers/finance_methods_controller.dart';
+import 'package:finmate/shared/widgets/glass/glass_app_bar.dart';
 import 'package:finmate/shared/widgets/glass/glass_background.dart';
 import 'package:finmate/shared/widgets/glass/glass_buttons.dart';
 import 'package:finmate/shared/widgets/glass/glass_card.dart';
 import 'package:finmate/shared/widgets/glass/glass_loading_spinner.dart';
+import 'package:finmate/shared/widgets/glass/glass_progress_bar.dart';
 
 String _roleLabel(String role) => switch (role) {
       'primary' => 'Chính',
@@ -28,6 +32,10 @@ String _outcomeLabel(String outcome) => switch (outcome) {
       _ => 'Đã xử lý',
     };
 
+/// Các tham số phần trăm mô tả cách chia (loại ngưỡng cảnh báo t1/t2, vốn không phải tỷ lệ phân bổ).
+List<ParamEntity> _allocationParams(MethodEntity m) =>
+    m.params.where((p) => p.type == 'percent' && p.key != 't1_pct' && p.key != 't2_pct').toList();
+
 /// B4 — Gợi ý phương pháp quản lý tài chính: gợi ý AI/quy tắc + danh mục để tự chọn + mẫu mục
 /// tiêu gợi ý theo phương pháp. Tạo gợi ý cần đã làm khảo sát trước (422 nếu chưa làm).
 class RecommendationsScreen extends ConsumerWidget {
@@ -38,24 +46,65 @@ class RecommendationsScreen extends ConsumerWidget {
     return GlassBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          title: Text('Gợi ý cho bạn', style: GlassTypography.headlineMd()),
-        ),
+        appBar: glassAppBar(context, title: 'Gợi ý cho bạn'),
         body: SafeArea(
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
             children: [
               _RecommendationSection(),
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
               _CatalogSection(),
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
               _GoalSuggestionsSection(),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  final String title;
+  final String? trailing;
+
+  const _SectionHeader({required this.title, this.trailing});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 0, 4, 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            child: Semantics(header: true, child: Text(title, style: GlassTypography.headlineSm())),
+          ),
+          if (trailing != null) ...[
+            const SizedBox(width: 8),
+            Text(trailing!.toUpperCase(), style: GlassTypography.labelCaps(color: GlassColors.textMuted)),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Dòng lỗi + nút thử lại dùng chung cho các khối tải dữ liệu.
+class _ErrorRetry extends StatelessWidget {
+  final Object error;
+  final VoidCallback onRetry;
+
+  const _ErrorRetry({required this.error, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(errorMessage(error), style: GlassTypography.bodySm(color: GlassColors.danger)),
+        TextButton(onPressed: onRetry, child: const Text('Thử lại')),
+      ],
     );
   }
 }
@@ -107,67 +156,197 @@ class _RecommendationSection extends ConsumerWidget {
       }
     }
 
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ...async.maybeWhen(
+          data: (rec) => rec == null ? <Widget>[] : <Widget>[_AdvisorBadge(isAi: rec.source == 'ai'), const SizedBox(height: 16)],
+          orElse: () => <Widget>[],
+        ),
+        GlassCard(
+          level: 2,
+          borderRadius: GlassRadius.roundedHero,
+          padding: const EdgeInsets.all(21),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              async.when(
+                loading: () => const GlassLoadingSpinner(),
+                error: (e, __) => Text(errorMessage(e), style: GlassTypography.bodySm(color: GlassColors.danger)),
+                data: (rec) {
+                  if (rec == null) {
+                    return Text('Chưa có gợi ý nào.', style: GlassTypography.bodyMd());
+                  }
+                  final allocation = _allocationParams(rec.primary.method);
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    key: const ValueKey('method-recommendation-result'),
+                    children: [
+                      Text(
+                        'Nguồn: ${rec.source == 'ai' ? 'AI' : 'Quy tắc'} · ${_outcomeLabel(rec.outcome)}',
+                        style: GlassTypography.labelCaps(color: GlassColors.slateAnchor),
+                      ),
+                      const SizedBox(height: 8),
+                      Semantics(
+                        header: true,
+                        child: Text(
+                          rec.primary.method.name,
+                          style: GlassTypography.headlineMd().copyWith(fontWeight: FontWeight.w700, letterSpacing: -0.5),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(rec.primary.reason, style: GlassTypography.bodyMd().copyWith(height: 22.75 / 14)),
+                      if (allocation.isNotEmpty) ...[
+                        const SizedBox(height: 20),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 2),
+                          child: Text('TỶ LỆ PHÂN BỔ', style: GlassTypography.labelCaps()),
+                        ),
+                        const SizedBox(height: 12),
+                        for (var i = 0; i < allocation.length; i++) ...[
+                          if (i > 0) const SizedBox(height: 12),
+                          _AllocationRow(index: i + 1, param: allocation[i]),
+                        ],
+                      ],
+                      if (rec.support != null) ...[
+                        const SizedBox(height: 20),
+                        Text('Bổ trợ: ${rec.support!.method.name}', style: GlassTypography.bodyLg().copyWith(fontWeight: FontWeight.w600)),
+                        const SizedBox(height: 4),
+                        Text(rec.support!.reason, style: GlassTypography.bodyMd()),
+                      ],
+                      if (rec.outcome == 'shown') ...[
+                        const SizedBox(height: 20),
+                        SizedBox(
+                          width: double.infinity,
+                          child: GlassPrimaryButton(
+                            key: const ValueKey('method-apply-recommendation'),
+                            label: 'Áp dụng phương pháp này',
+                            icon: LucideIcons.arrowRight,
+                            onPressed: () => apply(rec),
+                          ),
+                        ),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: TextButton(
+                            key: const ValueKey('method-skip-recommendation'),
+                            onPressed: () => skip(rec.id),
+                            child: Text('Bỏ qua gợi ý này', style: GlassTypography.bodyMd(color: GlassColors.textMuted)),
+                          ),
+                        ),
+                      ],
+                    ],
+                  );
+                },
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: GlassGhostButton(
+                  key: const ValueKey('method-generate-recommendation'),
+                  label: 'Tạo gợi ý mới',
+                  onPressed: generate,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Thẻ nhỏ đầu màn: gợi ý đến từ AI hay từ quy tắc. Không có số liệu thu nhập vì BE gợi ý không trả về.
+class _AdvisorBadge extends StatelessWidget {
+  final bool isAi;
+
+  const _AdvisorBadge({required this.isAi});
+
+  @override
+  Widget build(BuildContext context) {
     return GlassCard(
-      level: 2,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      padding: const EdgeInsets.all(15),
+      borderRadius: BorderRadius.circular(16),
+      child: Row(
         children: [
-          Text('GỢI Ý TỪ TRỢ LÝ AI', style: GlassTypography.labelCaps(color: GlassColors.slateAnchor)),
-          const SizedBox(height: 10),
-          SizedBox(
-            width: double.infinity,
-            child: GlassPrimaryButton(
-              key: const ValueKey('method-generate-recommendation'),
-              label: 'Tạo gợi ý mới',
-              onPressed: generate,
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(color: GlassColors.accentSkyBlue.withValues(alpha: 0.25), shape: BoxShape.circle),
+            child: Icon(LucideIcons.sparkles, size: 18, color: GlassColors.slateAnchor),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        isAi ? 'AI FINANCIAL ADVISOR' : 'GỢI Ý THEO QUY TẮC',
+                        style: GlassTypography.labelCaps(color: GlassColors.slateAnchor),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Container(width: 6, height: 6, decoration: BoxDecoration(color: GlassColors.success, shape: BoxShape.circle)),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text('Khuyến nghị dựa trên hồ sơ của bạn', style: GlassTypography.bodySm()),
+              ],
             ),
           ),
-          const SizedBox(height: 12),
-          async.when(
-            loading: () => const GlassLoadingSpinner(),
-            error: (e, __) => Text(errorMessage(e), style: GlassTypography.bodySm(color: GlassColors.danger)),
-            data: (rec) {
-              if (rec == null) {
-                return Text('Chưa có gợi ý nào.', style: GlassTypography.bodyMd());
-              }
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                key: const ValueKey('method-recommendation-result'),
-                children: [
-                  Text(
-                    'Nguồn: ${rec.source == 'ai' ? 'AI' : 'Quy tắc'} · ${_outcomeLabel(rec.outcome)}',
-                    style: GlassTypography.bodySm(),
-                  ),
-                  const SizedBox(height: 6),
-                  Text('Chính: ${rec.primary.method.name}', style: GlassTypography.bodyLg(color: GlassColors.textPrimary).copyWith(fontWeight: FontWeight.w700)),
-                  Text(rec.primary.reason, style: GlassTypography.bodyMd()),
-                  if (rec.support != null) ...[
-                    const SizedBox(height: 10),
-                    Text('Bổ trợ: ${rec.support!.method.name}', style: GlassTypography.bodyLg(color: GlassColors.textPrimary).copyWith(fontWeight: FontWeight.w700)),
-                    Text(rec.support!.reason, style: GlassTypography.bodyMd()),
-                  ],
-                  if (rec.outcome == 'shown') ...[
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      child: GlassPrimaryButton(
-                        key: const ValueKey('method-apply-recommendation'),
-                        label: 'Áp dụng gợi ý',
-                        onPressed: () => apply(rec),
-                      ),
-                    ),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: TextButton(
-                        key: const ValueKey('method-skip-recommendation'),
-                        onPressed: () => skip(rec.id),
-                        child: Text('Bỏ qua gợi ý này', style: GlassTypography.bodyMd(color: GlassColors.textMuted)),
-                      ),
-                    ),
-                  ],
-                ],
-              );
-            },
+        ],
+      ),
+    );
+  }
+}
+
+class _AllocationRow extends StatelessWidget {
+  final int index;
+  final ParamEntity param;
+
+  const _AllocationRow({required this.index, required this.param});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: GlassColors.fieldFill,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: GlassColors.fieldBorder),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 24,
+                height: 24,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(color: GlassColors.accentSkyBlue.withValues(alpha: 0.25), shape: BoxShape.circle),
+                child: Text('$index', style: GlassTypography.labelCaps(color: GlassColors.slateAnchor).copyWith(fontSize: 10)),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  param.label,
+                  style: GlassTypography.bodyMd(color: GlassColors.textPrimary).copyWith(fontSize: 13, fontWeight: FontWeight.w600),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text('${param.defaultValue}%', style: GlassTypography.labelNumeric().copyWith(fontSize: 13)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Semantics(
+            label: '${param.label}: ${param.defaultValue}%',
+            excludeSemantics: true,
+            child: GlassProgressBar(percent: param.defaultValue.toDouble(), height: 8),
           ),
         ],
       ),
@@ -179,37 +358,37 @@ class _CatalogSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(methodCatalogProvider);
-    return GlassCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Danh mục cách quản lý', style: GlassTypography.headlineSm()),
-          const SizedBox(height: 12),
-          async.when(
-            loading: () => const GlassLoadingSpinner(),
-            error: (e, __) => Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(errorMessage(e), style: GlassTypography.bodySm(color: GlassColors.danger)),
-                TextButton(onPressed: () => ref.invalidate(methodCatalogProvider), child: const Text('Thử lại')),
-              ],
-            ),
-            data: (methods) => Column(
-              children: [
-                for (final m in methods)
-                  Padding(
-                    key: ValueKey('method-catalog-${m.code}'),
-                    padding: const EdgeInsets.only(bottom: 14),
-                    // Nút xuống hàng riêng dưới mô tả: để cạnh nhau thì cột chữ bị ép hẹp, xuống dòng từng từ
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _SectionHeader(
+          title: 'Phương án khác tham khảo',
+          trailing: async.maybeWhen(data: (m) => '${m.length} lựa chọn', orElse: () => null),
+        ),
+        async.when(
+          loading: () => const GlassLoadingSpinner(),
+          error: (e, __) => _ErrorRetry(error: e, onRetry: () => ref.invalidate(methodCatalogProvider)),
+          data: (methods) => Column(
+            children: [
+              for (final m in methods)
+                Padding(
+                  key: ValueKey('method-catalog-${m.code}'),
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: GlassCard(
+                    padding: const EdgeInsets.all(17),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          '${m.name} (${_roleLabel(m.role)})',
-                          style: GlassTypography.bodyLg(color: GlassColors.textPrimary).copyWith(fontWeight: FontWeight.w600),
-                        ),
-                        Text(m.summary, style: GlassTypography.bodySm()),
-                        if (m.canBePrimary || m.canBeSupport)
+                        Text(_roleLabel(m.role), style: GlassTypography.bodySm()),
+                        const SizedBox(height: 4),
+                        Text(m.name, style: GlassTypography.bodyLg().copyWith(fontWeight: FontWeight.w600)),
+                        const SizedBox(height: 8),
+                        Text(m.summary, style: GlassTypography.bodySm(color: GlassColors.textSecondary).copyWith(height: 16.5 / 12)),
+                        if (m.canBePrimary || m.canBeSupport) ...[
+                          const SizedBox(height: 11),
+                          Divider(height: 1, color: GlassColors.glassBorder),
+                          const SizedBox(height: 4),
+                          // Nút xuống hàng riêng dưới mô tả: để cạnh nhau thì cột chữ bị ép hẹp, xuống dòng từng từ
                           Wrap(
                             spacing: 8,
                             children: [
@@ -227,14 +406,15 @@ class _CatalogSection extends ConsumerWidget {
                                 ),
                             ],
                           ),
+                        ],
                       ],
                     ),
                   ),
-              ],
-            ),
+                ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -261,45 +441,40 @@ class _GoalSuggestionsSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(goalSuggestionsProvider);
-    return GlassCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Mẫu mục tiêu gợi ý', style: GlassTypography.headlineSm()),
-          const SizedBox(height: 12),
-          async.when(
-            loading: () => const GlassLoadingSpinner(),
-            error: (e, __) => Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const _SectionHeader(title: 'Mẫu mục tiêu gợi ý'),
+        async.when(
+          loading: () => const GlassLoadingSpinner(),
+          error: (e, __) => _ErrorRetry(error: e, onRetry: () => ref.invalidate(goalSuggestionsProvider)),
+          data: (list) {
+            if (list.isEmpty) {
+              return Text('Chưa có mẫu mục tiêu phù hợp.', style: GlassTypography.bodyMd());
+            }
+            return Column(
               children: [
-                Text(errorMessage(e), style: GlassTypography.bodySm(color: GlassColors.danger)),
-                TextButton(onPressed: () => ref.invalidate(goalSuggestionsProvider), child: const Text('Thử lại')),
-              ],
-            ),
-            data: (list) {
-              if (list.isEmpty) {
-                return Text('Chưa có mẫu mục tiêu phù hợp.', style: GlassTypography.bodyMd());
-              }
-              return Column(
-                children: [
-                  for (final g in list)
-                    Padding(
-                      key: ValueKey('goal-suggestion-${g.templateCode}'),
-                      padding: const EdgeInsets.only(bottom: 10),
+                for (final g in list)
+                  Padding(
+                    key: ValueKey('goal-suggestion-${g.templateCode}'),
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: GlassCard(
+                      padding: const EdgeInsets.all(17),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(g.name, style: GlassTypography.bodyLg(color: GlassColors.textPrimary).copyWith(fontWeight: FontWeight.w600)),
-                          Text(g.description, style: GlassTypography.bodySm()),
+                          Text(g.name, style: GlassTypography.bodyLg().copyWith(fontWeight: FontWeight.w600)),
+                          const SizedBox(height: 4),
+                          Text(g.description, style: GlassTypography.bodySm(color: GlassColors.textSecondary).copyWith(height: 16.5 / 12)),
                         ],
                       ),
                     ),
-                ],
-              );
-            },
-          ),
-        ],
-      ),
+                  ),
+              ],
+            );
+          },
+        ),
+      ],
     );
   }
 }

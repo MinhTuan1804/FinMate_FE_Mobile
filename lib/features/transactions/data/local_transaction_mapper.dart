@@ -3,13 +3,18 @@ import 'package:finmate/core/database/app_database.dart';
 import 'package:finmate/features/transactions/domain/entities/transaction_entity.dart';
 
 /// Entity -> dòng SQLite. Backend không trả clientRequestId nên dùng id làm giá trị duy nhất thay thế.
-LocalTransactionsCompanion toCompanion(TransactionEntity tx, {String? syncStatus}) {
+LocalTransactionsCompanion toCompanion(
+  TransactionEntity tx, {
+  String? syncStatus,
+}) {
   return LocalTransactionsCompanion(
     id: drift.Value(tx.id),
     clientRequestId: drift.Value(tx.clientRequestId ?? tx.id),
     amountCents: drift.Value(tx.amountCents),
     transactionType: drift.Value(tx.type.apiValue),
-    status: drift.Value(tx.status == TransactionStatus.draft ? 'Draft' : 'Confirmed'),
+    status: drift.Value(
+      tx.status == TransactionStatus.draft ? 'Draft' : 'Confirmed',
+    ),
     categoryId: drift.Value(tx.categoryId),
     financialAccountId: drift.Value(tx.accountId),
     counterAccountId: drift.Value(tx.toAccountId),
@@ -32,7 +37,9 @@ TransactionEntity fromRow(LocalTransaction row) {
     date: row.transactedAt,
     accountId: row.financialAccountId,
     toAccountId: row.counterAccountId,
-    status: row.status == 'Draft' ? TransactionStatus.draft : TransactionStatus.confirmed,
+    status: row.status == 'Draft'
+        ? TransactionStatus.draft
+        : TransactionStatus.confirmed,
     isSynced: row.syncStatus == 'synced',
     clientRequestId: row.clientRequestId,
   );

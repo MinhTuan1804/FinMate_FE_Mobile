@@ -13,6 +13,7 @@ import 'package:finmate/features/finance_methods/presentation/controllers/financ
 import 'package:finmate/features/finance_methods/presentation/controllers/jar_detail_controller.dart';
 import 'package:finmate/features/planning/domain/entities/budget_entity.dart';
 import 'package:finmate/features/transactions/domain/entities/transaction_entity.dart';
+import 'package:finmate/shared/widgets/glass/glass_app_bar.dart';
 import 'package:finmate/shared/widgets/glass/glass_background.dart';
 import 'package:finmate/shared/widgets/glass/glass_badge.dart';
 import 'package:finmate/shared/widgets/glass/glass_card.dart';
@@ -36,20 +37,14 @@ class JarDetailScreen extends ConsumerWidget {
     return GlassBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          title: jarsAsync.when(
+        appBar: glassAppBar(
+          context,
+          title: jarsAsync.maybeWhen(
             data: (sets) {
               final jar = _findJar(sets, key);
-              return Text(
-                jar == null ? 'Chi tiết hũ' : 'Chi tiết ${jar.label}',
-                style: GlassTypography.headlineMd(),
-                overflow: TextOverflow.ellipsis,
-              );
+              return jar == null ? 'Chi tiết hũ' : 'Chi tiết ${jar.label}';
             },
-            loading: () => Text('Chi tiết hũ', style: GlassTypography.headlineMd()),
-            error: (_, __) => Text('Chi tiết hũ', style: GlassTypography.headlineMd()),
+            orElse: () => 'Chi tiết hũ',
           ),
         ),
         body: SafeArea(
@@ -69,14 +64,14 @@ class JarDetailScreen extends ConsumerWidget {
                 return Center(child: Text('Không tìm thấy hũ này.', style: GlassTypography.bodyMd()));
               }
               return ListView(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
                 children: [
                   Row(
                     children: [
-                      Text(jarSet.title ?? jarSet.methodName, style: GlassTypography.bodySm()),
-                      Icon(Icons.chevron_right, size: 14, color: GlassColors.textMuted),
-                      Text(jar.label, style: GlassTypography.bodySm(color: GlassColors.textPrimary)),
-                      const Spacer(),
+                      Flexible(child: Text(jarSet.title ?? jarSet.methodName, style: GlassTypography.bodySm(), overflow: TextOverflow.ellipsis)),
+                      Icon(LucideIcons.chevronRight, size: 14, color: GlassColors.textMuted),
+                      Flexible(child: Text(jar.label, style: GlassTypography.bodySm(color: GlassColors.textPrimary).copyWith(fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis)),
+                      const SizedBox(width: 8),
                       GlassBadge(text: '${jar.allocationPct}% THU NHẬP'),
                     ],
                   ),
@@ -124,7 +119,8 @@ class JarDetailScreen extends ConsumerWidget {
 
     return GlassCard(
       level: 2,
-      borderRadius: GlassRadius.roundedCardLarge,
+      padding: const EdgeInsets.all(21),
+      borderRadius: GlassRadius.roundedCard,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -135,11 +131,19 @@ class JarDetailScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('NGÂN SÁCH THÁNG NÀY', style: GlassTypography.labelCaps(color: GlassColors.accentSkyBlue)),
-                    const SizedBox(height: 8),
-                    Text(
-                      jar.allocatedCents == null ? 'Chưa biết' : formatVnd(jar.allocatedCents!),
-                      style: GlassTypography.displayHero(),
+                    Text('NGÂN SÁCH THÁNG NÀY', style: GlassTypography.labelCaps(color: GlassColors.textSecondary)),
+                    const SizedBox(height: 4),
+                    Text.rich(
+                      TextSpan(
+                        children: [
+                          TextSpan(
+                            text: jar.allocatedCents == null ? 'Chưa biết' : formatVnd(jar.allocatedCents!),
+                            style: GlassTypography.displayHero(),
+                          ),
+                          if (jar.allocatedCents != null)
+                            TextSpan(text: ' / tháng', style: GlassTypography.bodyMd()),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -147,12 +151,14 @@ class JarDetailScreen extends ConsumerWidget {
               Container(
                 width: 44,
                 height: 44,
-                decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.7), shape: BoxShape.circle),
-                child: Icon(LucideIcons.wallet, size: 22, color: GlassColors.slateAnchor),
+                decoration: BoxDecoration(color: GlassColors.fieldFill, shape: BoxShape.circle),
+                child: Icon(LucideIcons.wallet, size: 18, color: GlassColors.slateAnchor),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
+          Divider(height: 1, color: GlassColors.glassBorder),
+          const SizedBox(height: 16),
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
@@ -160,21 +166,36 @@ class JarDetailScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Đã chi tiêu: ${formatVnd(jar.spentCents)}', style: GlassTypography.bodyMd()),
+                    Text('Đã chi tiêu', style: GlassTypography.bodySm(color: GlassColors.textSecondary)),
+                    Text(formatVnd(jar.spentCents), style: GlassTypography.labelNumeric().copyWith(fontSize: 18, fontWeight: FontWeight.w700)),
                     const SizedBox(height: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.5), borderRadius: GlassRadius.roundedPill),
-                      child: Text(
-                        jar.remainingCents == null
-                            ? 'Chưa biết còn lại'
-                            : 'Còn ${formatVnd(jar.remainingCents!)} • $daysRemaining ngày tới',
-                        style: GlassTypography.bodySm(color: GlassColors.textSecondary),
+                      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: GlassColors.fieldFill,
+                        borderRadius: GlassRadius.roundedPill,
+                        border: Border.all(color: GlassColors.fieldBorder),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(LucideIcons.calendar, size: 13, color: GlassColors.slateAnchor),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              jar.remainingCents == null
+                                  ? 'Chưa biết còn lại'
+                                  : 'Còn ${formatVnd(jar.remainingCents!)} • $daysRemaining ngày tới',
+                              style: GlassTypography.bodySm(color: GlassColors.textPrimary).copyWith(fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
               ),
+              const SizedBox(width: 12),
               GlassCircularProgress(
                 size: 96,
                 percent: percent,
@@ -192,11 +213,13 @@ class JarDetailScreen extends ConsumerWidget {
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.4), borderRadius: GlassRadius.roundedInput),
+              decoration: BoxDecoration(color: GlassColors.fieldFill, borderRadius: GlassRadius.roundedPill),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Tiến độ chi tiêu an toàn', style: GlassTypography.bodySm()),
+                  Container(width: 8, height: 8, decoration: BoxDecoration(color: GlassColors.success, shape: BoxShape.circle)),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text('Tiến độ chi tiêu an toàn', style: GlassTypography.bodySm(), overflow: TextOverflow.ellipsis)),
+                  const SizedBox(width: 8),
                   Text('~${formatVnd(perDay)} / ngày', style: GlassTypography.bodySm(color: GlassColors.textPrimary).copyWith(fontWeight: FontWeight.w600)),
                 ],
               ),
@@ -242,16 +265,6 @@ class _CategoryBudgetsSection extends ConsumerWidget {
                 ],
               ),
             ),
-            TextButton(
-              onPressed: () {},
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text('Chi tiết', style: GlassTypography.bodyMd(color: GlassColors.accentSkyBlue)),
-                  const Icon(Icons.chevron_right, size: 16, color: GlassColors.accentSkyBlue),
-                ],
-              ),
-            ),
           ],
         ),
         const SizedBox(height: 6),
@@ -286,13 +299,14 @@ class _CategoryBudgetRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GlassCard(
+      padding: const EdgeInsets.all(15),
       borderRadius: const BorderRadius.all(Radius.circular(20)),
       child: Row(
         children: [
           Container(
             width: 40,
             height: 40,
-            decoration: BoxDecoration(color: GlassColors.accentWarmPeach.withValues(alpha: 0.3), shape: BoxShape.circle),
+            decoration: BoxDecoration(color: GlassColors.accentSkyBlue.withValues(alpha: 0.22), borderRadius: BorderRadius.circular(16)),
             child: Icon(categoryIcon(slug), size: 18, color: GlassColors.slateAnchor),
           ),
           const SizedBox(width: 12),

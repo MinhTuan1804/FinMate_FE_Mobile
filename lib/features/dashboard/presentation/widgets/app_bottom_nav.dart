@@ -92,8 +92,8 @@ class AppBottomNav extends StatelessWidget {
   Widget _tab(BuildContext context, int index) {
     final item = _items[index];
     final selected = index == currentIndex;
-    final activeBg = AppColors.primaryAction(context);
-    final activeIconFg = AppColors.onPrimaryAction(context);
+    final activeBg = AppColors.activeFill(context);
+    final activeIconFg = AppColors.activeFg(context);
     final activeTextColor = AppColors.textPrimary(context);
     final inactiveColor = AppColors.textMuted(context);
 

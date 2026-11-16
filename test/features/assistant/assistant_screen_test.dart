@@ -70,19 +70,6 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('chưa có tin nhắn: hiện gợi ý nhanh; chạm gợi ý gửi đúng nội dung', (tester) async {
-    await pumpChat(tester);
-
-    expect(find.text('ăn phở 45k'), findsOneWidget);
-    expect(find.text('tháng này tôi tiêu bao nhiêu?'), findsOneWidget);
-
-    await tester.ensureVisible(find.text('ăn phở 45k')); // hàng chip cuộn ngang, chip có thể nằm ngoài màn hình
-    await tester.tap(find.text('ăn phở 45k'));
-    await tester.pump();
-
-    expect(assistant.sent, ['ăn phở 45k']);
-  });
-
   testWidgets('đang gõ: nút + và mic thu lại thành ">", bấm ">" mở lại', (tester) async {
     await pumpChat(tester);
     expect(find.byKey(const ValueKey('scan-button')), findsOneWidget);

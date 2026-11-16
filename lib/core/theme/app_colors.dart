@@ -129,7 +129,7 @@ class AppColors {
 
   static const Color textPrimaryDark = Color(0xFFF1F5F9); // 15.1:1 trên #0C1220
   static const Color textSecondaryDark = Color(0xFF94A3B8); // 6.4:1 trên #151F32
-  static const Color textMutedDark = Color(0xFF64748B); // Neutral #64748B
+  static const Color textMutedDark = Color(0xFF8A99B1); // ~5.3:1 trên #151F32 (bản cũ #64748B chỉ ~3.3:1, khó đọc)
 
   // ===========================================================================
   // 7. CONTEXT-AWARE HELPERS
@@ -159,10 +159,18 @@ class AppColors {
       isDark(context) ? borderDark : glassBorderLight;
 
   static Color primaryAction(BuildContext context) =>
-      isDark(context) ? primaryDarkMode : primary;
+      isDark(context) ? primaryDarkMode : slateAction; // sáng: xanh slate thay cho đen mực, hợp tông kính
 
   static Color onPrimaryAction(BuildContext context) =>
       isDark(context) ? backgroundDark : surfaceLightElevated;
+
+  /// Nền cho mục ĐANG CHỌN (tab, chip, nút phân đoạn): xanh trời dịu thay cho khối đen đặc của [primaryAction].
+  /// Nút hành động chính (Lưu, Gửi…) vẫn dùng [primaryAction]; chỉ trạng thái "đang chọn" dùng cặp này.
+  static Color activeFill(BuildContext context) =>
+      const Color(0xFF7CA9D6).withValues(alpha: isDark(context) ? 0.25 : 0.28);
+
+  /// Chữ/icon trên [activeFill].
+  static Color activeFg(BuildContext context) => slateOn(context);
 
   /// Nền cho hộp/ô lồng trong thẻ kính: trắng mờ [lightAlpha] ở giao diện sáng, trắng rất nhạt ở giao diện tối
   /// (trắng 60% trên nền tối thành xám đục, lạc tông).
@@ -172,6 +180,11 @@ class AppColors {
   /// Viền mảnh của ô nhập/nút kính lồng trong nền.
   static Color insetBorder(BuildContext context) =>
       isDark(context) ? Colors.white.withValues(alpha: 0.14) : Colors.white.withValues(alpha: 0.85);
+
+  /// Chi tiêu/thu nhập/chuyển khoản dùng làm CHỮ hoặc ICON: ở giao diện tối dùng bản sáng hơn để đủ tương phản (>= 4.5:1).
+  static Color expenseOn(BuildContext context) => isDark(context) ? const Color(0xFFF87171) : expense;
+  static Color incomeOn(BuildContext context) => isDark(context) ? const Color(0xFF34D399) : income;
+  static Color transferOn(BuildContext context) => isDark(context) ? const Color(0xFF9CC3EA) : transfer;
 
   /// Màu nhấn xanh slate cho chữ/icon nhỏ: đậm ở giao diện sáng, xanh nhạt ở giao diện tối (slateAction đậm gần như chìm trên nền tối).
   static Color slateOn(BuildContext context) => isDark(context) ? const Color(0xFF9CC3EA) : slateAction;

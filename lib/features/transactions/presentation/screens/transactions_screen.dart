@@ -8,6 +8,9 @@ import 'package:finmate/core/theme/app_colors.dart';
 import 'package:finmate/core/theme/app_spacing.dart';
 import 'package:finmate/core/theme/app_typography.dart';
 import 'package:finmate/core/format/money.dart';
+import 'package:finmate/features/analytics/data/reports_repository.dart';
+import 'package:finmate/features/analytics/domain/report_models.dart';
+import 'package:finmate/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:finmate/core/widgets/glass/liquid_glass.dart';
 import 'package:finmate/features/accounts/presentation/controllers/accounts_controller.dart';
 import 'package:finmate/features/categories/presentation/categories_provider.dart';
@@ -22,6 +25,21 @@ import 'package:finmate/features/transactions/presentation/widgets/draft_transac
 import 'package:finmate/features/transactions/presentation/widgets/failed_sync_banner.dart';
 import 'package:finmate/features/transactions/presentation/widgets/notification_access_card.dart';
 import 'package:finmate/shared/widgets/glass/main_bottom_nav.dart';
+
+/// Tổng chi/thu của một khoảng ngày bất kỳ (máy chủ tính, không cộng từ các trang đã tải).
+/// Tải lại khi giao dịch mới nhất đổi (thêm/xóa/xác nhận giao dịch).
+final _periodSummaryProvider = FutureProvider.autoDispose
+    .family<MonthlySummary, (DateTime, DateTime)>((ref, range) {
+      if (ref.watch(currentUserIdProvider) == null) return MonthlySummary.empty;
+      ref.watch(
+        transactionControllerProvider.select(
+          (s) => s.valueOrNull?.firstOrNull?.id,
+        ),
+      );
+      return ref
+          .watch(reportsRepositoryProvider)
+          .getPeriodSummary(from: range.$1, to: range.$2);
+    });
 
 class TransactionsScreen extends ConsumerStatefulWidget {
   const TransactionsScreen({super.key});
@@ -38,6 +56,9 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
 
   // dispose không dùng được ref nữa nên giữ controller của lần build gần nhất
   TransactionController? _controller;
+
+  /// Khoảng ngày đang xem (gồm cả hai đầu); null = tháng hiện tại, chưa lọc danh sách
+  DateTimeRange? _range;
 
   static const _filters = <(String, TransactionType?)>[
     ('Tất cả', null),
@@ -58,6 +79,12 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     // Chế độ nháp là trạng thái dùng chung của controller: rời màn mà không tắt thì lịch sử ở nơi khác vẫn hiện nháp.
     // Hoãn một microtask vì dispose chạy giữa lúc cây widget đang dỡ, không được phát state mới ngay lúc đó.
     final controller = _controller;
+    // Bộ lọc ngày cũng là trạng thái dùng chung: trả về không lọc khi rời màn
+    if (controller != null && _range != null) {
+      Future.microtask(() {
+        if (controller.mounted) controller.setRange(null, null);
+      });
+    }
     if (controller != null && controller.draftsOnly) {
       Future.microtask(() {
         if (controller.mounted) controller.setDraftsOnly(false);
@@ -332,9 +359,15 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                       controller: _scrollController,
                       physics: const AlwaysScrollableScrollPhysics(),
                       padding: const EdgeInsets.only(bottom: 80),
-                      itemCount: grouped.length,
+                      itemCount: grouped.length + 1,
                       itemBuilder: (context, index) {
-                        final dayKey = grouped.keys.elementAt(index);
+                        if (index == 0) {
+                          // Thẻ tổng tháng chỉ hiện khi xem toàn bộ, không lọc loại
+                          return controller.filter == null
+                              ? _monthCard(context)
+                              : const SizedBox.shrink();
+                        }
+                        final dayKey = grouped.keys.elementAt(index - 1);
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -446,7 +479,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     bool selected,
     VoidCallback onTap,
   ) {
-    final action = AppColors.primaryAction(context);
+    final action = AppColors.activeFill(context);
     return ChoiceChip(
       label: Text(label),
       selected: selected,
@@ -459,13 +492,13 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
       labelStyle: AppTypography.caption(context).copyWith(
         fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
         color: selected
-            ? AppColors.onPrimaryAction(context)
+            ? AppColors.activeFg(context)
             : AppColors.textSecondary(context),
       ),
     );
   }
 
-  /// Nhãn ngày + tổng ròng của ngày (thu trừ chi, bỏ chuyển nội bộ)
+  /// Nhãn ngày của một nhóm giao dịch
   Widget _dayHeader(BuildContext context, List<TransactionEntity> day) {
     final now = DateTime.now();
     final d = day.first.date;
@@ -480,36 +513,212 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
         : (isYesterday
               ? 'Hôm qua, $dayMonth'
               : DateFormat('dd/MM/yyyy').format(d));
-    var net = BigInt.zero;
-    for (final tx in day) {
-      if (tx.isInternalTransfer) continue;
-      net += tx.type == TransactionType.income
-          ? tx.amountCents
-          : -tx.amountCents;
-    }
-    final sign = net > BigInt.zero ? '+' : (net < BigInt.zero ? '-' : '');
+    final caption = AppTypography.caption(context);
+    // Tổng chi/thu đã có ở thẻ tổng phía trên nên tiêu đề ngày chỉ còn nhãn ngày.
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              label,
-              style: AppTypography.caption(
-                context,
-              ).copyWith(fontWeight: FontWeight.w600, letterSpacing: 0.3),
-            ),
-          ),
-          Text(
-            '$sign${formatVnd(net.abs())}',
-            style: AppTypography.tabular(
-              AppTypography.caption(context).copyWith(
-                fontWeight: FontWeight.w700,
-                color: net < BigInt.zero
-                    ? AppColors.expense
-                    : (net > BigInt.zero ? AppColors.income : null),
+      child: Text(
+        label,
+        style: caption.copyWith(
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.3,
+        ),
+      ),
+    );
+  }
+
+  static DateTimeRange _monthRange(DateTime m) => DateTimeRange(
+    start: DateTime(m.year, m.month),
+    end: DateTime(m.year, m.month + 1, 0),
+  );
+
+  static bool _sameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
+
+  /// "Tháng 11, 2026" khi khoảng là đúng một tháng dương lịch, ngược lại "01/11/2026 – 16/11/2026"
+  static String _rangeLabel(DateTimeRange r) {
+    final isMonth = r.start.day == 1 && _sameDay(r.end, _monthRange(r.start).end);
+    if (isMonth) return 'Tháng ${r.start.month}, ${r.start.year}';
+    final f = DateFormat('dd/MM/yyyy');
+    return '${f.format(r.start)} – ${f.format(r.end)}';
+  }
+
+  /// Chọn khoảng thời gian: tháng này, tháng trước, năm nay, năm trước, hoặc tự chọn từ ngày … đến ngày …; lọc cả thẻ tổng lẫn danh sách
+  Future<void> _pickRange(DateTimeRange current) async {
+    final now = DateTime.now();
+    final presets = <(String, DateTimeRange)>[
+      ('Tháng này', _monthRange(now)),
+      ('Tháng trước', _monthRange(DateTime(now.year, now.month - 1))),
+      ('Năm nay', DateTimeRange(start: DateTime(now.year), end: DateTime(now.year, 12, 31))),
+      ('Năm trước', DateTimeRange(start: DateTime(now.year - 1), end: DateTime(now.year - 1, 12, 31))),
+    ];
+    // Giá trị "custom" là DateTimeRange rỗng đặc biệt: dùng null để phân biệt với đóng sheet
+    final picked = await showModalBottomSheet<Object>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            for (final p in presets)
+              ListTile(
+                title: Text(p.$1),
+                subtitle: Text(_rangeLabel(p.$2)),
+                trailing:
+                    _sameDay(p.$2.start, current.start) &&
+                        _sameDay(p.$2.end, current.end)
+                    ? const Icon(LucideIcons.check, size: 18)
+                    : null,
+                onTap: () => Navigator.pop(ctx, p.$2),
               ),
+            ListTile(
+              key: const ValueKey('range-custom'),
+              leading: const Icon(LucideIcons.calendarRange, size: 18),
+              title: const Text('Chọn khoảng ngày…'),
+              onTap: () => Navigator.pop(ctx, 'custom'),
             ),
+          ],
+        ),
+      ),
+    );
+    if (picked == null || !mounted) return;
+    DateTimeRange? range;
+    if (picked is DateTimeRange) {
+      range = picked;
+    } else {
+      range = await showDateRangePicker(
+        context: context,
+        firstDate: DateTime(2000),
+        lastDate: DateTime(now.year + 1, 12, 31),
+        initialDateRange: current,
+        helpText: 'Chọn khoảng thời gian',
+        saveText: 'Áp dụng',
+      );
+    }
+    if (range == null || !mounted) return;
+    setState(() => _range = range);
+    ref
+        .read(transactionControllerProvider.notifier)
+        .setRange(range.start, range.end);
+  }
+
+  /// Thẻ tổng chi/thu của khoảng đang chọn, lấy từ máy chủ (không cộng từ các trang đã tải)
+  Widget _monthCard(BuildContext context) {
+    final now = DateTime.now();
+    final range = _range ?? _monthRange(now);
+    final summary = ref
+        .watch(_periodSummaryProvider((range.start, range.end)))
+        .valueOrNull;
+    final days = range.duration.inDays + 1;
+    final caption = AppTypography.caption(context);
+    Widget total(String label, Color dot, String value, Color valueColor) =>
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: dot,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(label, style: caption),
+                ],
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTypography.tabular(
+                  AppTypography.bodyLarge(
+                    context,
+                  ).copyWith(fontWeight: FontWeight.w700, color: valueColor),
+                ),
+              ),
+            ],
+          ),
+        );
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.isDark(context)
+            ? AppColors.glassFillDark
+            : AppColors.glassFillLight,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: AppColors.glassBorder(context)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Material(
+                color: AppColors.surface(context).withValues(alpha: 0.8),
+                shape: StadiumBorder(
+                  side: BorderSide(color: AppColors.glassBorder(context)),
+                ),
+                child: InkWell(
+                  key: const ValueKey('month-picker'),
+                  customBorder: const StadiumBorder(),
+                  onTap: () => _pickRange(range),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(minHeight: 44),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(LucideIcons.calendar, size: 14),
+                          const SizedBox(width: 6),
+                          Text(
+                            _rangeLabel(range),
+                            style: AppTypography.bodyMedium(
+                              context,
+                            ).copyWith(fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(width: 4),
+                          const Icon(LucideIcons.chevronDown, size: 14),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '$days NGÀY',
+                style: caption.copyWith(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.55,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              total(
+                'Tổng chi',
+                AppColors.expenseOn(context),
+                summary == null ? '—' : formatVnd(summary.totalSpentCents),
+                AppColors.expenseOn(context),
+              ),
+              total(
+                'Tổng thu',
+                AppColors.incomeOn(context),
+                summary == null
+                    ? '—'
+                    : '+${formatVnd(summary.totalIncomeCents)}',
+                AppColors.incomeOn(context),
+              ),
+            ],
           ),
         ],
       ),
@@ -536,8 +745,8 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     final isTransfer = tx.isInternalTransfer;
     final isExpense = tx.type == TransactionType.expense;
     final color = isTransfer
-        ? AppColors.transfer
-        : (isExpense ? AppColors.expense : AppColors.income);
+        ? AppColors.transferOn(context)
+        : (isExpense ? AppColors.expenseOn(context) : AppColors.incomeOn(context));
     final prefix = isTransfer ? '' : (isExpense ? '-' : '+');
     final title = tx.description.isNotEmpty
         ? tx.description
@@ -572,7 +781,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                 child: Icon(
                   isTransfer ? LucideIcons.arrowLeftRight : categoryIcon(slug),
                   size: 20,
-                  color: AppColors.slateAction,
+                  color: AppColors.slateOn(context),
                 ),
               ),
               const SizedBox(width: 12),
@@ -660,7 +869,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                         style: secondary.copyWith(
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.slateAction,
+                          color: AppColors.slateOn(context),
                         ),
                       ),
                     ),

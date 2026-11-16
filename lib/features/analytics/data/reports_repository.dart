@@ -24,6 +24,17 @@ class ReportsRepository {
     return response.data ?? MonthlySummary.empty;
   }
 
+  /// Tổng chi/thu cho khoảng ngày bất kỳ (gồm cả hai đầu, giờ VN), tối đa 1100 ngày. Chỉ đọc 4 trường đầu của [MonthlySummary].
+  Future<MonthlySummary> getPeriodSummary({required DateTime from, required DateTime to, String? accountId}) async {
+    String day(DateTime d) => '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+    final response = await apiClient.get(
+      '/api/v1/reports/period-summary',
+      queryParameters: {'fromDate': day(from), 'toDate': day(to), if (accountId != null) 'accountId': accountId},
+      fromJsonT: (json) => MonthlySummary.fromJson(json as Map<String, dynamic>),
+    );
+    return response.data ?? MonthlySummary.empty;
+  }
+
   Future<CategoryBreakdown> getCategoryBreakdown({required int year, required int month}) async {
     final response = await apiClient.get(
       '/api/v1/reports/category-breakdown',

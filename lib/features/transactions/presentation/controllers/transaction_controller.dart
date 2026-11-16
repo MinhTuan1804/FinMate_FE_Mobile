@@ -9,17 +9,21 @@ import 'package:finmate/features/transactions/domain/entities/transaction_page.d
 
 /// Tạo lại (và tải lại) khi đổi người dùng; chưa đăng nhập thì rỗng và không gọi API
 final transactionControllerProvider =
-    StateNotifierProvider<TransactionController, AsyncValue<List<TransactionEntity>>>((ref) {
-  final signedIn = ref.watch(currentUserIdProvider) != null;
-  return TransactionController(
-    repository: ref.watch(transactionRepositoryProvider),
-    syncService: ref.watch(syncServiceProvider),
-    enabled: signedIn,
-    onDataChanged: () => refreshDerivedData(ref),
-  );
-});
+    StateNotifierProvider<
+      TransactionController,
+      AsyncValue<List<TransactionEntity>>
+    >((ref) {
+      final signedIn = ref.watch(currentUserIdProvider) != null;
+      return TransactionController(
+        repository: ref.watch(transactionRepositoryProvider),
+        syncService: ref.watch(syncServiceProvider),
+        enabled: signedIn,
+        onDataChanged: () => refreshDerivedData(ref),
+      );
+    });
 
-class TransactionController extends StateNotifier<AsyncValue<List<TransactionEntity>>> {
+class TransactionController
+    extends StateNotifier<AsyncValue<List<TransactionEntity>>> {
   final TransactionRepository repository;
   final SyncService syncService;
 
@@ -27,18 +31,28 @@ class TransactionController extends StateNotifier<AsyncValue<List<TransactionEnt
   final VoidCallback? onDataChanged;
 
   TransactionType? _filter;
+  DateTime? _from;
+  DateTime? _to;
   bool _draftsOnly = false;
   String? _cursor;
   bool _loadingMore = false;
   int _gen = 0;
 
-  TransactionController({required this.repository, required this.syncService, bool enabled = true, this.onDataChanged})
-      : super(enabled ? const AsyncValue.loading() : const AsyncValue.data([])) {
+  TransactionController({
+    required this.repository,
+    required this.syncService,
+    bool enabled = true,
+    this.onDataChanged,
+  }) : super(enabled ? const AsyncValue.loading() : const AsyncValue.data([])) {
     if (enabled) loadTransactions();
   }
 
   /// Bộ lọc loại giao dịch đang áp dụng (null = tất cả)
   TransactionType? get filter => _filter;
+
+  /// Khoảng ngày đang lọc (ngày đầu và ngày cuối, gồm cả hai, giờ địa phương); null = không lọc
+  DateTime? get fromDay => _from;
+  DateTime? get toDay => _to;
 
   /// Đang xem danh sách nháp (chưa xác nhận); khi đó bộ lọc loại bị bỏ qua
   bool get draftsOnly => _draftsOnly;
@@ -53,12 +67,14 @@ class TransactionController extends StateNotifier<AsyncValue<List<TransactionEnt
     final gen = ++_gen;
     final draftsOnly = _draftsOnly;
     final filter = _filter;
+    final from = _from;
+    final to = _to;
     try {
       var synced = 0;
       try {
         synced = await syncService.processQueue();
       } catch (_) {}
-      final page = await _fetch(draftsOnly, filter);
+      final page = await _fetch(draftsOnly, filter, from, to);
       if (!mounted) return;
       if (synced > 0) onDataChanged?.call();
       if (gen != _gen) return;
@@ -77,7 +93,7 @@ class TransactionController extends StateNotifier<AsyncValue<List<TransactionEnt
     final gen = _gen;
     _loadingMore = true;
     try {
-      final page = await _fetch(_draftsOnly, _filter, cursor: cursor);
+      final page = await _fetch(_draftsOnly, _filter, _from, _to, cursor: cursor);
       if (!mounted || gen != _gen) return;
       _cursor = page.nextCursor;
       state = AsyncValue.data([...current, ...page.items]);
@@ -88,15 +104,46 @@ class TransactionController extends StateNotifier<AsyncValue<List<TransactionEnt
     }
   }
 
-  Future<TransactionPage> _fetch(bool draftsOnly, TransactionType? filter, {String? cursor}) => repository.getTransactions(
-        type: draftsOnly ? null : filter,
-        cursor: cursor,
-        status: draftsOnly ? TransactionStatus.draft : TransactionStatus.confirmed,
-      );
+  Future<TransactionPage> _fetch(
+    bool draftsOnly,
+    TransactionType? filter,
+    DateTime? from,
+    DateTime? to, {
+    String? cursor,
+  }) => repository.getTransactions(
+    type: draftsOnly ? null : filter,
+    // Nháp không lọc theo ngày; "toDate" là mili-giây cuối cùng của ngày cuối
+    fromDate: draftsOnly ? null : from,
+    toDate: draftsOnly || to == null
+        ? null
+        : DateTime(
+            to.year,
+            to.month,
+            to.day + 1,
+          ).subtract(const Duration(milliseconds: 1)),
+    cursor: cursor,
+    status: draftsOnly ? TransactionStatus.draft : TransactionStatus.confirmed,
+  );
 
   /// Chế độ nháp là trạng thái dùng chung của provider: màn nháp phải gọi `setDraftsOnly(false)` khi rời đi.
   Future<void> setDraftsOnly(bool value) {
     _draftsOnly = value;
+    _cursor = null;
+    return loadTransactions();
+  }
+
+  /// Lọc theo tháng (truyền ngày bất kỳ trong tháng); null = bỏ lọc
+  Future<void> setMonth(DateTime? month) => month == null
+      ? setRange(null, null)
+      : setRange(
+          DateTime(month.year, month.month),
+          DateTime(month.year, month.month + 1, 0),
+        );
+
+  /// Lọc theo khoảng ngày (gồm cả hai đầu); null = bỏ lọc
+  Future<void> setRange(DateTime? from, DateTime? to) {
+    _from = from == null ? null : DateTime(from.year, from.month, from.day);
+    _to = to == null ? null : DateTime(to.year, to.month, to.day);
     _cursor = null;
     return loadTransactions();
   }
@@ -110,7 +157,10 @@ class TransactionController extends StateNotifier<AsyncValue<List<TransactionEnt
   void _prepend(TransactionEntity tx) {
     if (mounted && !_draftsOnly && (_filter == null || tx.type == _filter)) {
       // Lưu lại (server trả 200 bản đã có) không được hiện hai dòng cùng một giao dịch.
-      state = AsyncValue.data([tx, ...(state.value ?? const []).where((t) => t.id != tx.id)]);
+      state = AsyncValue.data([
+        tx,
+        ...(state.value ?? const []).where((t) => t.id != tx.id),
+      ]);
     }
     if (mounted) onDataChanged?.call();
   }
@@ -148,7 +198,11 @@ class TransactionController extends StateNotifier<AsyncValue<List<TransactionEnt
   Future<void> confirmDraft(String id, {String? categoryId}) async {
     await repository.confirmDraft(id, categoryId: categoryId);
     if (!mounted) return;
-    state = AsyncValue.data((state.value ?? const <TransactionEntity>[]).where((t) => t.id != id).toList());
+    state = AsyncValue.data(
+      (state.value ?? const <TransactionEntity>[])
+          .where((t) => t.id != id)
+          .toList(),
+    );
     onDataChanged?.call();
   }
 
@@ -173,15 +227,27 @@ class TransactionController extends StateNotifier<AsyncValue<List<TransactionEnt
       description: description,
     );
     if (!mounted) return;
-    state = AsyncValue.data([for (final t in state.value ?? const <TransactionEntity>[]) t.id == id ? saved : t]);
+    state = AsyncValue.data([
+      for (final t in state.value ?? const <TransactionEntity>[])
+        t.id == id ? saved : t,
+    ]);
   }
 
   /// Chia sẻ giao dịch vào nhóm. BE trả 204 (không có body) nên tự cập nhật state local bằng [TransactionEntity.withGroupId].
-  Future<void> shareToGroup({required String id, required String groupId, String? groupCategoryId}) async {
-    await repository.shareTransaction(id: id, groupId: groupId, groupCategoryId: groupCategoryId);
+  Future<void> shareToGroup({
+    required String id,
+    required String groupId,
+    String? groupCategoryId,
+  }) async {
+    await repository.shareTransaction(
+      id: id,
+      groupId: groupId,
+      groupCategoryId: groupCategoryId,
+    );
     if (!mounted) return;
     state = AsyncValue.data([
-      for (final t in state.value ?? const <TransactionEntity>[]) t.id == id ? t.withGroupId(groupId) : t,
+      for (final t in state.value ?? const <TransactionEntity>[])
+        t.id == id ? t.withGroupId(groupId) : t,
     ]);
   }
 
@@ -190,7 +256,8 @@ class TransactionController extends StateNotifier<AsyncValue<List<TransactionEnt
     await repository.unshareTransaction(id);
     if (!mounted) return;
     state = AsyncValue.data([
-      for (final t in state.value ?? const <TransactionEntity>[]) t.id == id ? t.withGroupId(null) : t,
+      for (final t in state.value ?? const <TransactionEntity>[])
+        t.id == id ? t.withGroupId(null) : t,
     ]);
   }
 

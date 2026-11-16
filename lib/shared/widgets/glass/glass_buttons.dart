@@ -43,7 +43,7 @@ class GlassPrimaryButton extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   if (icon != null) ...[Icon(icon, size: 18, color: GlassColors.onInk), const SizedBox(width: 8)],
-                  Text(label, style: GlassTypography.buttonText()),
+                  Flexible(child: Text(label, style: GlassTypography.buttonText(), maxLines: 1, overflow: TextOverflow.ellipsis)),
                 ],
               ),
       ),
@@ -72,9 +72,13 @@ class GlassSecondaryButton extends StatelessWidget {
             borderRadius: GlassRadius.roundedPill,
             side: BorderSide(color: GlassColors.fieldBorder),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 20),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
         ),
-        child: Text(label, style: GlassTypography.buttonText(color: GlassColors.ink)),
+        // FittedBox: nút nửa hàng hẹp thì chữ co lại thay vì xuống dòng
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(label, maxLines: 1, style: GlassTypography.buttonText(color: GlassColors.ink)),
+        ),
       ),
     );
   }

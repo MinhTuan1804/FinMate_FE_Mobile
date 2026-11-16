@@ -38,7 +38,9 @@ class SpeechToTextService implements SpeechService {
       },
     );
     if (ok) return SpeechAvailability.available;
-    return await _speech.hasPermission ? SpeechAvailability.unsupported : SpeechAvailability.denied;
+    return await _speech.hasPermission
+        ? SpeechAvailability.unsupported
+        : SpeechAvailability.denied;
   }
 
   @override
@@ -49,10 +51,16 @@ class SpeechToTextService implements SpeechService {
     _speech.listen(
       onResult: (result) {
         if (controller.isClosed) return;
-        controller.add(SpeechUpdate(result.recognizedWords, isFinal: result.finalResult));
+        controller.add(
+          SpeechUpdate(result.recognizedWords, isFinal: result.finalResult),
+        );
         if (result.finalResult) _close();
       },
-      listenOptions: SpeechListenOptions(localeId: localeId, partialResults: true, cancelOnError: true),
+      listenOptions: SpeechListenOptions(
+        localeId: localeId,
+        partialResults: true,
+        cancelOnError: true,
+      ),
     );
     return controller.stream;
   }
@@ -70,4 +78,6 @@ class SpeechToTextService implements SpeechService {
   }
 }
 
-final speechServiceProvider = Provider<SpeechService>((ref) => SpeechToTextService());
+final speechServiceProvider = Provider<SpeechService>(
+  (ref) => SpeechToTextService(),
+);

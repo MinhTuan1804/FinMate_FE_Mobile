@@ -326,8 +326,8 @@ class _LoansScreenState extends ConsumerState<LoansScreen> {
 
   Widget _tabButton(String label, int index) {
     final selected = _selectedTab == index;
-    final activeBg = AppColors.primaryAction(context);
-    final activeFg = AppColors.onPrimaryAction(context);
+    final activeBg = AppColors.activeFill(context);
+    final activeFg = AppColors.activeFg(context);
 
     return Expanded(
       child: GestureDetector(

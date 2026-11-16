@@ -114,7 +114,8 @@ class _DraftEditSheetState extends ConsumerState<DraftEditSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final accounts = ref.watch(accountsControllerProvider).valueOrNull ??
+    final accounts =
+        ref.watch(accountsControllerProvider).valueOrNull ??
         const <FinancialAccount>[];
     final categories =
         ref.watch(categoriesProvider).valueOrNull ?? const <Category>[];
@@ -144,7 +145,10 @@ class _DraftEditSheetState extends ConsumerState<DraftEditSheet> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text('Sửa giao dịch chờ duyệt', style: AppTypography.h3(context)),
+                      Text(
+                        'Sửa giao dịch chờ duyệt',
+                        style: AppTypography.h3(context),
+                      ),
                       const SizedBox(height: AppSpacing.lg),
                       Row(
                         children: [
@@ -156,11 +160,14 @@ class _DraftEditSheetState extends ConsumerState<DraftEditSheet> {
                               child: ChoiceChip(
                                 label: Center(child: Text(label)),
                                 selected: _type == type,
-                                onSelected: _saving ||
+                                onSelected:
+                                    _saving ||
                                         widget.draft.type ==
                                             TransactionType.transfer
                                     ? null
-                                    : (v) => v ? setState(() => _type = type) : null,
+                                    : (v) => v
+                                          ? setState(() => _type = type)
+                                          : null,
                               ),
                             ),
                             if (type == TransactionType.expense)
@@ -213,8 +220,9 @@ class _DraftEditSheetState extends ConsumerState<DraftEditSheet> {
                               ),
                             ),
                         ],
-                        onChanged:
-                            _saving ? null : (v) => setState(() => _categoryId = v),
+                        onChanged: _saving
+                            ? null
+                            : (v) => setState(() => _categoryId = v),
                       ),
                       const SizedBox(height: AppSpacing.lg),
                       DropdownButtonFormField<String>(
@@ -229,11 +237,15 @@ class _DraftEditSheetState extends ConsumerState<DraftEditSheet> {
                           for (final a in accounts)
                             DropdownMenuItem(
                               value: a.id,
-                              child: Text(a.name, overflow: TextOverflow.ellipsis),
+                              child: Text(
+                                a.name,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                         ],
-                        onChanged:
-                            _saving ? null : (v) => setState(() => _accountId = v),
+                        onChanged: _saving
+                            ? null
+                            : (v) => setState(() => _accountId = v),
                       ),
                       const SizedBox(height: AppSpacing.lg),
                       TextField(
@@ -259,8 +271,9 @@ class _DraftEditSheetState extends ConsumerState<DraftEditSheet> {
                           child: Text(
                             _error!,
                             textAlign: TextAlign.center,
-                            style: AppTypography.body(context)
-                                .copyWith(color: AppColors.danger),
+                            style: AppTypography.body(
+                              context,
+                            ).copyWith(color: AppColors.danger),
                           ),
                         ),
                       const SizedBox(height: AppSpacing.xl),
@@ -279,8 +292,9 @@ class _DraftEditSheetState extends ConsumerState<DraftEditSheet> {
                       ),
                       const SizedBox(height: AppSpacing.sm),
                       TextButton(
-                        onPressed:
-                            _saving ? null : () => Navigator.of(context).pop(),
+                        onPressed: _saving
+                            ? null
+                            : () => Navigator.of(context).pop(),
                         child: const Text('Hủy'),
                       ),
                     ],

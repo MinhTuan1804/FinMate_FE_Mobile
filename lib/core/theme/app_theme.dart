@@ -336,7 +336,7 @@ class AppTheme {
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: AppColors.primary,
+          backgroundColor: AppColors.slateAction,
           foregroundColor: AppColors.surfaceLightElevated,
           disabledBackgroundColor: AppColors.textMutedLight.withValues(alpha: 0.25),
           disabledForegroundColor: AppColors.textMutedLight,
@@ -353,7 +353,7 @@ class AppTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
+          backgroundColor: AppColors.slateAction,
           foregroundColor: AppColors.surfaceLightElevated,
           disabledBackgroundColor: AppColors.textMutedLight.withValues(alpha: 0.25),
           disabledForegroundColor: AppColors.textMutedLight,

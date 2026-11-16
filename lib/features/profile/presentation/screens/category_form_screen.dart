@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:finmate/core/format/money.dart';
 import 'package:finmate/core/network/api_exceptions.dart';
 import 'package:finmate/core/theme/app_colors.dart';
 import 'package:finmate/core/theme/app_spacing.dart';
@@ -9,10 +11,11 @@ import 'package:finmate/core/theme/app_typography.dart';
 import 'package:finmate/core/widgets/glass/liquid_glass.dart';
 import 'package:finmate/features/categories/domain/category.dart';
 import 'package:finmate/features/categories/presentation/categories_provider.dart';
+import 'package:finmate/features/categories/presentation/category_colors.dart';
 import 'package:finmate/features/categories/presentation/category_icons.dart';
 
-/// Màn H13: Thêm / sửa danh mục (theo Figma). BE chỉ lưu tên và icon của danh mục; màu nhận diện, loại thu/chi,
-/// nhóm cha, hạn mức gợi ý và "yêu thích" trong Figma chưa có ở BE nên không hiển thị.
+/// Màn H13: Thêm / sửa danh mục (theo Figma): xem trước biểu tượng, tên, loại chi/thu, biểu tượng, màu nhận diện (bảng màu do admin đặt),
+/// nhóm cha (danh mục hệ thống), hạn mức ngân sách gợi ý mỗi tháng (chỉ để hiển thị) và "yêu thích". Tất cả lưu ở backend.
 class CategoryFormScreen extends ConsumerStatefulWidget {
   const CategoryFormScreen({super.key, this.editing});
 
@@ -26,7 +29,16 @@ class CategoryFormScreen extends ConsumerStatefulWidget {
 class _CategoryFormScreenState extends ConsumerState<CategoryFormScreen> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _name = TextEditingController(text: widget.editing?.name ?? '');
+  late final TextEditingController _budget = TextEditingController(
+    text: widget.editing?.suggestedBudgetCents == null ? '' : formatAmountDigits(widget.editing!.suggestedBudgetCents!),
+  );
   late String? _icon = categoryIconChoices.containsKey(widget.editing?.iconName) ? widget.editing!.iconName : null;
+
+  /// null = người dùng chưa chọn: tạo mới thì dùng màu đầu bảng, sửa thì giữ như cũ
+  late String? _colorHex = widget.editing?.color;
+  late String _kind = widget.editing?.kind ?? 'expense';
+  late String? _parentId = widget.editing?.parentCategoryId;
+  late bool _favorite = widget.editing?.isFavorite ?? false;
   bool _busy = false;
 
   @override
@@ -38,20 +50,44 @@ class _CategoryFormScreenState extends ConsumerState<CategoryFormScreen> {
   @override
   void dispose() {
     _name.dispose();
+    _budget.dispose();
     super.dispose();
   }
 
-  Future<void> _save() async {
+  /// Màu đang chọn: màu người dùng chọn, hoặc (tạo mới) màu đầu bảng màu
+  String? _effectiveColor(CategoryOptions options) => _colorHex ?? (widget.editing == null ? options.palette.firstOrNull?.hex : null);
+
+  Future<void> _save(CategoryOptions options) async {
     if (_busy || !_formKey.currentState!.validate()) return;
     setState(() => _busy = true);
     final messenger = ScaffoldMessenger.of(context);
     try {
       final controller = ref.read(categoriesControllerProvider);
       final editing = widget.editing;
+      final budget = _budget.text.trim().isEmpty ? null : parseAmountInput(_budget.text, allowZero: true);
+      final color = _effectiveColor(options);
       if (editing == null) {
-        await controller.create(name: _name.text.trim(), iconName: _icon);
+        await controller.create(
+          name: _name.text.trim(),
+          iconName: _icon,
+          color: color,
+          kind: _kind,
+          parentCategoryId: _parentId,
+          suggestedBudgetCents: budget,
+          isFavorite: _favorite,
+        );
       } else {
-        await controller.update(id: editing.id, name: _name.text.trim(), iconName: _icon);
+        // Sửa là gửi đủ trạng thái trên màn: bỏ nhóm cha = kNoParentId, bỏ hạn mức = 0.
+        await controller.update(
+          id: editing.id,
+          name: _name.text.trim(),
+          iconName: _icon,
+          color: color,
+          kind: _kind,
+          parentCategoryId: _parentId ?? kNoParentId,
+          suggestedBudgetCents: budget ?? BigInt.zero,
+          isFavorite: _favorite,
+        );
       }
       if (!mounted) return;
       messenger.showSnackBar(SnackBar(content: Text(editing == null ? 'Đã thêm danh mục.' : 'Đã lưu danh mục.')));
@@ -96,10 +132,57 @@ class _CategoryFormScreenState extends ConsumerState<CategoryFormScreen> {
     }
   }
 
+  void _setKind(String kind) {
+    if (_kind == kind) return;
+    setState(() {
+      _kind = kind;
+      _parentId = null; // nhóm cha thuộc đúng loại: đổi loại thì phải chọn lại
+    });
+  }
+
+  Widget _kindTab(String kind, String label, IconData icon) {
+    final selected = _kind == kind;
+    return Expanded(
+      child: Semantics(
+        button: true,
+        selected: selected,
+        child: GestureDetector(
+          key: ValueKey('category-kind-$kind'),
+          onTap: () => _setKind(kind),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            decoration: BoxDecoration(color: selected ? AppColors.activeFill(context) : Colors.transparent, borderRadius: AppSpacing.roundedPill),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 16, color: selected ? AppColors.activeFg(context) : AppColors.textPrimary(context)),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: selected ? AppColors.activeFg(context) : AppColors.textPrimary(context), fontWeight: selected ? FontWeight.w700 : FontWeight.w500, fontSize: 13.5),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final editing = widget.editing;
-    final accent = AppColors.secondary;
+    final options = ref.watch(categoryOptionsProvider).valueOrNull ?? CategoryOptions.fallback;
+    final selectedHex = _effectiveColor(options);
+    final accent = parseHexColor(selectedHex) ?? AppColors.secondary;
+    final selectedColorName = options.palette.where((c) => sameHexColor(c.hex, selectedHex)).map((c) => c.name).firstOrNull;
+    final parents = (ref.watch(categoriesProvider).valueOrNull ?? const <Category>[]).where((c) => c.isSystem && c.kind == _kind).toList();
+    final parentValue = parents.any((c) => c.id == _parentId) ? _parentId : null;
+
     return Scaffold(
       appBar: AppBar(
         title: Text(editing == null ? 'Thêm danh mục mới' : 'Sửa danh mục'),
@@ -125,12 +208,13 @@ class _CategoryFormScreenState extends ConsumerState<CategoryFormScreen> {
                     children: [
                       Center(
                         child: Container(
+                          key: const ValueKey('category-preview'),
                           width: 84,
                           height: 84,
                           decoration: BoxDecoration(
-                            color: accent.withValues(alpha: 0.2),
+                            color: accent.withValues(alpha: 0.28),
                             shape: BoxShape.circle,
-                            border: Border.all(color: accent.withValues(alpha: 0.5), width: 3),
+                            border: Border.all(color: accent, width: 3),
                           ),
                           child: Icon(categoryIconFor(editing?.slug, _icon), size: 36, color: AppColors.textPrimary(context)),
                         ),
@@ -151,6 +235,17 @@ class _CategoryFormScreenState extends ConsumerState<CategoryFormScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(color: AppColors.inset(context, 0.5), borderRadius: AppSpacing.roundedPill),
+                  child: Row(
+                    children: [
+                      _kindTab('expense', 'Khoản chi tiêu', LucideIcons.arrowDown),
+                      _kindTab('income', 'Khoản thu nhập', LucideIcons.arrowUp),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
                 LiquidGlassCard(
                   padding: const EdgeInsets.all(18),
                   child: Column(
@@ -161,7 +256,7 @@ class _CategoryFormScreenState extends ConsumerState<CategoryFormScreen> {
                           Expanded(child: Text('Chọn biểu tượng', style: AppTypography.h2(context).copyWith(fontSize: 17, fontWeight: FontWeight.w700))),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(color: accent.withValues(alpha: 0.2), borderRadius: AppSpacing.roundedPill),
+                            decoration: BoxDecoration(color: AppColors.secondary.withValues(alpha: 0.2), borderRadius: AppSpacing.roundedPill),
                             child: Text('${categoryIconChoices.length} mẫu', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: AppColors.slateOn(context))),
                           ),
                         ],
@@ -197,13 +292,108 @@ class _CategoryFormScreenState extends ConsumerState<CategoryFormScreen> {
                     ],
                   ),
                 ),
+                const SizedBox(height: 16),
+                LiquidGlassCard(
+                  padding: const EdgeInsets.all(18),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(child: Text('Màu nhận diện', style: AppTypography.h2(context).copyWith(fontSize: 17, fontWeight: FontWeight.w700))),
+                          if (selectedColorName != null)
+                            Text(selectedColorName, key: const ValueKey('category-color-name'), style: AppTypography.caption(context).copyWith(fontWeight: FontWeight.w700)),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 12,
+                        children: [
+                          for (final color in options.palette)
+                            Semantics(
+                              button: true,
+                              selected: sameHexColor(color.hex, selectedHex),
+                              label: 'Màu ${color.name}',
+                              child: InkWell(
+                                key: ValueKey('color-${color.key}'),
+                                customBorder: const CircleBorder(),
+                                onTap: () => setState(() => _colorHex = color.hex),
+                                child: Container(
+                                  width: 40,
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    color: parseHexColor(color.hex) ?? AppColors.secondary,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: sameHexColor(color.hex, selectedHex) ? AppColors.textPrimary(context) : Colors.transparent, width: 2.5),
+                                  ),
+                                  child: sameHexColor(color.hex, selectedHex) ? const Icon(LucideIcons.check, size: 18, color: Colors.black87) : null,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                LiquidGlassCard(
+                  padding: const EdgeInsets.all(18),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text('Nhóm danh mục cha', style: AppTypography.bodyMedium(context)),
+                      const SizedBox(height: 8),
+                      DropdownButtonFormField<String?>(
+                        key: ValueKey('category-parent-$_kind-${parents.length}'),
+                        initialValue: parentValue,
+                        isExpanded: true,
+                        decoration: const InputDecoration(),
+                        items: [
+                          const DropdownMenuItem<String?>(value: null, child: Text('Không chọn nhóm')),
+                          for (final parent in parents) DropdownMenuItem<String?>(value: parent.id, child: Text(parent.name)),
+                        ],
+                        onChanged: (v) => setState(() => _parentId = v),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(child: Text('Hạn mức ngân sách gợi ý / tháng', style: AppTypography.bodyMedium(context))),
+                          Text('Tùy chọn', style: AppTypography.caption(context)),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        key: const ValueKey('category-budget'),
+                        controller: _budget,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly, ThousandsSeparatorInputFormatter()],
+                        decoration: const InputDecoration(hintText: 'Để trống nếu không cần', suffixText: 'VND'),
+                        validator: (v) {
+                          if (v == null || v.trim().isEmpty) return null;
+                          return parseAmountInput(v, allowZero: true) == null ? 'Hạn mức không hợp lệ.' : null;
+                        },
+                      ),
+                      const SizedBox(height: 4),
+                      Text('Chỉ để tham khảo, không tự tạo ngân sách.', style: AppTypography.caption(context)),
+                      const SizedBox(height: 8),
+                      SwitchListTile(
+                        key: const ValueKey('category-favorite'),
+                        contentPadding: EdgeInsets.zero,
+                        value: _favorite,
+                        onChanged: (v) => setState(() => _favorite = v),
+                        title: Text('Đưa vào danh sách yêu thích', style: AppTypography.bodyMedium(context)),
+                      ),
+                    ],
+                  ),
+                ),
                 const SizedBox(height: 24),
                 LiquidGlassPillButton(
                   key: const ValueKey('category-save'),
                   label: _busy ? 'Đang lưu...' : 'Lưu danh mục',
                   icon: LucideIcons.save,
                   isFullWidth: true,
-                  onPressed: _busy ? () {} : _save,
+                  onPressed: _busy ? () {} : () => _save(options),
                 ),
                 if (editing != null) ...[
                   const SizedBox(height: 10),

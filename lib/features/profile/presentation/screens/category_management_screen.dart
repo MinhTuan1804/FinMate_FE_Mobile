@@ -10,6 +10,7 @@ import 'package:finmate/core/theme/app_typography.dart';
 import 'package:finmate/core/widgets/glass/liquid_glass.dart';
 import 'package:finmate/features/categories/domain/category.dart';
 import 'package:finmate/features/categories/presentation/categories_provider.dart';
+import 'package:finmate/features/categories/presentation/category_colors.dart';
 import 'package:finmate/features/categories/presentation/category_icons.dart';
 import 'package:finmate/features/planning/presentation/controllers/planning_controller.dart';
 
@@ -31,9 +32,31 @@ class _CategoryManagementScreenState extends ConsumerState<CategoryManagementScr
 
   void _openForm([Category? editing]) => context.push('/profile/categories/form', extra: editing);
 
+  /// Danh mục hệ thống dùng chung nên không sửa tên/biểu tượng; chỉ đặt hạn mức tháng riêng của người dùng (ngân sách theo danh mục).
+  /// Ẩn/hiện danh mục hệ thống chỉ cho riêng người dùng này (giao dịch cũ giữ nguyên danh mục).
+  Future<void> _setHidden(Category c, bool hidden) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref.read(categoriesControllerProvider).setHidden(c.id, hidden: hidden);
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(errorMessage(e)), backgroundColor: AppColors.danger));
+    }
+  }
+
+  Future<void> _editLimit(Category c, BigInt? current) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final limit = await showDialog<BigInt>(context: context, builder: (_) => _LimitDialog(name: c.name, current: current));
+    if (limit == null) return;
+    try {
+      await ref.read(planningControllerProvider.notifier).createOrUpdateBudget(categoryId: c.id, limitAmountCents: limit);
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(errorMessage(e)), backgroundColor: AppColors.danger));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final async = ref.watch(categoriesProvider);
+    final async = ref.watch(allCategoriesProvider);
     final budgets = ref.watch(planningControllerProvider).valueOrNull?.categoryBudgets ?? const [];
     final limits = {for (final b in budgets) if (b.categoryId != null) b.categoryId!: b.limitAmountCents};
 
@@ -51,7 +74,7 @@ class _CategoryManagementScreenState extends ConsumerState<CategoryManagementScr
       ),
       body: AmbientGlassBackground(
         child: RefreshIndicator(
-          onRefresh: () async => ref.refresh(categoriesProvider.future),
+          onRefresh: () async => ref.refresh(allCategoriesProvider.future),
           child: async.when(
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (e, _) => ListView(
@@ -60,7 +83,7 @@ class _CategoryManagementScreenState extends ConsumerState<CategoryManagementScr
                 const SizedBox(height: AppSpacing.xxl),
                 Text(errorMessage(e), textAlign: TextAlign.center, style: AppTypography.body(context)),
                 const SizedBox(height: AppSpacing.lg),
-                Center(child: OutlinedButton(onPressed: () => ref.invalidate(categoriesProvider), child: const Text('Thử lại'))),
+                Center(child: OutlinedButton(onPressed: () => ref.invalidate(allCategoriesProvider), child: const Text('Thử lại'))),
               ],
             ),
             data: (categories) => _content(context, categories, limits),
@@ -70,12 +93,14 @@ class _CategoryManagementScreenState extends ConsumerState<CategoryManagementScr
     );
   }
 
-  Widget _content(BuildContext context, List<Category> all, Map<String, BigInt> limits) {
+  Widget _content(BuildContext context, List<Category> everything, Map<String, BigInt> limits) {
+    final all = everything.where((c) => !c.isHidden).toList();
     final custom = all.where((c) => !c.isSystem).toList();
     final q = _query.trim().toLowerCase();
     bool match(Category c) => q.isEmpty || c.name.toLowerCase().contains(q);
     final system = _tab == _Tab.custom ? <Category>[] : all.where((c) => c.isSystem && match(c)).toList();
     final mine = custom.where(match).toList();
+    final hidden = _tab == _Tab.custom ? <Category>[] : everything.where((c) => c.isHidden && match(c)).toList();
 
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -105,7 +130,7 @@ class _CategoryManagementScreenState extends ConsumerState<CategoryManagementScr
             enabledBorder: OutlineInputBorder(borderRadius: AppSpacing.roundedPill, borderSide: BorderSide(color: AppColors.insetBorder(context))),
           ),
         ),
-        if (system.isEmpty && mine.isEmpty)
+        if (system.isEmpty && mine.isEmpty && hidden.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 40),
             child: Text(
@@ -116,6 +141,7 @@ class _CategoryManagementScreenState extends ConsumerState<CategoryManagementScr
           ),
         if (mine.isNotEmpty) ..._group(context, 'Danh mục của bạn', mine, limits),
         if (system.isNotEmpty) ..._group(context, 'Danh mục hệ thống', system, limits),
+        if (hidden.isNotEmpty) ..._group(context, 'Đã ẩn', hidden, limits),
         const SizedBox(height: 20),
         LiquidGlassPillButton(
           key: const ValueKey('add-category-bottom'),
@@ -157,7 +183,7 @@ class _CategoryManagementScreenState extends ConsumerState<CategoryManagementScr
     final editable = !c.isSystem;
     return InkWell(
       key: ValueKey('category-${c.id}'),
-      onTap: editable ? () => _openForm(c) : null,
+      onTap: editable ? () => _openForm(c) : (c.isHidden ? null : () => _editLimit(c, limit)),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         child: Row(
@@ -165,8 +191,8 @@ class _CategoryManagementScreenState extends ConsumerState<CategoryManagementScr
             Container(
               width: 44,
               height: 44,
-              decoration: BoxDecoration(color: AppColors.secondary.withValues(alpha: 0.18), borderRadius: BorderRadius.circular(12)),
-              child: Icon(categoryIconFor(c.slug, c.iconName), size: 20, color: AppColors.slateOn(context)),
+              decoration: BoxDecoration(color: (parseHexColor(c.color) ?? AppColors.secondary).withValues(alpha: parseHexColor(c.color) == null ? 0.18 : 0.35), borderRadius: BorderRadius.circular(12)),
+              child: Icon(categoryIconFor(c.slug, c.iconName), size: 20, color: parseHexColor(c.color) == null ? AppColors.slateOn(context) : AppColors.textPrimary(context)),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -176,13 +202,26 @@ class _CategoryManagementScreenState extends ConsumerState<CategoryManagementScr
                   Text(c.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w700, fontSize: 14.5)),
                   const SizedBox(height: 2),
                   Text(
-                    limit == null ? 'Chưa cài đặt hạn mức' : 'Hạn mức: ${formatVnd(limit)}/tháng',
+                    // Hạn mức thật (ngân sách) ưu tiên; chưa có thì hiện hạn mức GỢI Ý người dùng đã nhập lúc tạo danh mục.
+                    limit != null
+                        ? 'Hạn mức: ${formatVnd(limit)}/tháng'
+                        : (c.suggestedBudgetCents == null ? 'Chưa cài đặt hạn mức' : 'Hạn mức gợi ý: ${formatVnd(c.suggestedBudgetCents!)}/tháng'),
                     style: AppTypography.caption(context).copyWith(fontSize: 12),
                   ),
                 ],
               ),
             ),
-            if (editable) Icon(LucideIcons.chevronRight, size: 18, color: AppColors.textMuted(context)),
+            if (c.isFavorite) Padding(padding: const EdgeInsets.only(right: 6), child: Icon(LucideIcons.star, key: ValueKey('favorite-${c.id}'), size: 16, color: AppColors.textMuted(context))),
+            Icon(editable ? LucideIcons.chevronRight : LucideIcons.pencil, size: 18, color: AppColors.textMuted(context)),
+            // "Khác" là chỗ rơi cuối của phân loại nên không ẩn được.
+            if (!editable && (c.isHidden || c.slug != 'other'))
+              IconButton(
+                key: ValueKey('${c.isHidden ? 'show' : 'hide'}-category-${c.id}'),
+                tooltip: c.isHidden ? 'Hiện lại' : 'Ẩn danh mục này',
+                visualDensity: VisualDensity.compact,
+                icon: Icon(c.isHidden ? LucideIcons.eye : LucideIcons.eyeOff, size: 18, color: AppColors.textMuted(context)),
+                onPressed: () => _setHidden(c, !c.isHidden),
+              ),
           ],
         ),
       ),
@@ -199,15 +238,61 @@ class _CategoryManagementScreenState extends ConsumerState<CategoryManagementScr
           onTap: () => setState(() => _tab = tab),
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 10),
-            decoration: BoxDecoration(color: selected ? AppColors.primaryAction(context) : Colors.transparent, borderRadius: AppSpacing.roundedPill),
+            decoration: BoxDecoration(color: selected ? AppColors.activeFill(context) : Colors.transparent, borderRadius: AppSpacing.roundedPill),
             child: Text(
               label,
               textAlign: TextAlign.center,
-              style: TextStyle(color: selected ? AppColors.onPrimaryAction(context) : AppColors.textPrimary(context), fontWeight: selected ? FontWeight.w700 : FontWeight.w500, fontSize: 13),
+              style: TextStyle(color: selected ? AppColors.activeFg(context) : AppColors.textPrimary(context), fontWeight: selected ? FontWeight.w700 : FontWeight.w500, fontSize: 13),
             ),
           ),
         ),
       ),
     );
   }
+}
+
+class _LimitDialog extends StatefulWidget {
+  final String name;
+  final BigInt? current;
+  const _LimitDialog({required this.name, required this.current});
+
+  @override
+  State<_LimitDialog> createState() => _LimitDialogState();
+}
+
+class _LimitDialogState extends State<_LimitDialog> {
+  late final _amount = TextEditingController(text: widget.current == null ? '' : formatAmountDigits(widget.current!));
+  String? _error;
+
+  @override
+  void dispose() {
+    _amount.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final value = parseAmountInput(_amount.text);
+    if (value == null) {
+      setState(() => _error = 'Nhập số tiền lớn hơn 0');
+    } else {
+      Navigator.pop(context, value);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        title: Text('Hạn mức "${widget.name}"'),
+        content: TextField(
+          key: const ValueKey('category-limit-input'),
+          controller: _amount,
+          keyboardType: TextInputType.number,
+          inputFormatters: [ThousandsSeparatorInputFormatter()],
+          autofocus: true,
+          decoration: InputDecoration(labelText: 'Hạn mức mỗi tháng (VNĐ)', errorText: _error),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Hủy')),
+          ElevatedButton(key: const ValueKey('category-limit-save'), onPressed: _submit, child: const Text('Lưu')),
+        ],
+      );
 }

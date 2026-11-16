@@ -1,3 +1,4 @@
+import 'package:flutter/painting.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -5,6 +6,7 @@ import 'package:finmate/features/auth/presentation/controllers/auth_controller.d
 import 'package:finmate/features/categories/data/categories_repository.dart';
 import 'package:finmate/features/categories/domain/category.dart';
 import 'package:finmate/features/categories/presentation/categories_provider.dart';
+import 'package:finmate/features/categories/presentation/category_colors.dart';
 import 'package:finmate/features/categories/presentation/category_icons.dart';
 import '../../fixtures/fixture.dart';
 
@@ -16,6 +18,64 @@ void main() {
     final food = list.firstWhere((c) => c.slug == 'food');
     expect(food.name, 'Ăn uống');
     expect(food.isSystem, isTrue);
+  });
+
+  test('Category.fromJson đọc màu, loại, nhóm cha, hạn mức gợi ý và yêu thích; thiếu thì dùng mặc định', () {
+    final full = Category.fromJson({
+      'id': 'c1', 'name': 'Cà phê', 'slug': 'ca-phe', 'iconName': 'coffee', 'isSystem': false,
+      'color': '#F0C8A0', 'kind': 'income', 'parentCategoryId': 'p1', 'suggestedBudgetCents': 1500000, 'isFavorite': true,
+    });
+    expect(full.color, '#F0C8A0');
+    expect(full.kind, 'income');
+    expect(full.parentCategoryId, 'p1');
+    expect(full.suggestedBudgetCents, BigInt.from(1500000));
+    expect(full.isFavorite, isTrue);
+
+    final old = Category.fromJson({'id': 'c2', 'name': 'Cũ', 'slug': 'cu'});
+    expect(old.color, isNull);
+    expect(old.kind, 'expense');
+    expect(old.parentCategoryId, isNull);
+    expect(old.suggestedBudgetCents, isNull);
+    expect(old.isFavorite, isFalse);
+  });
+
+  test('CategoryOptions.fromJson đọc bảng màu; bảng mặc định có 8 màu và mã hợp lệ', () {
+    final options = CategoryOptions.fromJson({
+      'palette': [
+        {'key': 'honey', 'hex': '#F0C8A0', 'name': 'Cam mật ong'},
+      ],
+      'kinds': ['expense', 'income'],
+    });
+    expect(options.palette.single.name, 'Cam mật ong');
+    expect(CategoryOptions.fallback.palette, hasLength(8));
+    expect(CategoryOptions.fallback.palette.every((c) => RegExp(r'^#[0-9A-F]{6}$').hasMatch(c.hex)), isTrue);
+  });
+
+  test('parseHexColor đọc #RRGGBB, sai dạng thì null; sameHexColor không phân biệt hoa thường', () {
+    expect(parseHexColor('#F0C8A0'), const Color(0xFFF0C8A0));
+    expect(parseHexColor('f0c8a0'), const Color(0xFFF0C8A0));
+    expect(parseHexColor('#12345'), isNull);
+    expect(parseHexColor('#GGGGGG'), isNull);
+    expect(parseHexColor(null), isNull);
+    expect(sameHexColor('#f0c8a0', '#F0C8A0'), isTrue);
+    expect(sameHexColor('#F0C8A0', '#8FB3E0'), isFalse);
+    expect(sameHexColor(null, '#F0C8A0'), isFalse);
+  });
+
+  test('categoryOptionsProvider: lấy bảng màu từ server; lỗi mạng thì dùng bảng mặc định, không ném', () async {
+    final good = RouteAdapter((o) => respondJson({
+          'success': true,
+          'data': {'palette': [{'key': 'a', 'hex': '#AAAAAA', 'name': 'A'}], 'kinds': ['expense', 'income']},
+        }));
+    final containerGood = ProviderContainer(overrides: [categoriesRepositoryProvider.overrideWithValue(CategoriesRepository(apiClient: testApiClient(good)))]);
+    addTearDown(containerGood.dispose);
+    expect((await containerGood.read(categoryOptionsProvider.future)).palette.single.key, 'a');
+    expect(good.requests.single.path, '/api/v1/categories/options');
+
+    final bad = RouteAdapter((o) => respondJson({'success': false, 'data': null}, status: 500));
+    final containerBad = ProviderContainer(overrides: [categoriesRepositoryProvider.overrideWithValue(CategoriesRepository(apiClient: testApiClient(bad)))]);
+    addTearDown(containerBad.dispose);
+    expect((await containerBad.read(categoryOptionsProvider.future)).palette, hasLength(8));
   });
 
   test('categoryIcon ánh xạ slug sang icon Lucide, mặc định là tag', () {
@@ -54,6 +114,30 @@ void main() {
       expect(req.method, 'POST');
       expect(req.data, {'name': 'Thú cưng', 'iconName': 'pets'});
       expect(result.name, 'Thú cưng');
+    });
+
+    test('createCategory gửi thêm màu, loại, nhóm cha, hạn mức gợi ý (đồng) và yêu thích khi có', () async {
+      final adapter = RouteAdapter((o) => respondJson({'success': true, 'data': (fixtureData('categories') as List)[0]}));
+      final repo = CategoriesRepository(apiClient: testApiClient(adapter));
+
+      await repo.createCategory(
+        name: 'Cà phê', iconName: 'coffee', color: '#F0C8A0', kind: 'income', parentCategoryId: 'p1', suggestedBudgetCents: BigInt.from(1500000), isFavorite: true,
+      );
+
+      expect(adapter.requests.single.data, {
+        'name': 'Cà phê', 'iconName': 'coffee', 'color': '#F0C8A0', 'kind': 'income', 'parentCategoryId': 'p1', 'suggestedBudgetCents': 1500000, 'isFavorite': true,
+      });
+    });
+
+    test('updateCategory: null = không gửi (giữ nguyên); kNoParentId và 0 để bỏ nhóm cha và hạn mức', () async {
+      final adapter = RouteAdapter((o) => respondJson({'success': true, 'data': (fixtureData('categories') as List)[0]}));
+      final repo = CategoriesRepository(apiClient: testApiClient(adapter));
+
+      await repo.updateCategory(id: 'c1', name: 'Chỉ tên');
+      await repo.updateCategory(id: 'c1', name: 'Bỏ hết', parentCategoryId: kNoParentId, suggestedBudgetCents: BigInt.zero, isFavorite: false);
+
+      expect(adapter.requests[0].data, {'name': 'Chỉ tên'});
+      expect(adapter.requests[1].data, {'name': 'Bỏ hết', 'parentCategoryId': '00000000-0000-0000-0000-000000000000', 'suggestedBudgetCents': 0, 'isFavorite': false});
     });
 
     test('createCategory không gửi iconName khi không có', () async {

@@ -11,6 +11,8 @@ void refreshDerivedData(Ref ref) {
   ref.invalidate(monthlySummaryProvider);
   ref.invalidate(categoryBreakdownProvider);
   ref.invalidate(forecastProvider);
-  ref.invalidate(spendableProvider); // trang chủ: "còn được chi" phụ thuộc vào số đã chi
+  ref.invalidate(
+    spendableProvider,
+  ); // trang chủ: "còn được chi" phụ thuộc vào số đã chi
   ref.invalidate(jarsProvider); // và số đã chi của từng hũ
 }

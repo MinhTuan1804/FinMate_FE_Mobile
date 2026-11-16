@@ -250,8 +250,8 @@ class _CategoryReportScreenState extends ConsumerState<CategoryReportScreen> {
 
   Widget _periodTab(String label, int index) {
     final selected = _selectedPeriod == index;
-    final activeBg = AppColors.primaryAction(context);
-    final activeFg = AppColors.onPrimaryAction(context);
+    final activeBg = AppColors.activeFill(context);
+    final activeFg = AppColors.activeFg(context);
 
     return Expanded(
       child: GestureDetector(

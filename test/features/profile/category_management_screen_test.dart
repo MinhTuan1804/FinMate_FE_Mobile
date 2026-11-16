@@ -33,6 +33,7 @@ void main() {
       overrides: [
         currentUserIdProvider.overrideWith((ref) => 'u1'),
         categoriesProvider.overrideWith((ref) => load()),
+        allCategoriesProvider.overrideWith((ref) => load()),
       ],
       child: MaterialApp.router(routerConfig: router),
     ));
@@ -54,12 +55,48 @@ void main() {
     expect(find.text('Cà phê'), findsOneWidget);
   });
 
-  testWidgets('tìm kiếm lọc theo tên; chỉ danh mục tự tạo mở được màn sửa', (tester) async {
+  testWidgets('danh mục hệ thống: chạm mở hộp đặt hạn mức (không mở form sửa), để trống thì báo lỗi', (tester) async {
+    await pump(tester, () async => [_system]);
+
+    await tester.tap(find.byKey(const ValueKey('category-s1')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('category-limit-input')), findsOneWidget);
+    expect(find.text('FORM_PAGE'), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('category-limit-save')));
+    await tester.pumpAndSettle();
+    expect(find.text('Nhập số tiền lớn hơn 0'), findsOneWidget);
+
+    await tester.tap(find.text('Hủy'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('category-limit-input')), findsNothing);
+  });
+
+  testWidgets('ẩn danh mục: hàng hệ thống có nút ẩn (trừ "Khác"); danh mục đã ẩn nằm nhóm "Đã ẩn" với nút hiện lại và không tính vào đếm', (tester) async {
+    const other = Category(id: 's2', name: 'Khác', slug: 'other');
+    const hiddenFood = Category(id: 's3', name: 'Ăn uống', slug: 'food', isHidden: true);
+    await pump(tester, () async => [_system, other, hiddenFood, _mine]);
+
+    expect(find.byKey(const ValueKey('hide-category-s1')), findsOneWidget);
+    expect(find.byKey(const ValueKey('hide-category-s2')), findsNothing);
+    expect(find.byKey(const ValueKey('hide-category-m1')), findsNothing);
+    expect(find.text('Tất cả (3)'), findsOneWidget);
+    expect(find.text('Đã ẩn'), findsOneWidget);
+    expect(find.byKey(const ValueKey('show-category-s3')), findsOneWidget);
+
+    await tester.tap(find.text('Tự tạo (1)'));
+    await tester.pumpAndSettle();
+    expect(find.text('Đã ẩn'), findsNothing);
+  });
+
+  testWidgets('tìm kiếm lọc theo tên; chỉ danh mục tự tạo mở được màn sửa tên/biểu tượng', (tester) async {
     await pump(tester, () async => [_system, _mine]);
 
     await tester.tap(find.byKey(const ValueKey('category-s1')));
     await tester.pumpAndSettle();
-    expect(find.text('FORM_PAGE'), findsNothing, reason: 'danh mục hệ thống không sửa được');
+    expect(find.text('FORM_PAGE'), findsNothing, reason: 'danh mục hệ thống không sửa tên/biểu tượng được');
+    await tester.tap(find.text('Hủy'));
+    await tester.pumpAndSettle();
 
     await tester.enterText(find.byKey(const ValueKey('category-search')), 'cà');
     await tester.pumpAndSettle();
@@ -69,6 +106,21 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('FORM_PAGE'), findsOneWidget);
     expect(extraOpened, _mine);
+  });
+
+  testWidgets('hiện hạn mức gợi ý (khi chưa có hạn mức thật), dấu yêu thích; màu nhận diện tô nền icon', (tester) async {
+    final colored = Category(
+      id: 'm2', name: 'Ăn trưa', slug: 'an-trua', iconName: 'utensils', isSystem: false,
+      color: '#F0C8A0', suggestedBudgetCents: BigInt.from(1500000), isFavorite: true,
+    );
+    await pump(tester, () async => [_system, _mine, colored]);
+
+    expect(find.text('Hạn mức gợi ý: 1.500.000 ₫/tháng'), findsOneWidget);
+    expect(find.byKey(const ValueKey('favorite-m2')), findsOneWidget);
+    expect(find.byKey(const ValueKey('favorite-m1')), findsNothing);
+    final row = find.descendant(of: find.byKey(const ValueKey('category-m2')), matching: find.byType(Container));
+    final tinted = tester.widgetList<Container>(row).map((c) => c.decoration).whereType<BoxDecoration>().any((d) => d.color == const Color(0xFFF0C8A0).withValues(alpha: 0.35));
+    expect(tinted, isTrue, reason: 'nền icon lấy màu danh mục');
   });
 
   testWidgets('nút thêm mở form tạo mới', (tester) async {

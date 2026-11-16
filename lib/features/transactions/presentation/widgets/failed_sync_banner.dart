@@ -29,7 +29,11 @@ class FailedSyncBanner extends ConsumerWidget {
       ),
       child: Row(
         children: [
-          const Icon(LucideIcons.triangleAlert, size: 18, color: AppColors.warning),
+          const Icon(
+            LucideIcons.triangleAlert,
+            size: 18,
+            color: AppColors.warning,
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(

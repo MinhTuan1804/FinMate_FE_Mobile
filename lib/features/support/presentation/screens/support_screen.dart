@@ -96,7 +96,7 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
         actions: [
           IconButton(
             key: const ValueKey('support-access-log'),
-            icon: const Icon(Icons.history),
+            icon: const Icon(LucideIcons.history),
             tooltip: 'Nhật ký truy cập',
             onPressed: () => context.push('/support-access-log'),
           ),
@@ -203,8 +203,8 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
                     selected: _filter == f,
                     showCheckmark: false,
                     shape: const StadiumBorder(),
-                    labelStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _filter == f ? AppColors.onPrimaryAction(context) : AppColors.textSecondary(context)),
-                    selectedColor: AppColors.primaryAction(context),
+                    labelStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _filter == f ? AppColors.activeFg(context) : AppColors.textSecondary(context)),
+                    selectedColor: AppColors.activeFill(context),
                     backgroundColor: AppColors.chipFill(context),
                     onSelected: (_) => setState(() => _filter = f),
                   ),

@@ -307,7 +307,7 @@ class _TransactionReviewScreenState
             .read(assistantControllerProvider.notifier)
             .resolveDraft(
               messageId,
-              'Đã ghi ${saved.length} giao dịch: ${formatVnd(total)}',
+              savedSummary(saved.length, total, _date),
             );
       }
       navigator.pop();
@@ -580,7 +580,11 @@ class _TransactionReviewScreenState
                 color: AppColors.secondary.withValues(alpha: 0.3),
                 shape: BoxShape.circle,
               ),
-              child: Icon(_sourceIcon, size: 12, color: AppColors.slateOn(context)),
+              child: Icon(
+                _sourceIcon,
+                size: 12,
+                color: AppColors.slateOn(context),
+              ),
             ),
             const SizedBox(width: 8),
             Flexible(
@@ -1263,7 +1267,7 @@ class _TransactionReviewScreenState
                 AppColors.danger,
               ),
             Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+              mainAxisAlignment: MainAxisAlignment.start,
               children: [
                 TextButton.icon(
                   onPressed: locked || g.skipped || categories.isEmpty
@@ -1314,68 +1318,82 @@ class _TransactionReviewScreenState
     String? value,
     ValueChanged<String> onChanged,
   ) {
-    return DropdownButtonFormField<String>(
-      key: ValueKey('acc-$role-$value-${accounts.length}'),
-      initialValue: value,
-      isExpanded: true,
-      style: AppTypography.bodyLarge(
-        context,
-      ).copyWith(fontWeight: FontWeight.w500, letterSpacing: -0.15),
-      icon: const Icon(LucideIcons.chevronDown, size: 16),
-      alignment:
-          AlignmentDirectional.centerEnd, // giá trị căn phải như các hàng khác
-      decoration: InputDecoration(
-        filled: false,
-        isDense: true,
-        border: InputBorder.none,
-        enabledBorder: InputBorder.none,
-        focusedBorder: InputBorder.none,
-        disabledBorder: InputBorder.none,
-        contentPadding: const EdgeInsets.symmetric(vertical: 12),
-      ),
-      items: accounts
-          .map(
-            (a) => DropdownMenuItem(
-              value: a.id,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    margin: const EdgeInsets.only(right: 6),
-                    decoration: const BoxDecoration(
-                      color: AppColors.safe,
-                      shape: BoxShape.circle,
+    return Align(
+      alignment: Alignment.centerRight,
+      child: DropdownButtonFormField<String>(
+        key: ValueKey('acc-$role-$value-${accounts.length}'),
+        initialValue: value,
+        isExpanded: false,
+        style: AppTypography.bodyLarge(
+          context,
+        ).copyWith(fontWeight: FontWeight.w500, letterSpacing: -0.15),
+        icon: const Icon(LucideIcons.chevronDown, size: 16),
+        decoration: InputDecoration(
+          filled: false,
+          isDense: true,
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          disabledBorder: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(vertical: 12),
+        ),
+        items: accounts
+            .map(
+              (a) => DropdownMenuItem(
+                value: a.id,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      margin: const EdgeInsets.only(right: 6),
+                      decoration: const BoxDecoration(
+                        color: AppColors.safe,
+                        shape: BoxShape.circle,
+                      ),
                     ),
-                  ),
-                  Flexible(
-                    child: Text(a.name, overflow: TextOverflow.ellipsis),
-                  ),
-                ],
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 180),
+                      child: Text(a.name, overflow: TextOverflow.ellipsis),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          )
-          .toList(),
-      onChanged: (v) {
-        if (v != null) onChanged(v);
-      },
+            )
+            .toList(),
+        onChanged: (v) {
+          if (v != null) onChanged(v);
+        },
+      ),
     );
   }
 
   Widget _typeChip(String label, TransactionType type, Color color) {
     final selected = _type == type;
-    return ChoiceChip(
-      label: Center(child: Text(label)),
-      selected: selected,
-      onSelected: (v) {
-        if (v) setState(() => _type = type);
-      },
-      showCheckmark: false,
-      selectedColor: color.withValues(alpha: 0.2),
-      labelStyle: TextStyle(
-        color: selected ? color : AppColors.textPrimary(context),
-        fontWeight: FontWeight.w600,
+    // ChoiceChip chỉ rộng bằng chữ nên ra ba viên thuốc bé: ép nhãn giãn đủ bề rộng ô, cao 44 để dễ chạm và dễ nhìn
+    return LayoutBuilder(
+      builder: (context, constraints) => ChoiceChip(
+        label: SizedBox(
+          width: constraints.maxWidth.isFinite ? constraints.maxWidth - 2 : null,
+          height: 44,
+          child: Center(child: FittedBox(fit: BoxFit.scaleDown, child: Text(label))),
+        ),
+        selected: selected,
+        onSelected: (v) {
+          if (v) setState(() => _type = type);
+        },
+        showCheckmark: false,
+        labelPadding: EdgeInsets.zero,
+        padding: EdgeInsets.zero,
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        selectedColor: color.withValues(alpha: 0.2),
+        side: BorderSide(color: selected ? color : AppColors.glassBorder(context)),
+        labelStyle: TextStyle(
+          color: selected ? color : AppColors.textPrimary(context),
+          fontWeight: FontWeight.w700,
+          fontSize: 15,
+        ),
       ),
     );
   }

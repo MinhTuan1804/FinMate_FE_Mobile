@@ -25,13 +25,13 @@ class GlassFilterChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: selected ? GlassColors.ink : GlassColors.glassFill,
+          color: selected ? GlassColors.activeFill : GlassColors.glassFill,
           borderRadius: GlassRadius.roundedPill,
-          border: Border.all(color: selected ? GlassColors.ink : GlassColors.glassBorder),
+          border: Border.all(color: selected ? GlassColors.activeBorder : GlassColors.glassBorder),
         ),
         child: Text(
           '$label ($count)',
-          style: GlassTypography.bodyMd(color: selected ? GlassColors.onInk : GlassColors.textSecondary)
+          style: GlassTypography.bodyMd(color: selected ? GlassColors.activeFg : GlassColors.textSecondary)
               .copyWith(fontWeight: FontWeight.w600),
         ),
       ),

@@ -135,14 +135,6 @@ class _C1ScanQrScreenState extends State<C1ScanQrScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               GestureDetector(
-                key: const ValueKey('c1-history'),
-                onTap: () => context.push('/qr-transfers/history'),
-                child: _glassPill(
-                  child: const Icon(LucideIcons.history, color: Colors.white, size: 20),
-                ),
-              ),
-              const SizedBox(width: 10),
-              GestureDetector(
                 onTap: _toggleTorch,
                 child: _glassPill(
                   child: Icon(_torchOn ? LucideIcons.zap : LucideIcons.zapOff, color: Colors.white, size: 20),
@@ -156,29 +148,35 @@ class _C1ScanQrScreenState extends State<C1ScanQrScreen> {
   }
 
   Widget _viewfinder() {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 260,
-            height: 260,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(28),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 2),
-            ),
+    // Khung vuông to theo bề ngang màn hình (tối đa 340, chừa chỗ cho dòng hướng dẫn) để không bị trống ở máy cao
+    return LayoutBuilder(
+      builder: (context, c) {
+        final side = (c.maxWidth * 0.78).clamp(200.0, 340.0).clamp(0.0, c.maxHeight - 80);
+        return Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: side,
+                height: side,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(28),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 2),
+                ),
+              ),
+              const SizedBox(height: 20),
+              _glassPill(
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                child: const Text(
+                  'Căn chỉnh mã VietQR, VNPAY hoặc FinMate vào khung',
+                  style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 20),
-          _glassPill(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-            child: const Text(
-              'Căn chỉnh mã VietQR, VNPAY hoặc FinMate vào khung',
-              style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
-              textAlign: TextAlign.center,
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -189,6 +187,7 @@ class _C1ScanQrScreenState extends State<C1ScanQrScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _quickActionButton(key: const ValueKey('c1-gallery'), icon: LucideIcons.images, label: 'Chọn từ ảnh', onTap: _pickFromGallery),
+          _quickActionButton(key: const ValueKey('c1-history'), icon: LucideIcons.history, label: 'Gần đây', onTap: () => context.push('/qr-transfers/history')),
         ],
       ),
     );

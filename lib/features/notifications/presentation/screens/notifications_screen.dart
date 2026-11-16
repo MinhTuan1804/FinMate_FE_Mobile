@@ -281,8 +281,8 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
 
   Widget _filterChip(String label, NotificationFilter filter) {
     final selected = _selectedFilter == filter;
-    final activeBg = AppColors.primaryAction(context);
-    final activeFg = AppColors.onPrimaryAction(context);
+    final activeBg = AppColors.activeFill(context);
+    final activeFg = AppColors.activeFg(context);
 
     return ChoiceChip(
       label: Text(label),

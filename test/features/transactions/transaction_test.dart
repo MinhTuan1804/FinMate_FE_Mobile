@@ -30,6 +30,7 @@ class FakeTxController extends StateNotifier<AsyncValue<List<TransactionEntity>>
   int creates = 0;
   int loadMores = 0;
   TransactionType? lastFilter;
+  DateTime? lastMonth;
 
   FakeTxController(super.state);
 
@@ -44,6 +45,24 @@ class FakeTxController extends StateNotifier<AsyncValue<List<TransactionEntity>>
 
   @override
   bool get draftsOnly => false;
+
+  DateTime? lastFrom;
+  DateTime? lastTo;
+
+  @override
+  DateTime? get fromDay => lastFrom;
+
+  @override
+  DateTime? get toDay => lastTo;
+
+  @override
+  Future<void> setMonth(DateTime? m) async => lastMonth = m;
+
+  @override
+  Future<void> setRange(DateTime? from, DateTime? to) async {
+    lastFrom = from;
+    lastTo = to;
+  }
 
   @override
   Future<void> loadMore() async => loadMores++;
@@ -150,6 +169,43 @@ void main() {
       expect(find.textContaining('Ăn uống'), findsOneWidget);
       expect(find.textContaining('Không phân loại'), findsOneWidget);
       expect(find.byIcon(Icons.cloud_off), findsNothing); // dùng icon Lucide, không phải Material
+    });
+
+    testWidgets('chọn tháng: thẻ tổng đổi tháng và danh sách lọc theo tháng đó', (tester) async {
+      final tx = FakeTxController(AsyncValue.data([
+        TransactionEntity(id: '1', amountCents: BigInt.from(1000), type: TransactionType.expense, description: 'A', date: DateTime.now(), accountId: 'a'),
+      ]));
+      await _pump(tester, const TransactionsScreen(), tx: tx);
+
+      final now = DateTime.now();
+      final prev = DateTime(now.year, now.month - 1);
+      expect(find.text('Tháng ${now.month}, ${now.year}'), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('month-picker')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Tháng trước'));
+      await tester.pumpAndSettle();
+
+      expect(tx.lastFrom, prev);
+      expect(tx.lastTo, DateTime(prev.year, prev.month + 1, 0));
+      expect(find.text('Tháng ${prev.month}, ${prev.year}'), findsOneWidget);
+    });
+
+    testWidgets('chọn Năm trước: nhãn là khoảng ngày cả năm và danh sách lọc theo khoảng đó', (tester) async {
+      final tx = FakeTxController(AsyncValue.data([
+        TransactionEntity(id: '1', amountCents: BigInt.from(1000), type: TransactionType.expense, description: 'A', date: DateTime.now(), accountId: 'a'),
+      ]));
+      await _pump(tester, const TransactionsScreen(), tx: tx);
+
+      final y = DateTime.now().year - 1;
+      await tester.tap(find.byKey(const ValueKey('month-picker')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Năm trước'));
+      await tester.pumpAndSettle();
+
+      expect(tx.lastFrom, DateTime(y));
+      expect(tx.lastTo, DateTime(y, 12, 31));
+      expect(find.text('01/01/$y – 31/12/$y'), findsOneWidget);
     });
 
     testWidgets('bấm bộ lọc gọi setFilter; lỗi tải hiện thông điệp thân thiện và nút Thử lại', (tester) async {

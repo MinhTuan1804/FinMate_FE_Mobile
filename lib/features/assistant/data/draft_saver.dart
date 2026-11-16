@@ -19,7 +19,13 @@ class DraftSave {
 class DraftSaver {
   /// Mã danh mục (UUID của server) cho một slug, null nếu chưa tải được danh mục
   final String? Function(String slug) categoryIdOf;
-  final Future<TransactionEntity> Function(DraftTransaction draft, {required String categoryId, required String accountId, required String clientRequestId}) save;
+  final Future<TransactionEntity> Function(
+    DraftTransaction draft, {
+    required String categoryId,
+    required String accountId,
+    required String clientRequestId,
+  })
+  save;
 
   /// Ghi cả nhóm ở máy trong MỘT lần (được tất cả hoặc không gì), không đụng mạng
   final Future<void> Function(List<DraftSave> items) saveAll;
@@ -27,24 +33,39 @@ class DraftSaver {
   /// Đẩy hàng đợi đồng bộ lên server; gọi ngầm sau khi ghi ở máy
   final Future<void> Function() syncNow;
 
-  const DraftSaver({required this.categoryIdOf, required this.save, required this.saveAll, required this.syncNow});
+  const DraftSaver({
+    required this.categoryIdOf,
+    required this.save,
+    required this.saveAll,
+    required this.syncNow,
+  });
 
   factory DraftSaver.fromRef(Ref ref) {
     final transactions = ref.read(transactionRepositoryProvider);
     final sync = ref.read(syncServiceProvider);
     return DraftSaver(
-      categoryIdOf: (slug) => (ref.read(categoriesProvider).valueOrNull ?? const []).where((c) => c.slug == slug).firstOrNull?.id,
-      save: (draft, {required categoryId, required accountId, required clientRequestId}) => transactions.createTransaction(
-        accountId: accountId,
-        categoryId: categoryId,
-        amountCents: draft.amountCents!,
-        type: draft.type!,
-        merchantName: draft.merchantName,
-        description: draft.description ?? '',
-        date: draft.transactedAt ?? DateTime.now(),
-        source: draft.source.apiValue,
-        clientRequestId: clientRequestId,
-      ),
+      categoryIdOf: (slug) =>
+          (ref.read(categoriesProvider).valueOrNull ?? const [])
+              .where((c) => c.slug == slug)
+              .firstOrNull
+              ?.id,
+      save:
+          (
+            draft, {
+            required categoryId,
+            required accountId,
+            required clientRequestId,
+          }) => transactions.createTransaction(
+            accountId: accountId,
+            categoryId: categoryId,
+            amountCents: draft.amountCents!,
+            type: draft.type!,
+            merchantName: draft.merchantName,
+            description: draft.description ?? '',
+            date: draft.transactedAt ?? DateTime.now(),
+            source: draft.source.apiValue,
+            clientRequestId: clientRequestId,
+          ),
       saveAll: (items) => transactions.createTransactionsLocally([
         for (final i in items)
           NewTransaction(

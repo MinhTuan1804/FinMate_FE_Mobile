@@ -227,18 +227,18 @@ class _AddFinancialAccountScreenState extends ConsumerState<AddFinancialAccountS
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color: selected ? AppColors.primaryAction(context) : AppColors.inset(context),
+            color: selected ? AppColors.activeFill(context) : AppColors.inset(context),
             borderRadius: AppSpacing.roundedMedium,
           ),
           child: Column(
             children: [
-              Icon(_icon(t), size: 18, color: selected ? AppColors.onPrimaryAction(context) : AppColors.textSecondary(context)),
+              Icon(_icon(t), size: 18, color: selected ? AppColors.activeFg(context) : AppColors.textSecondary(context)),
               const SizedBox(height: 4),
               Text(
                 t.label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: selected ? AppColors.onPrimaryAction(context) : AppColors.textSecondary(context)),
+                style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: selected ? AppColors.activeFg(context) : AppColors.textSecondary(context)),
               ),
             ],
           ),

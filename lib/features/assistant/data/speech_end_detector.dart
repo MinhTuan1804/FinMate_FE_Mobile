@@ -47,7 +47,8 @@ class SpeechEndDetector {
     } else {
       _quietRun++;
     }
-    if (_heard && interval * _quietRun >= trailingSilence) return SpeechSignal.ended;
+    if (_heard && interval * _quietRun >= trailingSilence)
+      return SpeechSignal.ended;
     if (!_heard && elapsed >= noSpeechTimeout) return SpeechSignal.noSpeech;
     return SpeechSignal.listening;
   }

@@ -59,21 +59,23 @@ class GlassBottomNav extends StatelessWidget {
         onTap: () => onDestinationSelected(index),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+          // Tab đang chọn: nền xanh trời nhạt + chữ/icon xanh slate (dịu hơn khối mực đen, đủ tương phản ở cả sáng lẫn tối).
           decoration: BoxDecoration(
-            color: selected ? GlassColors.ink : Colors.transparent,
+            color: selected ? GlassColors.activeFill : Colors.transparent,
             borderRadius: BorderRadius.circular(999),
+            border: selected ? Border.all(color: GlassColors.activeBorder) : null,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(tab.icon, size: 20, color: selected ? GlassColors.onInk : GlassColors.textMuted),
+              Icon(tab.icon, size: 20, color: selected ? GlassColors.slateAnchor : GlassColors.textMuted),
               const SizedBox(height: 2),
               FittedBox(
                 fit: BoxFit.scaleDown,
                 child: Text(
                   tab.label,
                   maxLines: 1,
-                  style: GlassTypography.labelCaps(color: selected ? GlassColors.onInk : GlassColors.textMuted).copyWith(fontSize: 10, fontWeight: FontWeight.w600),
+                  style: GlassTypography.labelCaps(color: selected ? GlassColors.slateAnchor : GlassColors.textMuted).copyWith(fontSize: 10, fontWeight: FontWeight.w600),
                 ),
               ),
             ],

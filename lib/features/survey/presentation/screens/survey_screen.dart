@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:finmate/features/finance_methods/data/finance_methods_repository.dart';
 import 'package:finmate/core/theme/glass/glass_colors.dart';
+import 'package:finmate/core/theme/glass/glass_radius.dart';
 import 'package:finmate/core/theme/glass/glass_typography.dart';
 import 'package:finmate/features/survey/domain/survey.dart';
 import 'package:finmate/features/survey/presentation/controllers/survey_controller.dart';
@@ -10,16 +13,10 @@ import 'package:finmate/shared/widgets/glass/glass_background.dart';
 import 'package:finmate/shared/widgets/glass/glass_bottom_dock.dart';
 import 'package:finmate/shared/widgets/glass/glass_buttons.dart';
 import 'package:finmate/shared/widgets/glass/glass_card.dart';
+import 'package:finmate/shared/widgets/glass/glass_progress_bar.dart';
 import 'package:finmate/shared/widgets/glass/glass_radio_card.dart';
 
-String _statusLabel(String status) => switch (status) {
-      'pending' => 'Chưa làm',
-      'completed' => 'Đã làm xong',
-      'skipped' => 'Đã bỏ qua',
-      _ => status,
-    };
-
-/// Khảo sát đầu vào. Câu trả lời đang chọn trên máy (chưa gửi) là state cục bộ của màn
+/// Khảo sát đầu vào (B3). Câu trả lời đang chọn trên máy (chưa gửi) là state cục bộ của màn
 /// hình ([_draftAnswers]) — mỗi khi đổi, lọc lại câu hiện/ẩn theo đúng logic ShowIf của BE ngay
 /// trên máy, không cần gọi lại API.
 class SurveyScreen extends ConsumerStatefulWidget {
@@ -129,7 +126,25 @@ class _SurveyScreenState extends ConsumerState<SurveyScreen> {
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
-          title: Text('Khảo sát đầu vào', style: GlassTypography.headlineMd()),
+          scrolledUnderElevation: 0,
+          centerTitle: true,
+          leading: Navigator.of(context).canPop()
+              ? IconButton(
+                  tooltip: 'Quay lại',
+                  icon: Icon(LucideIcons.arrowLeft, size: 20, color: GlassColors.textPrimary),
+                  onPressed: () => Navigator.of(context).maybePop(),
+                )
+              : null,
+          title: Text('Phương pháp quản lý', style: GlassTypography.headlineSm().copyWith(letterSpacing: -0.425)),
+          actions: [
+            // Giữ chức năng làm lại khảo sát (trước đây là nút chữ đỏ cuối trang), Figma không có chỗ riêng cho nó.
+            if (state.valueOrNull != null)
+              IconButton(
+                tooltip: 'Xóa khảo sát (reset)',
+                icon: Icon(LucideIcons.rotateCcw, size: 20, color: GlassColors.textSecondary),
+                onPressed: _delete,
+              ),
+          ],
         ),
         body: SafeArea(
           child: state.when(
@@ -153,75 +168,58 @@ class _SurveyScreenState extends ConsumerState<SurveyScreen> {
             data: (survey) {
               if (survey == null) return const SizedBox.shrink();
               final visible = _visibleQuestions(survey);
+              final answered = visible.where((q) => _draftAnswers.containsKey(q.code)).length;
+              // Đã làm xong và chưa sửa câu nào: hành động chính là đi xem gợi ý (như Figma), sửa rồi mới gửi lại.
+              final unchanged = survey.isCompleted &&
+                  mapEquals(_draftAnswers, {for (final a in survey.answers) a.questionCode: a.optionCode});
               return Column(
                 children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                    child: Semantics(
+                      label: 'Đã trả lời $answered trên ${visible.length} câu',
+                      child: GlassProgressBar(
+                        percent: visible.isEmpty ? 0 : answered * 100 / visible.length,
+                      ),
+                    ),
+                  ),
                   Expanded(
                     child: ListView(
-                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
                       children: [
-                        GlassCard(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Text('Trạng thái: ', style: GlassTypography.bodyMd()),
-                                  Text(
-                                    _statusLabel(survey.status),
-                                    style: GlassTypography.bodyMd(color: GlassColors.textPrimary).copyWith(fontWeight: FontWeight.w700),
-                                  ),
-                                ],
-                              ),
-                              if (survey.status == 'completed') ...[
-                                const SizedBox(height: 10),
-                                GlassSecondaryButton(
-                                  key: const ValueKey('survey-go-to-recommendations'),
-                                  label: 'Xem gợi ý phương pháp',
-                                  onPressed: () => context.push('/finance-methods'),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
+                        const _HeroIntro(),
                         const SizedBox(height: 16),
-                        for (final q in visible) ...[
-                          GlassCard(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  q.text,
-                                  style: GlassTypography.headlineSm(),
-                                ),
-                                const SizedBox(height: 12),
-                                for (final o in q.options) ...[
-                                  GlassRadioCard(
-                                    title: o.text,
-                                    selected: _draftAnswers[q.code] == o.code,
-                                    onTap: () => _choose(survey, q.code, o.code),
-                                  ),
-                                  const SizedBox(height: 10),
-                                ],
-                              ],
-                            ),
+                        if (visible.isEmpty)
+                          Text('Chưa có câu hỏi khảo sát.', style: GlassTypography.bodyMd()),
+                        for (var i = 0; i < visible.length; i++) ...[
+                          _QuestionSection(
+                            number: i + 1,
+                            question: visible[i],
+                            selectedCode: _draftAnswers[visible[i].code],
+                            onSelect: (optionCode) => _choose(survey, visible[i].code, optionCode),
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 20),
                         ],
-                        TextButton(
-                          onPressed: _delete,
-                          child: Text('Xóa khảo sát (reset)', style: GlassTypography.bodyMd(color: GlassColors.danger)),
-                        ),
                       ],
                     ),
                   ),
                   GlassBottomDock(
-                    actions: [
-                      GlassGhostButton(label: 'Bỏ qua', onPressed: _skip),
-                      GlassPrimaryButton(
-                        label: 'Gửi khảo sát',
-                        onPressed: _draftAnswers.isEmpty ? null : () => _submit(survey),
-                      ),
-                    ],
+                    actions: unchanged
+                        ? [
+                            GlassPrimaryButton(
+                              key: const ValueKey('survey-go-to-recommendations'),
+                              label: 'Xem gợi ý phương pháp của tôi',
+                              icon: LucideIcons.trendingUp,
+                              onPressed: () => context.push('/finance-methods'),
+                            ),
+                          ]
+                        : [
+                            GlassGhostButton(label: 'Bỏ qua', onPressed: _skip),
+                            GlassPrimaryButton(
+                              label: 'Gửi khảo sát',
+                              onPressed: _draftAnswers.isEmpty ? null : () => _submit(survey),
+                            ),
+                          ],
                   ),
                 ],
               );
@@ -229,6 +227,103 @@ class _SurveyScreenState extends ConsumerState<SurveyScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Thẻ mở đầu: nhãn + tiêu đề. Figma còn dòng "… ₫ của bạn" nhưng BE khảo sát không trả số liệu đó nên không dựng.
+class _HeroIntro extends StatelessWidget {
+  const _HeroIntro();
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      level: 2,
+      padding: const EdgeInsets.all(21),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+            decoration: BoxDecoration(
+              color: GlassColors.fieldFill,
+              borderRadius: GlassRadius.roundedPill,
+              border: Border.all(color: GlassColors.fieldBorder),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(LucideIcons.sparkles, size: 14, color: GlassColors.slateAnchor),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    'ĐỀ XUẤT CÁ NHÂN HOÁ',
+                    style: GlassTypography.labelCaps(color: GlassColors.slateAnchor),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Semantics(
+            header: true,
+            child: Text('Tìm phong cách tài chính phù hợp với bạn', style: GlassTypography.headlineMd().copyWith(letterSpacing: -0.5)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _QuestionSection extends StatelessWidget {
+  final int number;
+  final SurveyQuestionEntity question;
+  final String? selectedCode;
+  final ValueChanged<String> onSelect;
+
+  const _QuestionSection({
+    required this.number,
+    required this.question,
+    required this.selectedCode,
+    required this.onSelect,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              constraints: const BoxConstraints(minWidth: 24),
+              height: 24,
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(color: GlassColors.ink, borderRadius: GlassRadius.roundedPill),
+              child: Text('$number', style: GlassTypography.labelCaps(color: GlassColors.onInk)),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Semantics(
+                header: true,
+                child: Text(question.text, style: GlassTypography.headlineSm()),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        for (var i = 0; i < question.options.length; i++) ...[
+          if (i > 0) const SizedBox(height: 10),
+          GlassRadioCard(
+            title: question.options[i].text,
+            selected: selectedCode == question.options[i].code,
+            onTap: () => onSelect(question.options[i].code),
+          ),
+        ],
+      ],
     );
   }
 }
