@@ -63,7 +63,7 @@ class _F4AlertsScreenState extends ConsumerState<F4AlertsScreen> {
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
-          leading: IconButton(icon: const Icon(LucideIcons.arrowLeft, color: GlassColors.textPrimary), onPressed: () => context.pop()),
+          leading: IconButton(icon: Icon(LucideIcons.arrowLeft, color: GlassColors.textPrimary), onPressed: () => context.pop()),
           title: Text('Cảnh báo & Bất thường', style: GlassTypography.headlineMd()),
         ),
         body: SafeArea(
@@ -141,7 +141,7 @@ class _F4AlertsScreenState extends ConsumerState<F4AlertsScreen> {
           Container(
             width: 36,
             height: 36,
-            decoration: const BoxDecoration(color: GlassColors.warning, shape: BoxShape.circle),
+            decoration: BoxDecoration(color: GlassColors.warning, shape: BoxShape.circle),
             child: const Icon(LucideIcons.triangleAlert, color: Colors.white, size: 18),
           ),
           const SizedBox(width: 12),
@@ -290,7 +290,7 @@ class _F4AlertsScreenState extends ConsumerState<F4AlertsScreen> {
                   OutlinedButton(
                     onPressed: () => ref.read(anomaliesControllerProvider.notifier).sendFeedback(anomaly.id, entry.key),
                     style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: GlassColors.glassBorder),
+                      side: BorderSide(color: GlassColors.glassBorder),
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     ),
                     child: Text(entry.value, style: GlassTypography.bodySm(color: GlassColors.textPrimary)),
@@ -317,7 +317,7 @@ class _F4AlertsScreenState extends ConsumerState<F4AlertsScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(LucideIcons.sparkles, size: 20, color: GlassColors.slateAnchor),
+          Icon(LucideIcons.sparkles, size: 20, color: GlassColors.slateAnchor),
           const SizedBox(width: 12),
           Expanded(
             child: Column(

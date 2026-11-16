@@ -18,7 +18,7 @@ import 'package:finmate/shared/widgets/glass/glass_background.dart';
 import 'package:finmate/shared/widgets/glass/glass_badge.dart';
 import 'package:finmate/shared/widgets/glass/glass_card.dart';
 
-const _donutPalette = <Color>[
+final _donutPalette = <Color>[
   GlassColors.accentSkyBlue,
   GlassColors.accentDustyRose,
   GlassColors.accentWarmPeach,
@@ -75,7 +75,7 @@ class _F2CategoryReportScreenState extends ConsumerState<F2CategoryReportScreen>
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
-          leading: IconButton(icon: const Icon(LucideIcons.arrowLeft, color: GlassColors.textPrimary), onPressed: () => context.pop()),
+          leading: IconButton(icon: Icon(LucideIcons.arrowLeft, color: GlassColors.textPrimary), onPressed: () => context.pop()),
           title: Text('Báo cáo danh mục', style: GlassTypography.headlineMd()),
           actions: [_monthPicker(), const SizedBox(width: 8)],
         ),
@@ -252,7 +252,7 @@ class _F2CategoryReportScreenState extends ConsumerState<F2CategoryReportScreen>
             )
           else
             for (final (i, item) in items.indexed) ...[
-              if (i > 0) const Divider(height: 1, color: GlassColors.glassBorder),
+              if (i > 0) Divider(height: 1, color: GlassColors.glassBorder),
               _categoryTile(item, budgetByCategory[item.categoryId]),
             ],
         ],
@@ -310,7 +310,7 @@ class _F2CategoryReportScreenState extends ConsumerState<F2CategoryReportScreen>
               ],
             ),
             const SizedBox(width: 4),
-            const Icon(LucideIcons.chevronRight, size: 18, color: GlassColors.textMuted),
+            Icon(LucideIcons.chevronRight, size: 18, color: GlassColors.textMuted),
           ],
         ),
       ),
@@ -331,7 +331,7 @@ class _F2CategoryReportScreenState extends ConsumerState<F2CategoryReportScreen>
                 children: [
                   Row(
                     children: [
-                      const Icon(LucideIcons.sparkles, size: 16, color: GlassColors.slateAnchor),
+                      Icon(LucideIcons.sparkles, size: 16, color: GlassColors.slateAnchor),
                       const SizedBox(width: 8),
                       Text('FINMATE AI NHẬN XÉT', style: GlassTypography.labelCaps()),
                     ],

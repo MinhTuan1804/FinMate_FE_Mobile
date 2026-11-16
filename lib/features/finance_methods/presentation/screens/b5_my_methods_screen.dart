@@ -107,7 +107,7 @@ class MyMethodsScreen extends ConsumerWidget {
             IconButton(
               key: const ValueKey('go-home'),
               tooltip: 'Về trang chủ',
-              icon: const Icon(LucideIcons.house, color: GlassColors.slateAnchor),
+              icon: Icon(LucideIcons.house, color: GlassColors.slateAnchor),
               onPressed: () => context.go('/home'),
             ),
             IconButton(

@@ -40,7 +40,7 @@ class F6AiSummaryScreen extends ConsumerWidget {
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
-          leading: IconButton(icon: const Icon(LucideIcons.arrowLeft, color: GlassColors.textPrimary), onPressed: () => context.pop()),
+          leading: IconButton(icon: Icon(LucideIcons.arrowLeft, color: GlassColors.textPrimary), onPressed: () => context.pop()),
           title: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -50,7 +50,7 @@ class F6AiSummaryScreen extends ConsumerWidget {
           ),
           actions: [
             IconButton(
-              icon: const Icon(LucideIcons.share2, color: GlassColors.textPrimary),
+              icon: Icon(LucideIcons.share2, color: GlassColors.textPrimary),
               onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Chia sẻ báo cáo sắp có.'))),
             ),
           ],
@@ -178,8 +178,8 @@ class F6AiSummaryScreen extends ConsumerWidget {
       width: double.infinity,
       child: OutlinedButton.icon(
         onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Tải báo cáo tóm tắt sắp có.'))),
-        style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14), side: const BorderSide(color: GlassColors.glassBorder), shape: RoundedRectangleBorder(borderRadius: GlassRadius.roundedPill)),
-        icon: const Icon(LucideIcons.download, size: 18, color: GlassColors.textPrimary),
+        style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14), side: BorderSide(color: GlassColors.glassBorder), shape: RoundedRectangleBorder(borderRadius: GlassRadius.roundedPill)),
+        icon: Icon(LucideIcons.download, size: 18, color: GlassColors.textPrimary),
         label: Text('Tải báo cáo tóm tắt (PDF)', style: GlassTypography.bodyMd(color: GlassColors.textPrimary).copyWith(fontWeight: FontWeight.w600)),
       ),
     );

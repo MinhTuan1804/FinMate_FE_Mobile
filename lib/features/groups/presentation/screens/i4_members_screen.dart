@@ -223,7 +223,7 @@ class _FundStatusCard extends ConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('TÌNH TRẠNG QUỸ CHUNG', style: GlassTypography.labelCaps(color: GlassColors.accentSkyBlue)),
-              const GlassBadge(text: 'Đã đồng bộ', color: GlassColors.success),
+              GlassBadge(text: 'Đã đồng bộ', color: GlassColors.success),
             ],
           ),
           const SizedBox(height: 8),

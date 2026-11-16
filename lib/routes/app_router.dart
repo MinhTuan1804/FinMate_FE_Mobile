@@ -50,11 +50,6 @@ import 'package:finmate/features/forecast/presentation/screens/f3_cashflow_forec
 import 'package:finmate/features/forecast/presentation/screens/f5_purchase_check_screen.dart';
 import 'package:finmate/features/forecast/presentation/screens/forecast_screen.dart';
 import 'package:finmate/features/forecast/presentation/screens/forecast_settings_screen.dart';
-import 'package:finmate/features/analytics/presentation/screens/ai_insights_screen.dart';
-import 'package:finmate/features/analytics/presentation/screens/cashflow_forecast_screen.dart';
-import 'package:finmate/features/analytics/presentation/screens/category_report_screen.dart';
-import 'package:finmate/features/analytics/presentation/screens/purchase_check_screen.dart';
-import 'package:finmate/features/analytics/presentation/screens/spending_anomalies_screen.dart';
 import 'package:finmate/features/assistant/presentation/screens/ai_memory_screen.dart';
 import 'package:finmate/features/planning/domain/entities/savings_goal_entity.dart';
 import 'package:finmate/features/planning/presentation/screens/loans_screen.dart';
@@ -303,26 +298,6 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/forecast-settings',
         builder: (context, state) => const ForecastSettingsScreen(),
-      ),
-      GoRoute(
-        path: '/analytics/category-report',
-        builder: (context, state) => const CategoryReportScreen(),
-      ),
-      GoRoute(
-        path: '/analytics/forecast',
-        builder: (context, state) => const CashflowForecastScreen(),
-      ),
-      GoRoute(
-        path: '/analytics/anomalies',
-        builder: (context, state) => const SpendingAnomaliesScreen(),
-      ),
-      GoRoute(
-        path: '/analytics/purchase-check',
-        builder: (context, state) => const PurchaseCheckScreen(),
-      ),
-      GoRoute(
-        path: '/analytics/insights',
-        builder: (context, state) => const AiInsightsScreen(),
       ),
       GoRoute(
         path: '/assistant/memory',

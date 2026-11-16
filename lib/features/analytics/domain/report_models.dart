@@ -201,37 +201,3 @@ class Forecast {
         advice: ForecastAdvice.tryParse(json['advice']),
       );
 }
-
-/// Nhận xét chi tiêu do backend tạo (GET /reports/insights). [insightType]: vs_last_month | recurring_detected | unusual_spending.
-class SpendingInsight {
-  final String id;
-  final String insightType;
-  final String title;
-  final String body;
-  final String? categoryName;
-  final BigInt? amountCents;
-  final bool isRead;
-  final DateTime createdAt;
-
-  const SpendingInsight({
-    required this.id,
-    required this.insightType,
-    required this.title,
-    required this.body,
-    this.categoryName,
-    this.amountCents,
-    required this.isRead,
-    required this.createdAt,
-  });
-
-  factory SpendingInsight.fromJson(Map<String, dynamic> json) => SpendingInsight(
-        id: json['id'] as String,
-        insightType: json['insightType'] as String? ?? '',
-        title: json['title'] as String? ?? '',
-        body: json['body'] as String? ?? '',
-        categoryName: json['categoryName'] as String?,
-        amountCents: json['amountCents'] == null ? null : parseCents(json['amountCents']),
-        isRead: json['isRead'] as bool? ?? false,
-        createdAt: DateTime.parse(json['createdAt'] as String).toLocal(),
-      );
-}

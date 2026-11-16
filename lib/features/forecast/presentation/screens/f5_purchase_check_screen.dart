@@ -20,7 +20,7 @@ import 'package:finmate/shared/widgets/glass/glass_background.dart';
 import 'package:finmate/shared/widgets/glass/glass_badge.dart';
 import 'package:finmate/shared/widgets/glass/glass_card.dart';
 
-const _verdictLabel = {
+final _verdictLabel = {
   'shortfall_risk': 'CÓ NGUY CƠ THIẾU TIỀN',
   'consider': 'NÊN CÂN NHẮC',
   'off_plan': 'LỆCH KẾ HOẠCH',
@@ -28,7 +28,7 @@ const _verdictLabel = {
   'insufficient_data': 'CHƯA ĐỦ DỮ LIỆU',
 };
 
-const _verdictColor = {
+final _verdictColor = {
   'shortfall_risk': GlassColors.danger,
   'consider': GlassColors.warning,
   'off_plan': GlassColors.warning,
@@ -86,7 +86,7 @@ class _F5PurchaseCheckScreenState extends ConsumerState<F5PurchaseCheckScreen> {
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
-          leading: IconButton(icon: const Icon(LucideIcons.arrowLeft, color: GlassColors.textPrimary), onPressed: () => context.pop()),
+          leading: IconButton(icon: Icon(LucideIcons.arrowLeft, color: GlassColors.textPrimary), onPressed: () => context.pop()),
           title: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -132,7 +132,7 @@ class _F5PurchaseCheckScreenState extends ConsumerState<F5PurchaseCheckScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(LucideIcons.sparkles, size: 22, color: GlassColors.slateAnchor),
+          Icon(LucideIcons.sparkles, size: 22, color: GlassColors.slateAnchor),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -295,7 +295,7 @@ class _F5PurchaseCheckScreenState extends ConsumerState<F5PurchaseCheckScreen> {
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        const Icon(LucideIcons.triangleAlert, size: 16, color: GlassColors.warning),
+                        Icon(LucideIcons.triangleAlert, size: 16, color: GlassColors.warning),
                         const SizedBox(width: 8),
                         Expanded(child: Text('Khoản mua này sẽ làm kế hoạch tháng (số tiền có thể chi) bị âm.', style: GlassTypography.bodySm())),
                       ],
@@ -344,10 +344,10 @@ class _F5PurchaseCheckScreenState extends ConsumerState<F5PurchaseCheckScreen> {
                 ),
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14),
-                  side: const BorderSide(color: GlassColors.glassBorder),
+                  side: BorderSide(color: GlassColors.glassBorder),
                   shape: RoundedRectangleBorder(borderRadius: GlassRadius.roundedPill),
                 ),
-                icon: const Icon(LucideIcons.creditCard, size: 18, color: GlassColors.textPrimary),
+                icon: Icon(LucideIcons.creditCard, size: 18, color: GlassColors.textPrimary),
                 label: Text('Vẫn mua và ghi nhận giao dịch', style: GlassTypography.bodyMd(color: GlassColors.textPrimary).copyWith(fontWeight: FontWeight.w600)),
               ),
             ),

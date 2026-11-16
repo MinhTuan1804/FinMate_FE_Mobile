@@ -59,7 +59,7 @@ class _F3CashflowForecastScreenState extends ConsumerState<F3CashflowForecastScr
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
-          leading: IconButton(icon: const Icon(LucideIcons.arrowLeft, color: GlassColors.textPrimary), onPressed: () => context.pop()),
+          leading: IconButton(icon: Icon(LucideIcons.arrowLeft, color: GlassColors.textPrimary), onPressed: () => context.pop()),
           title: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -69,7 +69,7 @@ class _F3CashflowForecastScreenState extends ConsumerState<F3CashflowForecastScr
           ),
           actions: [
             IconButton(
-              icon: const Icon(LucideIcons.gauge, color: GlassColors.textPrimary),
+              icon: Icon(LucideIcons.gauge, color: GlassColors.textPrimary),
               tooltip: 'Xem chi tiết dự báo nâng cao',
               onPressed: () => context.push('/forecast'),
             ),
@@ -160,7 +160,7 @@ class _F3CashflowForecastScreenState extends ConsumerState<F3CashflowForecastScr
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(children: [const Icon(LucideIcons.sparkles, size: 14, color: GlassColors.slateAnchor), const SizedBox(width: 6), Text('MÔ HÌNH AI DỰ BÁO DÒNG TIỀN', style: GlassTypography.labelCaps())]),
+              Row(children: [Icon(LucideIcons.sparkles, size: 14, color: GlassColors.slateAnchor), const SizedBox(width: 6), Text('MÔ HÌNH AI DỰ BÁO DÒNG TIỀN', style: GlassTypography.labelCaps())]),
               GlassBadge(text: _confidenceLabel[forecast.confidence] ?? forecast.confidence, color: forecast.confidence == 'high' ? GlassColors.success : GlassColors.warning),
             ],
           ),
@@ -316,8 +316,8 @@ class _F3CashflowForecastScreenState extends ConsumerState<F3CashflowForecastScr
       width: double.infinity,
       child: OutlinedButton.icon(
         onPressed: () => context.push('/analytics/insights'),
-        style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14), side: const BorderSide(color: GlassColors.glassBorder), shape: RoundedRectangleBorder(borderRadius: GlassRadius.roundedPill)),
-        icon: const Icon(LucideIcons.sparkles, size: 18, color: GlassColors.textPrimary),
+        style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14), side: BorderSide(color: GlassColors.glassBorder), shape: RoundedRectangleBorder(borderRadius: GlassRadius.roundedPill)),
+        icon: Icon(LucideIcons.sparkles, size: 18, color: GlassColors.textPrimary),
         label: Text('Xem nhận xét AI & báo cáo tháng', style: GlassTypography.bodyMd(color: GlassColors.textPrimary).copyWith(fontWeight: FontWeight.w600)),
       ),
     );
@@ -355,7 +355,7 @@ class _F3CashflowForecastScreenState extends ConsumerState<F3CashflowForecastScr
           padding: EdgeInsets.only(bottom: MediaQuery.of(sheetContext).viewInsets.bottom),
           child: Container(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
-            decoration: const BoxDecoration(color: GlassColors.glassFillModal, borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
+            decoration: BoxDecoration(color: GlassColors.glassFillModal, borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
