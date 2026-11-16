@@ -183,14 +183,17 @@ void main() {
       expect(find.text('Thử lại'), findsWidgets);
     });
 
-    testWidgets('bộ chọn kỳ: chỉ "Tháng" bật, bấm "Ngày" báo sắp có (BE chỉ hỗ trợ báo cáo theo tháng)', (tester) async {
+    testWidgets('bộ chọn kỳ: có đủ Ngày/Tuần/Tháng/Năm, bấm "Ngày" chuyển kỳ và không còn báo sắp có', (tester) async {
       await pump(tester, summary: _summary(), breakdown: _breakdown(const []), forecast: _forecast());
 
-      expect(find.text('Tháng'), findsOneWidget);
+      for (final label in ['Ngày', 'Tuần', 'Tháng', 'Năm']) {
+        expect(find.text(label), findsOneWidget);
+      }
       await tester.tap(find.text('Ngày'));
       await tester.pump();
 
-      expect(find.textContaining('sắp có'), findsOneWidget);
+      expect(find.textContaining('sắp có'), findsNothing);
+      expect(tester.takeException(), isNull);
     });
 
     testWidgets('F3/F4/F5 có lối vào ngay trên F1 (Stitch gốc không vẽ, roadmap yêu cầu)', (tester) async {
