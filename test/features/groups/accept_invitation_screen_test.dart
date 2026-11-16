@@ -36,10 +36,11 @@ void main() {
     final req = adapter.requests.single;
     expect(req.path, '/api/v1/group-invitations/preview');
     expect(req.data, {'token': 'tok-123'});
-    expect(find.text('Gia đình'), findsOneWidget);
+    expect(find.text('Gia đình'), findsWidgets);
     expect(find.textContaining('Vai trò: Thành viên'), findsOneWidget);
-    expect(find.textContaining('Được mời bởi: Người dùng A'), findsOneWidget);
+    expect(find.textContaining('Người dùng A đã mời bạn tham gia'), findsOneWidget);
     expect(find.byKey(const ValueKey('accept-invitation')), findsOneWidget);
+    expect(find.byKey(const ValueKey('decline-invitation')), findsOneWidget);
   });
 
   testWidgets('tham gia nhóm: gọi accept rồi điều hướng tới chi tiết nhóm', (tester) async {
@@ -68,5 +69,25 @@ void main() {
     expect(req.data, {'token': 'tok-123'});
     expect(find.text('Đã tham gia nhóm'), findsOneWidget);
     expect(find.text('GROUP_DETAIL g1'), findsOneWidget);
+  });
+
+  testWidgets('từ chối lời mời: chỉ đóng màn, không gọi API accept', (tester) async {
+    final adapter = RouteAdapter((o) => respondFixture('group_invitation_preview'));
+    final router = GoRouter(routes: [
+      GoRoute(path: '/', builder: (_, __) => const Scaffold(body: Text('HOME'))),
+      GoRoute(path: '/accept-invitation', builder: (_, __) => const AcceptInvitationScreen()),
+    ]);
+    await pumpScreen(tester, adapter, router: router);
+    router.push('/accept-invitation');
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byKey(const ValueKey('invitation-token')), 'tok-123');
+    await tester.tap(find.byKey(const ValueKey('preview-invitation')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('decline-invitation')));
+    await tester.pumpAndSettle();
+
+    expect(adapter.requests.where((r) => r.path.contains('/accept')), isEmpty);
+    expect(find.text('HOME'), findsOneWidget);
   });
 }

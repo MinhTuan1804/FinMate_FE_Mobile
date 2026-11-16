@@ -1,7 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:finmate/features/auth/presentation/controllers/auth_controller.dart';
+import 'package:finmate/features/groups/data/group_funds_repository.dart';
 import 'package:finmate/features/groups/data/groups_repository.dart';
 import 'package:finmate/features/groups/domain/group.dart';
+import 'package:finmate/features/groups/domain/group_fund.dart';
 import 'package:finmate/features/planning/domain/entities/savings_goal_entity.dart';
 
 /// Danh sách nhóm của người dùng hiện tại. Tự tạo lại (và tải lại) khi đổi người dùng;
@@ -66,6 +68,58 @@ final groupGoalContributionsProvider =
     FutureProvider.autoDispose.family<List<GroupContributionEntity>, (String groupId, String goalId)>(
   (ref, key) => ref.watch(groupsRepositoryProvider).getGoalContributions(groupId: key.$1, goalId: key.$2),
 );
+
+/// Quỹ chung của một nhóm (Phase 85); rỗng nếu tính năng quỹ tắt hoặc nhóm chưa có quỹ nào —
+/// lỗi (vd GROUPS_DISABLED/GROUP_FUNDS_DISABLED) không ném ra màn hình, chỉ coi như không có quỹ.
+final groupFundsProvider = FutureProvider.autoDispose.family<List<GroupFundEntity>, String>((ref, groupId) async {
+  try {
+    return await ref.watch(groupFundsRepositoryProvider).getFunds(groupId);
+  } catch (_) {
+    return const [];
+  }
+});
+
+/// Quỹ chung chưa lưu trữ đầu tiên của nhóm (quỹ chính dùng để hiện số dư tóm tắt ở I1/I4); null nếu
+/// không có quỹ nào đang dùng.
+final groupPrimaryFundProvider = FutureProvider.autoDispose.family<GroupFundEntity?, String>((ref, groupId) async {
+  final funds = await ref.watch(groupFundsProvider(groupId).future);
+  for (final f in funds) {
+    if (!f.isArchived) return f;
+  }
+  return null;
+});
+
+/// Tổng kết tháng này của một quỹ; khóa là (groupId, fundId).
+final groupFundSummaryProvider =
+    FutureProvider.autoDispose.family<GroupFundSummaryEntity, (String groupId, String fundId)>(
+  (ref, key) => ref.watch(groupFundsRepositoryProvider).getFundSummary(groupId: key.$1, fundId: key.$2),
+);
+
+/// Sổ quỹ (entries) của một quỹ; khóa là (groupId, fundId).
+final groupFundEntriesProvider = FutureProvider.autoDispose.family<List<GroupFundEntryEntity>, (String groupId, String fundId)>(
+  (ref, key) => ref.watch(groupFundsRepositoryProvider).getFundEntries(groupId: key.$1, fundId: key.$2, limit: 50),
+);
+
+/// Tổng chi tháng này cộng dồn trên MỌI nhóm đang tham gia — dùng cho hero card I1.
+/// Gọi report từng nhóm song song; nhóm nào lỗi (API tắt, quyền thiếu) bị bỏ qua, không chặn cả màn.
+final allGroupsMonthlySpendProvider = FutureProvider.autoDispose<BigInt>((ref) async {
+  final repo = ref.watch(groupsRepositoryProvider);
+  final groups = await repo.getGroups();
+  if (groups.isEmpty) return BigInt.zero;
+  final totals = await Future.wait<BigInt>(groups.map((g) async {
+    try {
+      final report = await repo.getMonthlyReport(groupId: g.id);
+      return report.totalSpentCents;
+    } catch (_) {
+      return BigInt.zero;
+    }
+  }));
+  var sum = BigInt.zero;
+  for (final t in totals) {
+    sum += t;
+  }
+  return sum;
+});
 
 class GroupsController extends StateNotifier<AsyncValue<List<GroupEntity>>> {
   final GroupsRepository repository;

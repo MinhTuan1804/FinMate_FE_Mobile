@@ -40,7 +40,11 @@ import 'package:finmate/features/community/presentation/screens/community_profil
 import 'package:finmate/features/categories/presentation/screens/categories_screen.dart';
 import 'package:finmate/features/recurring/presentation/screens/recurring_items_screen.dart';
 import 'package:finmate/features/groups/presentation/screens/groups_screen.dart';
+import 'package:finmate/features/groups/presentation/screens/i2_create_group_screen.dart';
 import 'package:finmate/features/groups/presentation/screens/group_detail_screen.dart';
+import 'package:finmate/features/groups/presentation/screens/i4_members_screen.dart';
+import 'package:finmate/features/groups/presentation/screens/i5_invite_members_screen.dart';
+import 'package:finmate/features/groups/presentation/screens/i7_group_settings_screen.dart';
 import 'package:finmate/features/groups/presentation/screens/accept_invitation_screen.dart';
 import 'package:finmate/features/groups/presentation/screens/group_finance_screen.dart';
 import 'package:finmate/features/forecast/presentation/screens/f3_cashflow_forecast_screen.dart';
@@ -255,8 +259,24 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const GroupsScreen(),
       ),
       GoRoute(
+        path: '/groups/create',
+        builder: (context, state) => const I2CreateGroupScreen(),
+      ),
+      GoRoute(
         path: '/group-detail',
         builder: (context, state) => GroupDetailScreen(groupId: state.extra as String),
+      ),
+      GoRoute(
+        path: '/group-members',
+        builder: (context, state) => I4MembersScreen(groupId: state.extra as String),
+      ),
+      GoRoute(
+        path: '/group-invite',
+        builder: (context, state) => I5InviteMembersScreen(groupId: state.extra as String),
+      ),
+      GoRoute(
+        path: '/group-settings',
+        builder: (context, state) => I7GroupSettingsScreen(groupId: state.extra as String),
       ),
       GoRoute(
         path: '/forecast',
