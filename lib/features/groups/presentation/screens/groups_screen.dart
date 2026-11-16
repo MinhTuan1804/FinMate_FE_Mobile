@@ -1,107 +1,255 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:finmate/core/network/api_exceptions.dart';
-import 'package:finmate/core/theme/app_colors.dart';
-import 'package:finmate/core/theme/app_spacing.dart';
-import 'package:finmate/core/theme/app_typography.dart';
+import 'package:finmate/core/theme/glass/glass_colors.dart';
+import 'package:finmate/core/theme/glass/glass_radius.dart';
+import 'package:finmate/core/theme/glass/glass_typography.dart';
 import 'package:finmate/features/groups/domain/group.dart';
 import 'package:finmate/features/groups/presentation/controllers/groups_controller.dart';
+import 'package:finmate/features/groups/presentation/group_type_icons.dart';
+import 'package:finmate/shared/widgets/glass/glass_background.dart';
+import 'package:finmate/shared/widgets/glass/glass_badge.dart';
+import 'package:finmate/shared/widgets/glass/glass_card.dart';
+import 'package:finmate/shared/widgets/glass/glass_filter_chip.dart';
 
-/// Màn danh sách nhóm: tạo nhóm mới, bấm vào một nhóm để xem chi tiết.
-/// Đơn giản để test nhanh toàn bộ API groups còn thiếu ở FE.
-class GroupsScreen extends ConsumerWidget {
+enum _GroupFilter { all, family, other }
+
+/// I1 — Danh sách nhóm (Stitch `i1_group_list`). Hero tổng chi tháng này cộng dồn mọi nhóm, không có
+/// dòng "Cần thanh toán"/thẻ cấn trừ nợ AI (hệ thống thật là quỹ chung 1 sổ duy nhất, không phải chia
+/// nợ từng khoản — xem quyết định phạm vi Luồng 8a). Loại nhóm chỉ 2 giá trị thật (Family/Other).
+class GroupsScreen extends ConsumerStatefulWidget {
   const GroupsScreen({super.key});
 
-  Future<void> _create(BuildContext context, WidgetRef ref) async {
-    final result = await showDialog<_GroupInput>(
-      context: context,
-      builder: (_) => const _CreateGroupDialog(),
+  @override
+  ConsumerState<GroupsScreen> createState() => _GroupsScreenState();
+}
+
+class _GroupsScreenState extends ConsumerState<GroupsScreen> {
+  _GroupFilter _filter = _GroupFilter.all;
+
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(groupsControllerProvider);
+
+    return GlassBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          title: Text('Nhóm tài chính', style: GlassTypography.headlineMd()),
+          actions: [
+            IconButton(
+              key: const ValueKey('accept-invitation-entry'),
+              tooltip: 'Nhập mã lời mời',
+              icon: Icon(LucideIcons.mail, color: GlassColors.textPrimary),
+              onPressed: () => context.push('/accept-invitation'),
+            ),
+          ],
+        ),
+        body: SafeArea(
+          child: state.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, __) => Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(errorMessage(e), style: GlassTypography.bodyMd(color: GlassColors.danger), textAlign: TextAlign.center),
+                    const SizedBox(height: 12),
+                    TextButton(
+                      onPressed: () => ref.read(groupsControllerProvider.notifier).load(),
+                      child: const Text('Thử lại'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            data: (groups) => _buildContent(context, groups),
+          ),
+        ),
+        bottomNavigationBar: SafeArea(
+          minimum: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+          child: SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton.icon(
+              key: const ValueKey('create-group'),
+              onPressed: () => context.push('/groups/create'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: GlassColors.ink,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: GlassRadius.roundedPill),
+              ),
+              icon: const Icon(LucideIcons.userPlus, size: 18),
+              label: Text('Tạo nhóm mới', style: GlassTypography.buttonText()),
+            ),
+          ),
+        ),
+      ),
     );
-    if (result == null || !context.mounted) return;
-    final messenger = ScaffoldMessenger.of(context);
-    try {
-      await ref.read(groupsControllerProvider.notifier).create(name: result.name, type: result.type);
-      messenger.showSnackBar(const SnackBar(content: Text('Đã tạo nhóm')));
-    } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text(errorMessage(e)), backgroundColor: AppColors.danger));
-    }
   }
+
+  Widget _buildContent(BuildContext context, List<GroupEntity> groups) {
+    final filtered = switch (_filter) {
+      _GroupFilter.all => groups,
+      _GroupFilter.family => groups.where((g) => g.type == GroupType.family).toList(),
+      _GroupFilter.other => groups.where((g) => g.type == GroupType.other).toList(),
+    };
+    final familyCount = groups.where((g) => g.type == GroupType.family).length;
+    final otherCount = groups.where((g) => g.type == GroupType.other).length;
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
+      children: [
+        _HeroCard(groupCount: groups.length),
+        const SizedBox(height: 16),
+        SizedBox(
+          height: 44,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            children: [
+              GlassFilterChip(
+                key: const ValueKey('group-filter-all'),
+                label: 'Tất cả',
+                count: groups.length,
+                selected: _filter == _GroupFilter.all,
+                onTap: () => setState(() => _filter = _GroupFilter.all),
+              ),
+              const SizedBox(width: 8),
+              GlassFilterChip(
+                key: const ValueKey('group-filter-family'),
+                label: 'Gia đình',
+                count: familyCount,
+                selected: _filter == _GroupFilter.family,
+                onTap: () => setState(() => _filter = _GroupFilter.family),
+              ),
+              const SizedBox(width: 8),
+              GlassFilterChip(
+                key: const ValueKey('group-filter-other'),
+                label: 'Khác',
+                count: otherCount,
+                selected: _filter == _GroupFilter.other,
+                onTap: () => setState(() => _filter = _GroupFilter.other),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+        Text('Nhóm đang tham gia', style: GlassTypography.headlineSm()),
+        const SizedBox(height: 12),
+        if (filtered.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 24),
+            child: Center(
+              child: Text(
+                groups.isEmpty ? 'Chưa tham gia nhóm nào.' : 'Không có nhóm nào khớp bộ lọc.',
+                style: GlassTypography.bodyMd(),
+              ),
+            ),
+          )
+        else
+          ...filtered.map((g) => Padding(padding: const EdgeInsets.only(bottom: 12), child: _GroupCard(group: g))),
+      ],
+    );
+  }
+}
+
+class _HeroCard extends ConsumerWidget {
+  final int groupCount;
+  const _HeroCard({required this.groupCount});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final state = ref.watch(groupsControllerProvider);
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Nhóm tài chính'),
-        actions: [
-          IconButton(
-            key: const ValueKey('accept-invitation-entry'),
-            tooltip: 'Nhập mã lời mời',
-            icon: const Icon(LucideIcons.mail),
-            onPressed: () => context.push('/accept-invitation'),
+    final now = DateTime.now();
+    final spendAsync = ref.watch(allGroupsMonthlySpendProvider);
+    return GlassCard(
+      level: 2,
+      borderRadius: GlassRadius.roundedCardLarge,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('TỔNG KẾT THÁNG ${now.month}'.toUpperCase(), style: GlassTypography.labelCaps(color: GlassColors.accentSkyBlue)),
+              GlassBadge(text: '$groupCount nhóm đang tham gia'),
+            ],
           ),
-          IconButton(
-            key: const ValueKey('add-group'),
-            tooltip: 'Tạo nhóm',
-            icon: const Icon(LucideIcons.plus),
-            onPressed: () => _create(context, ref),
+          const SizedBox(height: 8),
+          Text('Tổng đã chi trong nhóm tháng này', style: GlassTypography.bodySm()),
+          const SizedBox(height: 2),
+          spendAsync.when(
+            loading: () => Text('…', style: GlassTypography.displayHero()),
+            error: (_, __) => Text('—', style: GlassTypography.displayHero()),
+            data: (cents) => Text('${NumberFormat('#,###', 'vi_VN').format(cents.toInt())} ₫', style: GlassTypography.displayHero()),
           ),
         ],
       ),
-      body: state.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, __) => Center(child: Text(errorMessage(e), style: AppTypography.body(context))),
-        data: (groups) {
-          if (groups.isEmpty) {
-            return Center(child: Text('Chưa tham gia nhóm nào.', style: AppTypography.body(context)));
-          }
-          return ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: groups.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
-            itemBuilder: (context, i) => _buildCard(context, groups[i], isDark),
-          );
-        },
-      ),
     );
   }
+}
 
-  Widget _buildCard(BuildContext context, GroupEntity group, bool isDark) {
+class _GroupCard extends ConsumerWidget {
+  final GroupEntity group;
+  const _GroupCard({required this.group});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final fundAsync = ref.watch(groupPrimaryFundProvider(group.id));
     return InkWell(
       key: ValueKey('group-${group.id}'),
       onTap: () => context.push('/group-detail', extra: group.id),
-      borderRadius: AppSpacing.roundedMedium,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-          borderRadius: AppSpacing.roundedMedium,
-          border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
-        ),
-        child: Row(
+      borderRadius: GlassRadius.roundedCard,
+      child: GlassCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(LucideIcons.users, color: AppColors.primaryAction(context), size: 22),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(group.name, style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w700)),
-                  Text(
-                    '${group.type.label} · ${group.memberCount} thành viên',
-                    style: AppTypography.caption(context),
+            Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(color: groupTypeColor(group.type).withValues(alpha: 0.18), shape: BoxShape.circle),
+                  child: Icon(groupTypeIcon(group.type), color: groupTypeColor(group.type), size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(group.name, style: GlassTypography.headlineSm()),
+                      Text('${group.type.label} · ${group.memberCount} thành viên', style: GlassTypography.bodySm()),
+                    ],
                   ),
-                ],
-              ),
+                ),
+                GlassBadge(text: group.myRole.label, color: group.isOwner ? GlassColors.accentSkyBlue : null),
+                const SizedBox(width: 4),
+                Icon(LucideIcons.chevronRight, size: 18, color: GlassColors.textMuted),
+              ],
             ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(color: AppColors.primaryAction(context).withValues(alpha: 0.15), borderRadius: BorderRadius.circular(6)),
-              child: Text(group.myRole.label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.primaryAction(context))),
+            fundAsync.maybeWhen(
+              data: (fund) {
+                if (fund == null) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.only(top: 10),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Quỹ chung hiện có', style: GlassTypography.bodySm()),
+                      Text(
+                        fund.formattedBalance,
+                        style: GlassTypography.labelNumeric(color: fund.isNegative ? GlassColors.danger : GlassColors.success),
+                      ),
+                    ],
+                  ),
+                );
+              },
+              orElse: () => const SizedBox.shrink(),
             ),
           ],
         ),
@@ -110,65 +258,3 @@ class GroupsScreen extends ConsumerWidget {
   }
 }
 
-class _GroupInput {
-  final String name;
-  final GroupType type;
-  const _GroupInput({required this.name, required this.type});
-}
-
-class _CreateGroupDialog extends StatefulWidget {
-  const _CreateGroupDialog();
-
-  @override
-  State<_CreateGroupDialog> createState() => _CreateGroupDialogState();
-}
-
-class _CreateGroupDialogState extends State<_CreateGroupDialog> {
-  final _name = TextEditingController();
-  GroupType _type = GroupType.family;
-  String? _error;
-
-  @override
-  void dispose() {
-    _name.dispose();
-    super.dispose();
-  }
-
-  void _submit() {
-    final name = _name.text.trim();
-    if (name.isEmpty) {
-      setState(() => _error = 'Vui lòng nhập tên nhóm');
-      return;
-    }
-    Navigator.pop(context, _GroupInput(name: name, type: _type));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Tạo nhóm'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextField(controller: _name, decoration: const InputDecoration(labelText: 'Tên nhóm (ví dụ: Gia đình, Quỹ phòng trọ)')),
-          const SizedBox(height: 12),
-          DropdownButtonFormField<GroupType>(
-            initialValue: _type,
-            decoration: const InputDecoration(labelText: 'Loại nhóm'),
-            items: GroupType.values.map((t) => DropdownMenuItem(value: t, child: Text(t.label))).toList(),
-            onChanged: (v) => setState(() => _type = v ?? _type),
-          ),
-          if (_error != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: Text(_error!, style: const TextStyle(color: AppColors.danger, fontSize: 13)),
-            ),
-        ],
-      ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Hủy')),
-        ElevatedButton(onPressed: _submit, child: const Text('Tạo')),
-      ],
-    );
-  }
-}

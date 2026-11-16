@@ -101,6 +101,31 @@ class ForecastRepository {
     return response.data ?? const [];
   }
 
+  /// "Mua món này có ổn không?" — chỉ đọc, không tạo giao dịch. [categoryId]/[accountId] có thể
+  /// thiếu (BE tự trả trạng thái "partial"/"unknown" tương ứng, không bịa số).
+  Future<PurchaseCheckEntity> checkPurchase({
+    required BigInt amountCents,
+    DateTime? purchaseDate,
+    String? item,
+    String? categoryId,
+    String? accountId,
+    int? horizonDays,
+  }) async {
+    final response = await apiClient.post(
+      '$_path/purchase-check',
+      data: {
+        'amountCents': amountCents.toInt(),
+        if (purchaseDate != null) 'purchaseDate': _dateOnly(purchaseDate),
+        if (item != null) 'item': item,
+        if (categoryId != null) 'categoryId': categoryId,
+        if (accountId != null) 'accountId': accountId,
+        if (horizonDays != null) 'horizonDays': horizonDays,
+      },
+      fromJsonT: (json) => PurchaseCheckEntity.fromJson(json as Map<String, dynamic>),
+    );
+    return response.data!;
+  }
+
   /// Lịch thu nhập dự kiến, khoản thu trễ, ước tính thu nhập không đều.
   Future<IncomeForecastEntity> getIncome() async {
     final response = await apiClient.get(

@@ -105,6 +105,12 @@ class MyMethodsScreen extends ConsumerWidget {
           title: 'Cách quản lý của tôi',
           actions: [
             IconButton(
+              key: const ValueKey('go-home'),
+              tooltip: 'Về trang chủ',
+              icon: const Icon(LucideIcons.house, color: GlassColors.slateAnchor),
+              onPressed: () => context.go('/home'),
+            ),
+            IconButton(
               key: const ValueKey('open-alert-thresholds'),
               tooltip: 'Ngưỡng cảnh báo',
               icon: Icon(

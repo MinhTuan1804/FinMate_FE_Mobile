@@ -24,24 +24,53 @@ class ReportsRepository {
     return response.data ?? MonthlySummary.empty;
   }
 
-  /// Tổng chi/thu cho khoảng ngày bất kỳ (gồm cả hai đầu, giờ VN), tối đa 1100 ngày. Chỉ đọc 4 trường đầu của [MonthlySummary].
-  Future<MonthlySummary> getPeriodSummary({required DateTime from, required DateTime to, String? accountId}) async {
-    String day(DateTime d) => '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-    final response = await apiClient.get(
-      '/api/v1/reports/period-summary',
-      queryParameters: {'fromDate': day(from), 'toDate': day(to), if (accountId != null) 'accountId': accountId},
-      fromJsonT: (json) => MonthlySummary.fromJson(json as Map<String, dynamic>),
-    );
-    return response.data ?? MonthlySummary.empty;
-  }
-
-  Future<CategoryBreakdown> getCategoryBreakdown({required int year, required int month}) async {
+  /// [type] = 'expense' (mặc định) hoặc 'income' — F2 tab "Thu nhập".
+  Future<CategoryBreakdown> getCategoryBreakdown({required int year, required int month, String type = 'expense'}) async {
     final response = await apiClient.get(
       '/api/v1/reports/category-breakdown',
-      queryParameters: {'year': year, 'month': month},
+      queryParameters: {'year': year, 'month': month, 'type': type},
       fromJsonT: (json) => CategoryBreakdown.fromJson(json as Map<String, dynamic>),
     );
     return response.data ?? CategoryBreakdown.empty;
+  }
+
+  /// Cộng dồn thu/chi trong [from]..[to] (2 đầu bao gồm) qua GET /reports/timeline, phân trang theo
+  /// cursor cho tới khi hết (dùng cho F1 tab Ngày/Tuần/Năm — timeline không giới hạn khoảng ngày,
+  /// chỉ giới hạn số giao dịch mỗi trang, nên "Năm" cần nhiều trang).
+  Future<MonthlySummary> getPeriodSummary({required DateTime from, required DateTime to}) async {
+    var spent = BigInt.zero;
+    var income = BigInt.zero;
+    var count = 0;
+    String? cursor;
+
+    do {
+      final response = await apiClient.get(
+        '/api/v1/reports/timeline',
+        queryParameters: {
+          'fromDate': from.toUtc().toIso8601String(),
+          'toDate': to.toUtc().toIso8601String(),
+          'limit': 100,
+          if (cursor != null) 'cursor': cursor,
+        },
+        fromJsonT: (json) => (json as List).map((e) => TimelineDaySummary.fromJson(e as Map<String, dynamic>)).toList(),
+      );
+
+      for (final day in response.data ?? const <TimelineDaySummary>[]) {
+        spent += day.totalSpentCents;
+        income += day.totalIncomeCents;
+        count += day.transactionCount;
+      }
+      cursor = response.meta?.nextCursor;
+    } while (cursor != null);
+
+    return MonthlySummary(
+      totalSpentCents: spent,
+      totalIncomeCents: income,
+      netCents: income - spent,
+      prevMonthSpentCents: BigInt.zero,
+      transactionCount: count,
+      changePercent: null,
+    );
   }
 
   Future<Forecast> getForecast() async {
@@ -62,6 +91,6 @@ class ReportsRepository {
   }
 
   Future<void> markInsightRead(String id) async {
-    await apiClient.patch('/api/v1/reports/insights/$id/read', fromJsonT: (json) => json);
+    await apiClient.patch('/api/v1/reports/insights/$id/read', fromJsonT: (_) => null);
   }
 }

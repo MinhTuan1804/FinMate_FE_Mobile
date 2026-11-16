@@ -19,6 +19,9 @@ import 'package:finmate/features/dashboard/presentation/screens/home_screen.dart
 import 'package:finmate/features/transactions/presentation/screens/transactions_screen.dart';
 import 'package:finmate/features/planning/presentation/screens/planning_screen.dart';
 import 'package:finmate/features/analytics/presentation/screens/analytics_screen.dart';
+import 'package:finmate/features/analytics/presentation/screens/f2_category_report_screen.dart';
+import 'package:finmate/features/analytics/presentation/screens/f4_alerts_screen.dart';
+import 'package:finmate/features/analytics/presentation/screens/f6_ai_summary_screen.dart';
 import 'package:finmate/features/profile/presentation/screens/profile_screen.dart';
 import 'package:finmate/features/accounts/presentation/screens/accounts_screen.dart';
 import 'package:finmate/features/survey/presentation/screens/survey_screen.dart';
@@ -36,9 +39,15 @@ import 'package:finmate/features/community/presentation/screens/community_profil
 import 'package:finmate/features/categories/presentation/screens/categories_screen.dart';
 import 'package:finmate/features/recurring/presentation/screens/recurring_items_screen.dart';
 import 'package:finmate/features/groups/presentation/screens/groups_screen.dart';
+import 'package:finmate/features/groups/presentation/screens/i2_create_group_screen.dart';
 import 'package:finmate/features/groups/presentation/screens/group_detail_screen.dart';
+import 'package:finmate/features/groups/presentation/screens/i4_members_screen.dart';
+import 'package:finmate/features/groups/presentation/screens/i5_invite_members_screen.dart';
+import 'package:finmate/features/groups/presentation/screens/i7_group_settings_screen.dart';
 import 'package:finmate/features/groups/presentation/screens/accept_invitation_screen.dart';
 import 'package:finmate/features/groups/presentation/screens/group_finance_screen.dart';
+import 'package:finmate/features/forecast/presentation/screens/f3_cashflow_forecast_screen.dart';
+import 'package:finmate/features/forecast/presentation/screens/f5_purchase_check_screen.dart';
 import 'package:finmate/features/forecast/presentation/screens/forecast_screen.dart';
 import 'package:finmate/features/forecast/presentation/screens/forecast_settings_screen.dart';
 import 'package:finmate/features/analytics/presentation/screens/ai_insights_screen.dart';
@@ -220,6 +229,26 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const AnalyticsScreen(),
       ),
       GoRoute(
+        path: '/analytics/categories',
+        builder: (context, state) => const F2CategoryReportScreen(),
+      ),
+      GoRoute(
+        path: '/analytics/alerts',
+        builder: (context, state) => const F4AlertsScreen(),
+      ),
+      GoRoute(
+        path: '/analytics/purchase-check',
+        builder: (context, state) => const F5PurchaseCheckScreen(),
+      ),
+      GoRoute(
+        path: '/analytics/cashflow',
+        builder: (context, state) => const F3CashflowForecastScreen(),
+      ),
+      GoRoute(
+        path: '/analytics/insights',
+        builder: (context, state) => const F6AiSummaryScreen(),
+      ),
+      GoRoute(
         path: '/assistant',
         builder: (context, state) => AssistantScreen(startWith: state.uri.queryParameters['start']),
       ),
@@ -248,8 +277,24 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const GroupsScreen(),
       ),
       GoRoute(
+        path: '/groups/create',
+        builder: (context, state) => const I2CreateGroupScreen(),
+      ),
+      GoRoute(
         path: '/group-detail',
         builder: (context, state) => GroupDetailScreen(groupId: state.extra as String),
+      ),
+      GoRoute(
+        path: '/group-members',
+        builder: (context, state) => I4MembersScreen(groupId: state.extra as String),
+      ),
+      GoRoute(
+        path: '/group-invite',
+        builder: (context, state) => I5InviteMembersScreen(groupId: state.extra as String),
+      ),
+      GoRoute(
+        path: '/group-settings',
+        builder: (context, state) => I7GroupSettingsScreen(groupId: state.extra as String),
       ),
       GoRoute(
         path: '/forecast',

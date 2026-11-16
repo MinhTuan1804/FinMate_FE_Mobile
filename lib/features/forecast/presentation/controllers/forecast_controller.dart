@@ -22,6 +22,37 @@ final incomeForecastProvider = FutureProvider.autoDispose<IncomeForecastEntity>(
   (ref) => ref.watch(forecastRepositoryProvider).getIncome(),
 );
 
+/// "Mua món này có ổn không?" (F5) — chỉ chạy khi người dùng bấm kiểm tra, không tự tải.
+class PurchaseCheckController extends StateNotifier<AsyncValue<PurchaseCheckEntity>?> {
+  final ForecastRepository repository;
+
+  PurchaseCheckController(this.repository) : super(null);
+
+  Future<void> check({
+    required BigInt amountCents,
+    DateTime? purchaseDate,
+    String? item,
+    String? categoryId,
+    String? accountId,
+  }) async {
+    state = const AsyncValue.loading();
+    state = await AsyncValue.guard(() => repository.checkPurchase(
+          amountCents: amountCents,
+          purchaseDate: purchaseDate,
+          item: item,
+          categoryId: categoryId,
+          accountId: accountId,
+        ));
+  }
+
+  void reset() => state = null;
+}
+
+final purchaseCheckControllerProvider =
+    StateNotifierProvider.autoDispose<PurchaseCheckController, AsyncValue<PurchaseCheckEntity>?>(
+  (ref) => PurchaseCheckController(ref.watch(forecastRepositoryProvider)),
+);
+
 /// Danh sách cảnh báo dự báo + hành động báo "không chính xác".
 class ForecastAlertsController extends StateNotifier<AsyncValue<List<ForecastAlertEntity>>> {
   final ForecastRepository repository;

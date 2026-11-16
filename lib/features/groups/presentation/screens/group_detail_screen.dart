@@ -3,449 +3,334 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:finmate/core/format/money.dart';
 import 'package:finmate/core/network/api_exceptions.dart';
-import 'package:finmate/core/theme/app_colors.dart';
-import 'package:finmate/core/theme/app_spacing.dart';
-import 'package:finmate/core/theme/app_typography.dart';
-import 'package:finmate/features/auth/presentation/controllers/auth_controller.dart';
-import 'package:finmate/features/groups/data/groups_repository.dart';
+import 'package:finmate/core/theme/glass/glass_colors.dart';
+import 'package:finmate/core/theme/glass/glass_radius.dart';
+import 'package:finmate/core/theme/glass/glass_typography.dart';
+import 'package:finmate/features/categories/domain/category.dart';
+import 'package:finmate/features/categories/presentation/categories_provider.dart';
+import 'package:finmate/features/groups/data/group_funds_repository.dart';
 import 'package:finmate/features/groups/domain/group.dart';
+import 'package:finmate/features/groups/domain/group_fund.dart';
 import 'package:finmate/features/groups/presentation/controllers/groups_controller.dart';
+import 'package:finmate/features/transactions/domain/entities/transaction_entity.dart';
+import 'package:finmate/shared/widgets/glass/glass_background.dart';
+import 'package:finmate/shared/widgets/glass/glass_badge.dart';
+import 'package:finmate/shared/widgets/glass/glass_card.dart';
+import 'package:finmate/shared/widgets/glass/glass_progress_bar.dart';
 
-/// Chi tiết một nhóm: thông tin, danh sách thành viên, nhật ký hoạt động.
-/// Đơn giản để test nhanh toàn bộ API groups còn thiếu ở FE.
-class GroupDetailScreen extends ConsumerWidget {
+enum _DetailTab { transactions, budgets, goals, fund }
+
+/// I3 — Chi tiết nhóm (Stitch `i3_group_detail`). Hero card là quỹ chung thật (Phase 85), KHÔNG
+/// phải banner "nợ"/cấn trừ (xem quyết định phạm vi Luồng 8a — hệ thống thật là 1 sổ quỹ chung, không
+/// phải chia nợ từng khoản giữa thành viên). Tab "Chia tiền" của Stitch thay bằng tab "Quỹ chung"
+/// (sổ quỹ thật, `GET /funds/{fundId}/entries`). Không build bottom nav 4 tab của mockup (app không
+/// có nav shell dùng chung). Icon mời thành viên trên AppBar push I5; icon bánh răng push I7 (Cài
+/// đặt nhóm — đổi tên/hiển thị giao dịch/cảnh báo/tạo quỹ/chuyển quyền/rời-giải tán nhóm); tiêu đề
+/// "N thành viên" push I4.
+class GroupDetailScreen extends ConsumerStatefulWidget {
   final String groupId;
   const GroupDetailScreen({super.key, required this.groupId});
 
-  Future<void> _runAction(BuildContext context, WidgetRef ref, Future<void> Function() action, String successMessage) async {
-    final messenger = ScaffoldMessenger.of(context);
-    try {
-      await action();
-      messenger.showSnackBar(SnackBar(content: Text(successMessage)));
-    } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text(errorMessage(e)), backgroundColor: AppColors.danger));
-    }
-  }
+  @override
+  ConsumerState<GroupDetailScreen> createState() => _GroupDetailScreenState();
+}
+
+class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
+  _DetailTab _tab = _DetailTab.transactions;
 
   void _refreshDetail(WidgetRef ref) {
-    ref.invalidate(groupDetailProvider(groupId));
-    ref.invalidate(groupMembersProvider(groupId));
-    ref.invalidate(groupActivitiesProvider(groupId));
-    ref.invalidate(groupInvitationsProvider(groupId));
+    ref.invalidate(groupDetailProvider(widget.groupId));
+    ref.invalidate(groupMembersProvider(widget.groupId));
+    ref.invalidate(groupActivitiesProvider(widget.groupId));
+    ref.invalidate(groupInvitationsProvider(widget.groupId));
+    ref.invalidate(groupPrimaryFundProvider(widget.groupId));
   }
 
-  Future<void> _rename(BuildContext context, WidgetRef ref, GroupEntity group) async {
-    final controller = TextEditingController(text: group.name);
-    final name = await showDialog<String>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Đổi tên nhóm'),
-        content: TextField(controller: controller, decoration: const InputDecoration(labelText: 'Tên nhóm')),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Hủy')),
-          ElevatedButton(onPressed: () => Navigator.pop(context, controller.text.trim()), child: const Text('Lưu')),
-        ],
-      ),
-    );
-    if (name == null || name.isEmpty || !context.mounted) return;
-    await _runAction(context, ref, () async {
-      await ref.read(groupsRepositoryProvider).updateGroup(id: groupId, name: name);
-      _refreshDetail(ref);
-    }, 'Đã đổi tên nhóm');
-  }
+  @override
+  Widget build(BuildContext context) {
+    final groupAsync = ref.watch(groupDetailProvider(widget.groupId));
 
-  Future<void> _changeVisibility(BuildContext context, WidgetRef ref, GroupTransactionVisibility current) async {
-    final picked = await showDialog<GroupTransactionVisibility>(
-      context: context,
-      builder: (_) => SimpleDialog(
-        title: const Text('Chế độ hiển thị giao dịch'),
-        children: GroupTransactionVisibility.values
-            .map((v) => SimpleDialogOption(
-                  onPressed: () => Navigator.pop(context, v),
-                  child: Row(children: [
-                    if (v == current) const Icon(LucideIcons.check, size: 16) else const SizedBox(width: 16),
-                    const SizedBox(width: 8),
-                    Text(v.label),
-                  ]),
-                ))
-            .toList(),
-      ),
-    );
-    if (picked == null || picked == current || !context.mounted) return;
-    await _runAction(context, ref, () async {
-      await ref.read(groupsRepositoryProvider).updateGroup(id: groupId, transactionVisibility: picked);
-      _refreshDetail(ref);
-    }, 'Đã đổi chế độ hiển thị');
-  }
-
-  Future<void> _delete(BuildContext context, WidgetRef ref, String name) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Xóa nhóm'),
-        content: Text('Xóa nhóm "$name"? Toàn bộ dữ liệu chia sẻ trong nhóm sẽ mất, không thể hoàn tác.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Không')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text('Xóa', style: TextStyle(color: AppColors.danger))),
-        ],
-      ),
-    );
-    if (confirmed != true || !context.mounted) return;
-    final messenger = ScaffoldMessenger.of(context);
-    try {
-      await ref.read(groupsControllerProvider.notifier).delete(groupId);
-      if (context.mounted) context.pop();
-      messenger.showSnackBar(const SnackBar(content: Text('Đã xóa nhóm')));
-    } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text(errorMessage(e)), backgroundColor: AppColors.danger));
-    }
-  }
-
-  Future<void> _leave(BuildContext context, WidgetRef ref, String name) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Rời nhóm'),
-        content: Text('Rời nhóm "$name"? Bạn sẽ cần được mời lại nếu muốn tham gia lần sau.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Không')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text('Rời nhóm', style: TextStyle(color: AppColors.danger))),
-        ],
-      ),
-    );
-    if (confirmed != true || !context.mounted) return;
-    final messenger = ScaffoldMessenger.of(context);
-    try {
-      await ref.read(groupsControllerProvider.notifier).leave(groupId);
-      if (context.mounted) context.pop();
-      messenger.showSnackBar(const SnackBar(content: Text('Đã rời nhóm')));
-    } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text(errorMessage(e)), backgroundColor: AppColors.danger));
-    }
-  }
-
-  Future<void> _toggleAlerts(BuildContext context, WidgetRef ref, bool enabled) async {
-    await _runAction(
-      context,
-      ref,
-      () => ref.read(groupsRepositoryProvider).setAlerts(groupId: groupId, enabled: enabled),
-      enabled ? 'Đã bật cảnh báo' : 'Đã tắt cảnh báo',
-    );
-  }
-
-  Future<void> _changeRole(BuildContext context, WidgetRef ref, GroupMemberEntity member) async {
-    final picked = await showDialog<GroupRole>(
-      context: context,
-      builder: (_) => SimpleDialog(
-        title: Text('Đổi vai trò của ${member.displayName}'),
-        children: GroupRole.values
-            .map((r) => SimpleDialogOption(
-                  onPressed: () => Navigator.pop(context, r),
-                  child: Row(children: [
-                    if (r == member.role) const Icon(LucideIcons.check, size: 16) else const SizedBox(width: 16),
-                    const SizedBox(width: 8),
-                    Text(r.label),
-                  ]),
-                ))
-            .toList(),
-      ),
-    );
-    if (picked == null || picked == member.role || !context.mounted) return;
-    await _runAction(context, ref, () async {
-      await ref.read(groupsRepositoryProvider).updateMember(groupId: groupId, userId: member.userId, role: picked);
-      ref.invalidate(groupMembersProvider(groupId));
-    }, 'Đã đổi vai trò');
-  }
-
-  Future<void> _removeMember(BuildContext context, WidgetRef ref, GroupMemberEntity member) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Xóa thành viên'),
-        content: Text('Xóa ${member.displayName} khỏi nhóm?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Không')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text('Xóa', style: TextStyle(color: AppColors.danger))),
-        ],
-      ),
-    );
-    if (confirmed != true || !context.mounted) return;
-    await _runAction(context, ref, () async {
-      await ref.read(groupsRepositoryProvider).removeMember(groupId: groupId, userId: member.userId);
-      ref.invalidate(groupMembersProvider(groupId));
-    }, 'Đã xóa thành viên');
-  }
-
-  Future<void> _transferOwnership(BuildContext context, WidgetRef ref, List<GroupMemberEntity> members, String myUserId) async {
-    final candidates = members.where((m) => m.userId != myUserId).toList();
-    if (candidates.isEmpty) return;
-    final picked = await showDialog<GroupMemberEntity>(
-      context: context,
-      builder: (_) => SimpleDialog(
-        title: const Text('Chuyển quyền chủ nhóm cho'),
-        children: candidates
-            .map((m) => SimpleDialogOption(onPressed: () => Navigator.pop(context, m), child: Text(m.displayName)))
-            .toList(),
-      ),
-    );
-    if (picked == null || !context.mounted) return;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Xác nhận chuyển quyền chủ nhóm'),
-        content: Text('Chuyển quyền chủ nhóm cho ${picked.displayName}? Bạn sẽ trở thành quản lý.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Không')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Chuyển')),
-        ],
-      ),
-    );
-    if (confirmed != true || !context.mounted) return;
-    await _runAction(context, ref, () async {
-      await ref.read(groupsRepositoryProvider).transferOwnership(groupId: groupId, newOwnerUserId: picked.userId);
-      _refreshDetail(ref);
-    }, 'Đã chuyển quyền chủ nhóm');
-  }
-
-  Future<void> _invite(BuildContext context, WidgetRef ref) async {
-    final result = await showDialog<_InviteInput>(
-      context: context,
-      builder: (_) => const _InviteDialog(),
-    );
-    if (result == null || !context.mounted) return;
-    final messenger = ScaffoldMessenger.of(context);
-    try {
-      final created = await ref.read(groupsRepositoryProvider).createInvitation(
-            groupId: groupId,
-            email: result.email,
-            role: result.role,
-          );
-      ref.invalidate(groupInvitationsProvider(groupId));
-      if (created.token != null && context.mounted) {
-        await showDialog<void>(
-          context: context,
-          builder: (_) => AlertDialog(
-            title: const Text('Mã lời mời'),
-            content: SelectableText(created.token!),
-            actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Đóng'))],
+    return GlassBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          title: groupAsync.maybeWhen(
+            data: (g) => GestureDetector(
+              key: const ValueKey('go-members'),
+              onTap: () => context.push('/group-members', extra: widget.groupId),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(g.name, style: GlassTypography.headlineSm()),
+                  Text('${g.memberCount} thành viên', style: GlassTypography.bodySm()),
+                ],
+              ),
+            ),
+            orElse: () => Text('Chi tiết nhóm', style: GlassTypography.headlineSm()),
           ),
-        );
-      } else {
-        messenger.showSnackBar(const SnackBar(content: Text('Đã tạo lời mời, email sẽ được gửi')));
-      }
-    } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text(errorMessage(e)), backgroundColor: AppColors.danger));
-    }
+          actions: [
+            groupAsync.maybeWhen(
+              data: (g) => g.isOwner
+                  ? IconButton(
+                      key: const ValueKey('invite-member'),
+                      tooltip: 'Mời thành viên',
+                      icon: Icon(LucideIcons.userPlus, color: GlassColors.textPrimary),
+                      onPressed: () => context.push('/group-invite', extra: widget.groupId),
+                    )
+                  : const SizedBox.shrink(),
+              orElse: () => const SizedBox.shrink(),
+            ),
+            groupAsync.maybeWhen(
+              data: (g) => IconButton(
+                key: const ValueKey('open-group-settings'),
+                tooltip: 'Cài đặt nhóm',
+                icon: Icon(LucideIcons.settings, color: GlassColors.textPrimary),
+                onPressed: () => context.push('/group-settings', extra: widget.groupId),
+              ),
+              orElse: () => const SizedBox.shrink(),
+            ),
+          ],
+        ),
+        body: SafeArea(
+          child: groupAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, __) => Center(child: Text(errorMessage(e), style: GlassTypography.bodyMd(color: GlassColors.danger))),
+            data: (group) => RefreshIndicator(
+              onRefresh: () async => _refreshDetail(ref),
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+                children: [
+                  _HeroFundCard(groupId: widget.groupId),
+                  const SizedBox(height: 20),
+                  _buildTabs(),
+                  const SizedBox(height: 16),
+                  switch (_tab) {
+                    _DetailTab.transactions => _TransactionsTab(groupId: widget.groupId),
+                    _DetailTab.budgets => _BudgetsTab(groupId: widget.groupId),
+                    _DetailTab.goals => _GoalsTab(groupId: widget.groupId),
+                    _DetailTab.fund => _FundTab(groupId: widget.groupId),
+                  },
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
-  Future<void> _revokeInvitation(BuildContext context, WidgetRef ref, GroupInvitationEntity invitation) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Hủy lời mời'),
-        content: Text('Hủy lời mời ${invitation.email ?? "qua link"}?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Không')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text('Hủy lời mời', style: TextStyle(color: AppColors.danger))),
+  Widget _buildTabs() {
+    Widget chip(String label, _DetailTab tab) {
+      final selected = _tab == tab;
+      return Padding(
+        padding: const EdgeInsets.only(right: 8),
+        child: GestureDetector(
+          key: ValueKey('detail-tab-${tab.name}'),
+          onTap: () => setState(() => _tab = tab),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              color: selected ? GlassColors.ink : GlassColors.glassFill,
+              borderRadius: GlassRadius.roundedPill,
+              border: Border.all(color: selected ? GlassColors.ink : GlassColors.glassBorder),
+            ),
+            child: Text(
+              label,
+              style: GlassTypography.bodyMd(color: selected ? Colors.white : GlassColors.textSecondary).copyWith(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return SizedBox(
+      height: 44,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        children: [
+          chip('Giao dịch', _DetailTab.transactions),
+          chip('Ngân sách', _DetailTab.budgets),
+          chip('Mục tiêu', _DetailTab.goals),
+          chip('Quỹ chung', _DetailTab.fund),
         ],
       ),
     );
-    if (confirmed != true || !context.mounted) return;
-    await _runAction(context, ref, () async {
-      await ref.read(groupsRepositoryProvider).revokeInvitation(groupId: groupId, invitationId: invitation.id);
-      ref.invalidate(groupInvitationsProvider(groupId));
-    }, 'Đã hủy lời mời');
+  }
+}
+
+class _HeroFundCard extends ConsumerWidget {
+  final String groupId;
+  const _HeroFundCard({required this.groupId});
+
+  void _needFundFirst(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Nhóm chưa có quỹ chung — tạo quỹ trước trong Cài đặt nhóm.'),
+        action: SnackBarAction(label: 'Cài đặt nhóm', onPressed: () => context.push('/group-settings', extra: groupId)),
+      ),
+    );
+  }
+
+  void _refreshFund(WidgetRef ref, String fundId) {
+    ref.invalidate(groupFundsProvider(groupId));
+    ref.invalidate(groupFundSummaryProvider((groupId, fundId)));
+    ref.invalidate(groupFundEntriesProvider((groupId, fundId)));
+  }
+
+  Future<void> _contribute(BuildContext context, WidgetRef ref, String fundId) async {
+    final input = await showModalBottomSheet<_FundEntryInput>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const _ContributeFundSheet(),
+    );
+    if (input == null || !context.mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref.read(groupFundsRepositoryProvider).createEntry(
+            groupId: groupId,
+            fundId: fundId,
+            kind: GroupFundEntryKind.contribution,
+            amountCents: input.amountCents,
+            note: input.note,
+          );
+      _refreshFund(ref, fundId);
+      messenger.showSnackBar(const SnackBar(content: Text('Đã nạp quỹ nhóm')));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(errorMessage(e)), backgroundColor: GlassColors.danger));
+    }
+  }
+
+  Future<void> _recordExpense(BuildContext context, WidgetRef ref, String fundId) async {
+    final List<Category> categories;
+    final List<GroupCategoryEntity> groupCategories;
+    try {
+      categories = await ref.read(categoriesProvider.future);
+      groupCategories = await ref.read(groupCategoriesProvider(groupId).future);
+    } catch (e) {
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errorMessage(e)), backgroundColor: GlassColors.danger));
+      return;
+    }
+    if (!context.mounted) return;
+    final input = await showModalBottomSheet<_FundEntryInput>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _RecordExpenseSheet(categories: categories, groupCategories: groupCategories),
+    );
+    if (input == null || !context.mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref.read(groupFundsRepositoryProvider).createEntry(
+            groupId: groupId,
+            fundId: fundId,
+            kind: GroupFundEntryKind.expense,
+            amountCents: input.amountCents,
+            categoryId: input.categoryId,
+            groupCategoryId: input.groupCategoryId,
+            merchantName: input.merchantName,
+            note: input.note,
+          );
+      _refreshFund(ref, fundId);
+      messenger.showSnackBar(const SnackBar(content: Text('Đã ghi khoản chi từ quỹ')));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(errorMessage(e)), backgroundColor: GlassColors.danger));
+    }
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final groupAsync = ref.watch(groupDetailProvider(groupId));
-    final membersAsync = ref.watch(groupMembersProvider(groupId));
-    final activitiesAsync = ref.watch(groupActivitiesProvider(groupId));
-    final invitationsAsync = ref.watch(groupInvitationsProvider(groupId));
+    final fundAsync = ref.watch(groupPrimaryFundProvider(groupId));
+    final budgetsAsync = ref.watch(groupBudgetsProvider(groupId));
+    final fundId = fundAsync.valueOrNull?.id;
 
-    return Scaffold(
-      appBar: AppBar(title: Text(groupAsync.valueOrNull?.name ?? 'Chi tiết nhóm')),
-      body: groupAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, __) => Center(child: Text(errorMessage(e), style: AppTypography.body(context))),
-        data: (group) {
-          final members = membersAsync.valueOrNull ?? const [];
-          return RefreshIndicator(
-            onRefresh: () async => _refreshDetail(ref),
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                _InfoCard(group: group, onRename: group.isOwner ? () => _rename(context, ref, group) : null,
-                    onChangeVisibility: group.isOwner ? () => _changeVisibility(context, ref, group.transactionVisibility) : null),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        key: const ValueKey('toggle-alerts-on'),
-                        onPressed: () => _toggleAlerts(context, ref, true),
-                        icon: const Icon(LucideIcons.bellRing, size: 16),
-                        label: const Text('Bật cảnh báo'),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        key: const ValueKey('toggle-alerts-off'),
-                        onPressed: () => _toggleAlerts(context, ref, false),
-                        icon: const Icon(LucideIcons.bellOff, size: 16),
-                        label: const Text('Tắt cảnh báo'),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                OutlinedButton.icon(
-                  key: const ValueKey('open-group-finance'),
-                  onPressed: () => context.push('/group-finance', extra: groupId),
-                  icon: const Icon(LucideIcons.receipt, size: 16),
-                  label: const Text('Tài chính nhóm'),
-                ),
-                const SizedBox(height: 20),
-                Text('Thành viên (${members.length})', style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w700)),
-                const SizedBox(height: 8),
-                ...members.map((m) => _MemberTile(
-                      member: m,
-                      canManage: group.isOwner,
-                      onChangeRole: () => _changeRole(context, ref, m),
-                      onRemove: () => _removeMember(context, ref, m),
-                    )),
-                if (group.isOwner) ...[
-                  const SizedBox(height: 8),
-                  OutlinedButton.icon(
-                    key: const ValueKey('transfer-ownership'),
-                    onPressed: () => _transferOwnership(context, ref, members, ref.read(currentUserIdProvider) ?? ''),
-                    icon: const Icon(LucideIcons.users, size: 16),
-                    label: const Text('Chuyển quyền chủ nhóm'),
-                  ),
-                ],
-                if (group.isOwner) ...[
-                  const SizedBox(height: 20),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text('Lời mời đang chờ', style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w700)),
-                      ),
-                      IconButton(
-                        key: const ValueKey('invite-member'),
-                        tooltip: 'Mời thành viên',
-                        icon: const Icon(LucideIcons.plus, size: 18),
-                        onPressed: () => _invite(context, ref),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  invitationsAsync.when(
-                    loading: () => const Padding(padding: EdgeInsets.all(12), child: Center(child: CircularProgressIndicator())),
-                    error: (e, __) => Text(errorMessage(e), style: AppTypography.caption(context)),
-                    data: (invitations) {
-                      if (invitations.isEmpty) {
-                        return Text('Chưa có lời mời nào đang chờ.', style: AppTypography.caption(context));
-                      }
-                      return Column(
-                        children: invitations
-                            .map((inv) => _InvitationTile(invitation: inv, onRevoke: () => _revokeInvitation(context, ref, inv)))
-                            .toList(),
-                      );
-                    },
-                  ),
-                ],
-                const SizedBox(height: 20),
-                Text('Hoạt động gần đây', style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w700)),
-                const SizedBox(height: 8),
-                activitiesAsync.when(
-                  loading: () => const Padding(padding: EdgeInsets.all(12), child: Center(child: CircularProgressIndicator())),
-                  error: (e, __) => Text(errorMessage(e), style: AppTypography.caption(context)),
-                  data: (activities) {
-                    if (activities.isEmpty) {
-                      return Text('Chưa có hoạt động nào.', style: AppTypography.caption(context));
-                    }
-                    return Column(
-                      children: activities
-                          .map((a) => ListTile(
-                                dense: true,
-                                contentPadding: EdgeInsets.zero,
-                                leading: const Icon(LucideIcons.info, size: 18),
-                                title: Text(a.type.label),
-                                subtitle: Text(DateFormat('dd/MM/yyyy HH:mm').format(a.createdAt.toLocal())),
-                              ))
-                          .toList(),
-                    );
-                  },
-                ),
-                const SizedBox(height: 24),
-                if (group.isOwner)
-                  OutlinedButton.icon(
-                    key: const ValueKey('delete-group'),
-                    onPressed: () => _delete(context, ref, group.name),
-                    icon: Icon(LucideIcons.trash2, size: 16, color: AppColors.danger),
-                    label: Text('Xóa nhóm', style: TextStyle(color: AppColors.danger)),
-                  )
-                else
-                  OutlinedButton.icon(
-                    key: const ValueKey('leave-group'),
-                    onPressed: () => _leave(context, ref, group.name),
-                    icon: Icon(LucideIcons.logOut, size: 16, color: AppColors.danger),
-                    label: Text('Rời nhóm', style: TextStyle(color: AppColors.danger)),
-                  ),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _InfoCard extends StatelessWidget {
-  final GroupEntity group;
-  final VoidCallback? onRename;
-  final VoidCallback? onChangeVisibility;
-  const _InfoCard({required this.group, this.onRename, this.onChangeVisibility});
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-        borderRadius: AppSpacing.roundedMedium,
-        border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
-      ),
+    return GlassCard(
+      level: 2,
+      borderRadius: GlassRadius.roundedCardLarge,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded(
-                child: Text(group.name, style: AppTypography.h3(context)),
+              Text('QUỸ CHUNG KHẢ DỤNG', style: GlassTypography.labelCaps(color: GlassColors.accentSkyBlue)),
+              fundAsync.maybeWhen(
+                data: (f) => f == null ? const SizedBox.shrink() : GlassBadge(text: 'Đang hoạt động', color: GlassColors.success),
+                orElse: () => const SizedBox.shrink(),
               ),
-              if (onRename != null)
-                IconButton(key: const ValueKey('rename-group'), tooltip: 'Đổi tên', icon: const Icon(LucideIcons.pencil, size: 18), onPressed: onRename),
             ],
           ),
-          const SizedBox(height: 4),
-          Text('${group.type.label} · Vai trò của bạn: ${group.myRole.label}', style: AppTypography.caption(context)),
           const SizedBox(height: 8),
-          InkWell(
-            onTap: onChangeVisibility,
-            child: Row(
-              children: [
-                Text('Hiển thị giao dịch: ${group.transactionVisibility.label}', style: AppTypography.caption(context)),
-                if (onChangeVisibility != null) ...[
-                  const SizedBox(width: 4),
-                  const Icon(LucideIcons.pencil, size: 12),
-                ],
-              ],
-            ),
+          fundAsync.when(
+            loading: () => Text('…', style: GlassTypography.displayHero()),
+            error: (_, __) => Text('—', style: GlassTypography.displayHero()),
+            data: (fund) => fund == null
+                ? Text('Nhóm chưa có quỹ chung nào.', style: GlassTypography.bodyMd())
+                : Text(fund.formattedBalance, style: GlassTypography.displayHero(color: fund.isNegative ? GlassColors.danger : GlassColors.textPrimary)),
+          ),
+          budgetsAsync.maybeWhen(
+            data: (budgets) {
+              GroupBudgetEntity? total;
+              for (final b in budgets) {
+                if (b.isTotal) {
+                  total = b;
+                  break;
+                }
+              }
+              if (total == null) return const SizedBox.shrink();
+              final state = switch (total.statusLevel) {
+                GroupBudgetStatusLevel.danger => GlassProgressState.danger,
+                GroupBudgetStatusLevel.warning => GlassProgressState.warning,
+                GroupBudgetStatusLevel.safe => GlassProgressState.success,
+              };
+              return Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Đã chi tháng này: ${total.formattedSpent}', style: GlassTypography.bodySm()),
+                        Text('${total.percentUsed}%', style: GlassTypography.bodySm()),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    GlassProgressBar(percent: total.percentUsed.toDouble(), state: state),
+                    const SizedBox(height: 2),
+                    Text('Hạn mức ${total.formattedLimit}', style: GlassTypography.bodySm()),
+                  ],
+                ),
+              );
+            },
+            orElse: () => const SizedBox.shrink(),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  key: const ValueKey('fund-contribute'),
+                  onPressed: () => fundId == null ? _needFundFirst(context) : _contribute(context, ref, fundId),
+                  icon: const Icon(LucideIcons.plusCircle, size: 16),
+                  label: const Text('Nạp quỹ nhóm'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  key: const ValueKey('fund-record-expense'),
+                  onPressed: () => fundId == null ? _needFundFirst(context) : _recordExpense(context, ref, fundId),
+                  icon: const Icon(LucideIcons.receipt, size: 16),
+                  label: const Text('Ghi khoản chi'),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -453,127 +338,496 @@ class _InfoCard extends StatelessWidget {
   }
 }
 
-class _MemberTile extends StatelessWidget {
-  final GroupMemberEntity member;
-  final bool canManage;
-  final VoidCallback onChangeRole;
-  final VoidCallback onRemove;
-  const _MemberTile({required this.member, required this.canManage, required this.onChangeRole, required this.onRemove});
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      key: ValueKey('member-${member.userId}'),
-      dense: true,
-      contentPadding: EdgeInsets.zero,
-      leading: const Icon(LucideIcons.user, size: 20),
-      title: Text(member.displayName),
-      subtitle: Text(member.role.label),
-      trailing: canManage
-          ? Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  key: ValueKey('change-role-${member.userId}'),
-                  tooltip: 'Đổi vai trò',
-                  icon: const Icon(LucideIcons.pencil, size: 18),
-                  onPressed: onChangeRole,
-                ),
-                IconButton(
-                  key: ValueKey('remove-member-${member.userId}'),
-                  tooltip: 'Xóa',
-                  icon: Icon(LucideIcons.trash2, size: 18, color: AppColors.danger),
-                  onPressed: onRemove,
-                ),
-              ],
-            )
-          : null,
-    );
-  }
+class _FundEntryInput {
+  final BigInt amountCents;
+  final String? note;
+  final String? categoryId;
+  final String? groupCategoryId;
+  final String? merchantName;
+  const _FundEntryInput({required this.amountCents, this.note, this.categoryId, this.groupCategoryId, this.merchantName});
 }
 
-class _InvitationTile extends StatelessWidget {
-  final GroupInvitationEntity invitation;
-  final VoidCallback onRevoke;
-  const _InvitationTile({required this.invitation, required this.onRevoke});
+/// Khung chung cho 2 sheet "Nạp quỹ nhóm"/"Ghi khoản chi" — cùng phong cách bottom sheet kính (glass)
+/// dùng xuyên suốt I2-I3, không dùng AlertDialog kiểu code cũ ở `group_finance_screen.dart`.
+class _FundEntrySheetScaffold extends StatelessWidget {
+  final String title;
+  final List<Widget> children;
+  const _FundEntrySheetScaffold({required this.title, required this.children});
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      key: ValueKey('invitation-${invitation.id}'),
-      dense: true,
-      contentPadding: EdgeInsets.zero,
-      leading: const Icon(LucideIcons.mail, size: 20),
-      title: Text(invitation.email ?? 'Mời qua link'),
-      subtitle: Text(
-        '${invitation.role.label} · Hết hạn ${DateFormat('dd/MM/yyyy').format(invitation.expiresAt.toLocal())}'
-        '${invitation.emailSent == false ? " · Gửi email thất bại" : ""}',
-      ),
-      trailing: IconButton(
-        key: ValueKey('revoke-invitation-${invitation.id}'),
-        tooltip: 'Hủy lời mời',
-        icon: Icon(LucideIcons.trash2, size: 18, color: AppColors.danger),
-        onPressed: onRevoke,
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: SafeArea(
+        child: Container(
+          margin: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(16),
+          constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.85),
+          decoration: BoxDecoration(
+            color: GlassColors.glassFillModal,
+            borderRadius: GlassRadius.roundedCardLarge,
+            border: Border.all(color: GlassColors.glassBorderModal),
+          ),
+          child: Material(
+            type: MaterialType.transparency,
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(title, style: GlassTypography.headlineSm()),
+                  const SizedBox(height: 16),
+                  ...children,
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
 }
 
-class _InviteInput {
-  final String? email;
-  final GroupRole role;
-  const _InviteInput({this.email, required this.role});
-}
-
-/// Vai trò được mời không được là chủ nhóm (theo API). [email] để trống = tạo lời mời qua link.
-class _InviteDialog extends StatefulWidget {
-  const _InviteDialog();
+class _ContributeFundSheet extends StatefulWidget {
+  const _ContributeFundSheet();
 
   @override
-  State<_InviteDialog> createState() => _InviteDialogState();
+  State<_ContributeFundSheet> createState() => _ContributeFundSheetState();
 }
 
-class _InviteDialogState extends State<_InviteDialog> {
-  final _email = TextEditingController();
-  GroupRole _role = GroupRole.member;
+class _ContributeFundSheetState extends State<_ContributeFundSheet> {
+  final _amount = TextEditingController();
+  final _note = TextEditingController();
+  String? _amountError;
 
   @override
   void dispose() {
-    _email.dispose();
+    _amount.dispose();
+    _note.dispose();
     super.dispose();
+  }
+
+  void _submit() {
+    final amount = parseAmountInput(_amount.text);
+    if (amount == null) {
+      setState(() => _amountError = 'Nhập số tiền hợp lệ');
+      return;
+    }
+    Navigator.pop(context, _FundEntryInput(amountCents: amount, note: _note.text.trim().isEmpty ? null : _note.text.trim()));
   }
 
   @override
   Widget build(BuildContext context) {
-    final invitableRoles = GroupRole.values.where((r) => r != GroupRole.owner).toList();
-    return AlertDialog(
-      title: const Text('Mời thành viên'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextField(
-            controller: _email,
-            decoration: const InputDecoration(labelText: 'Email (để trống để tạo lời mời qua link)'),
+    return _FundEntrySheetScaffold(
+      title: 'Nạp quỹ nhóm',
+      children: [
+        Text('Số tiền', style: GlassTypography.bodySm(color: GlassColors.textSecondary)),
+        const SizedBox(height: 8),
+        TextField(
+          key: const ValueKey('contribute-amount'),
+          controller: _amount,
+          keyboardType: TextInputType.number,
+          inputFormatters: [ThousandsSeparatorInputFormatter()],
+          decoration: InputDecoration(hintText: '0', suffixText: '₫', errorText: _amountError),
+          onChanged: (_) {
+            if (_amountError != null) setState(() => _amountError = null);
+          },
+        ),
+        const SizedBox(height: 12),
+        Text('Ghi chú (không bắt buộc)', style: GlassTypography.bodySm(color: GlassColors.textSecondary)),
+        const SizedBox(height: 8),
+        TextField(key: const ValueKey('contribute-note'), controller: _note, decoration: const InputDecoration(hintText: 'Vd: góp quỹ tháng 11')),
+        const SizedBox(height: 20),
+        SizedBox(
+          width: double.infinity,
+          height: 48,
+          child: ElevatedButton(
+            key: const ValueKey('submit-contribute'),
+            onPressed: _submit,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: GlassColors.ink,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: GlassRadius.roundedPill),
+            ),
+            child: Text('Nạp quỹ', style: GlassTypography.buttonText()),
           ),
-          const SizedBox(height: 12),
-          DropdownButtonFormField<GroupRole>(
-            initialValue: _role,
-            decoration: const InputDecoration(labelText: 'Vai trò'),
-            items: invitableRoles.map((r) => DropdownMenuItem(value: r, child: Text(r.label))).toList(),
-            onChanged: (v) => setState(() => _role = v ?? _role),
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Hủy')),
-        ElevatedButton(
-          onPressed: () => Navigator.pop(
-            context,
-            _InviteInput(email: _email.text.trim().isEmpty ? null : _email.text.trim(), role: _role),
-          ),
-          child: const Text('Mời'),
         ),
       ],
     );
   }
 }
+
+/// [categories] là danh mục hệ thống của chính mình; [groupCategories] là danh mục riêng của nhóm.
+/// BE bắt buộc đúng 1 trong 2 cho dòng `Expense` (xem `docs/group-api.md` phần "Dòng quỹ").
+class _RecordExpenseSheet extends StatefulWidget {
+  final List<Category> categories;
+  final List<GroupCategoryEntity> groupCategories;
+  const _RecordExpenseSheet({required this.categories, required this.groupCategories});
+
+  @override
+  State<_RecordExpenseSheet> createState() => _RecordExpenseSheetState();
+}
+
+enum _ExpenseCategoryTarget { system, group }
+
+class _RecordExpenseSheetState extends State<_RecordExpenseSheet> {
+  final _amount = TextEditingController();
+  final _merchant = TextEditingController();
+  final _note = TextEditingController();
+  _ExpenseCategoryTarget _target = _ExpenseCategoryTarget.system;
+  String? _categoryId;
+  String? _groupCategoryId;
+  String? _amountError;
+  String? _categoryError;
+
+  @override
+  void dispose() {
+    _amount.dispose();
+    _merchant.dispose();
+    _note.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final amount = parseAmountInput(_amount.text);
+    final categoryOk = _target == _ExpenseCategoryTarget.system ? _categoryId != null : _groupCategoryId != null;
+    setState(() {
+      _amountError = amount == null ? 'Nhập số tiền hợp lệ' : null;
+      _categoryError = categoryOk ? null : 'Chọn danh mục';
+    });
+    if (amount == null || !categoryOk) return;
+    Navigator.pop(
+      context,
+      _FundEntryInput(
+        amountCents: amount,
+        categoryId: _target == _ExpenseCategoryTarget.system ? _categoryId : null,
+        groupCategoryId: _target == _ExpenseCategoryTarget.group ? _groupCategoryId : null,
+        merchantName: _merchant.text.trim().isEmpty ? null : _merchant.text.trim(),
+        note: _note.text.trim().isEmpty ? null : _note.text.trim(),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _FundEntrySheetScaffold(
+      title: 'Ghi khoản chi từ quỹ',
+      children: [
+        Text('Số tiền', style: GlassTypography.bodySm(color: GlassColors.textSecondary)),
+        const SizedBox(height: 8),
+        TextField(
+          key: const ValueKey('expense-amount'),
+          controller: _amount,
+          keyboardType: TextInputType.number,
+          inputFormatters: [ThousandsSeparatorInputFormatter()],
+          decoration: InputDecoration(hintText: '0', suffixText: '₫', errorText: _amountError),
+          onChanged: (_) {
+            if (_amountError != null) setState(() => _amountError = null);
+          },
+        ),
+        const SizedBox(height: 12),
+        Text('Danh mục', style: GlassTypography.bodySm(color: GlassColors.textSecondary)),
+        const SizedBox(height: 8),
+        SegmentedButton<_ExpenseCategoryTarget>(
+          key: const ValueKey('expense-category-target'),
+          segments: const [
+            ButtonSegment(value: _ExpenseCategoryTarget.system, label: Text('Hệ thống')),
+            ButtonSegment(value: _ExpenseCategoryTarget.group, label: Text('Của nhóm')),
+          ],
+          selected: {_target},
+          onSelectionChanged: (s) => setState(() {
+            _target = s.first;
+            _categoryError = null;
+          }),
+        ),
+        const SizedBox(height: 8),
+        if (_target == _ExpenseCategoryTarget.system)
+          DropdownButtonFormField<String>(
+            key: const ValueKey('expense-category-system'),
+            initialValue: _categoryId,
+            decoration: InputDecoration(hintText: 'Chọn danh mục hệ thống', errorText: _categoryError),
+            items: widget.categories.map((c) => DropdownMenuItem(value: c.id, child: Text(c.name))).toList(),
+            onChanged: (v) => setState(() {
+              _categoryId = v;
+              _categoryError = null;
+            }),
+          )
+        else
+          DropdownButtonFormField<String>(
+            key: const ValueKey('expense-category-group'),
+            initialValue: _groupCategoryId,
+            decoration: InputDecoration(hintText: 'Chọn danh mục của nhóm', errorText: _categoryError),
+            items: widget.groupCategories.map((c) => DropdownMenuItem(value: c.id, child: Text(c.name))).toList(),
+            onChanged: (v) => setState(() {
+              _groupCategoryId = v;
+              _categoryError = null;
+            }),
+          ),
+        const SizedBox(height: 12),
+        Text('Chi cho (không bắt buộc)', style: GlassTypography.bodySm(color: GlassColors.textSecondary)),
+        const SizedBox(height: 8),
+        TextField(key: const ValueKey('expense-merchant'), controller: _merchant, decoration: const InputDecoration(hintText: 'Vd: Siêu thị WinMart')),
+        const SizedBox(height: 12),
+        Text('Ghi chú (không bắt buộc)', style: GlassTypography.bodySm(color: GlassColors.textSecondary)),
+        const SizedBox(height: 8),
+        TextField(key: const ValueKey('expense-note'), controller: _note, decoration: const InputDecoration(hintText: 'Ghi chú thêm')),
+        const SizedBox(height: 20),
+        SizedBox(
+          width: double.infinity,
+          height: 48,
+          child: ElevatedButton(
+            key: const ValueKey('submit-expense'),
+            onPressed: _submit,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: GlassColors.ink,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: GlassRadius.roundedPill),
+            ),
+            child: Text('Ghi khoản chi', style: GlassTypography.buttonText()),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TransactionsTab extends ConsumerWidget {
+  final String groupId;
+  const _TransactionsTab({required this.groupId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final transactionsAsync = ref.watch(groupTransactionsProvider(groupId));
+    return transactionsAsync.when(
+      loading: () => const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator())),
+      error: (e, __) => Text(errorMessage(e), style: GlassTypography.bodyMd(color: GlassColors.danger)),
+      data: (list) {
+        if (list.isEmpty) return Text('Chưa có giao dịch nào được chia sẻ vào nhóm.', style: GlassTypography.bodyMd());
+        return Column(
+          children: list
+              .map((t) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: GlassCard(
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(t.merchantName ?? t.description ?? t.categoryName, style: GlassTypography.bodyMd(color: GlassColors.textPrimary)),
+                                Text('${t.memberName} · ${DateFormat('dd/MM').format(t.transactedAt)}', style: GlassTypography.bodySm()),
+                              ],
+                            ),
+                          ),
+                          Text(
+                            t.formattedAmount,
+                            style: GlassTypography.labelNumeric(
+                              color: t.transactionType == TransactionType.income ? GlassColors.success : GlassColors.textPrimary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ))
+              .toList(),
+        );
+      },
+    );
+  }
+}
+
+class _BudgetsTab extends ConsumerWidget {
+  final String groupId;
+  const _BudgetsTab({required this.groupId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final budgetsAsync = ref.watch(groupBudgetsProvider(groupId));
+    return budgetsAsync.when(
+      loading: () => const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator())),
+      error: (e, __) => Text(errorMessage(e), style: GlassTypography.bodyMd(color: GlassColors.danger)),
+      data: (list) {
+        if (list.isEmpty) return Text('Nhóm chưa đặt ngân sách nào.', style: GlassTypography.bodyMd());
+        return Column(
+          children: list
+              .map((b) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: GlassCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(b.isTotal ? 'Ngân sách tổng' : (b.categoryName ?? 'Danh mục'), style: GlassTypography.bodyMd(color: GlassColors.textPrimary)),
+                              Text('${b.percentUsed}%', style: GlassTypography.bodySm(color: b.isOverLimit ? GlassColors.danger : GlassColors.textMuted)),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          GlassProgressBar(
+                            percent: b.percentUsed.toDouble(),
+                            state: b.statusLevel == GroupBudgetStatusLevel.danger
+                                ? GlassProgressState.danger
+                                : b.statusLevel == GroupBudgetStatusLevel.warning
+                                    ? GlassProgressState.warning
+                                    : GlassProgressState.success,
+                          ),
+                          const SizedBox(height: 4),
+                          Text('${b.formattedSpent} / ${b.formattedLimit}', style: GlassTypography.bodySm()),
+                        ],
+                      ),
+                    ),
+                  ))
+              .toList(),
+        );
+      },
+    );
+  }
+}
+
+class _GoalsTab extends ConsumerWidget {
+  final String groupId;
+  const _GoalsTab({required this.groupId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final goalsAsync = ref.watch(groupGoalsProvider(groupId));
+    return goalsAsync.when(
+      loading: () => const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator())),
+      error: (e, __) => Text(errorMessage(e), style: GlassTypography.bodyMd(color: GlassColors.danger)),
+      data: (list) {
+        if (list.isEmpty) return Text('Nhóm chưa có mục tiêu nào.', style: GlassTypography.bodyMd());
+        return Column(
+          children: list
+              .map((g) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: GlassCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(g.title, style: GlassTypography.bodyMd(color: GlassColors.textPrimary)),
+                          const SizedBox(height: 8),
+                          GlassProgressBar(percent: g.progressPercentage, state: g.isCompleted ? GlassProgressState.success : GlassProgressState.normal),
+                          const SizedBox(height: 4),
+                          Text('${g.formattedCurrent} / ${g.formattedTarget}', style: GlassTypography.bodySm()),
+                        ],
+                      ),
+                    ),
+                  ))
+              .toList(),
+        );
+      },
+    );
+  }
+}
+
+class _FundTab extends ConsumerWidget {
+  final String groupId;
+  const _FundTab({required this.groupId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final fundAsync = ref.watch(groupPrimaryFundProvider(groupId));
+    return fundAsync.when(
+      loading: () => const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator())),
+      error: (e, __) => Text(errorMessage(e), style: GlassTypography.bodyMd(color: GlassColors.danger)),
+      data: (fund) {
+        if (fund == null) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Nhóm chưa có quỹ chung nào.', style: GlassTypography.bodyMd()),
+              const SizedBox(height: 8),
+              OutlinedButton(
+                key: const ValueKey('fund-tab-go-settings'),
+                onPressed: () => context.push('/group-settings', extra: groupId),
+                child: const Text('Tạo quỹ chung trong Cài đặt nhóm'),
+              ),
+            ],
+          );
+        }
+        return _FundEntriesAndSummary(groupId: groupId, fundId: fund.id);
+      },
+    );
+  }
+}
+
+class _FundEntriesAndSummary extends ConsumerWidget {
+  final String groupId;
+  final String fundId;
+  const _FundEntriesAndSummary({required this.groupId, required this.fundId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final summaryAsync = ref.watch(groupFundSummaryProvider((groupId, fundId)));
+    final entriesAsync = ref.watch(groupFundEntriesProvider((groupId, fundId)));
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        summaryAsync.maybeWhen(
+          data: (summary) {
+            if (summary.contributionsByMember.isEmpty) return const SizedBox.shrink();
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(
+                children: summary.contributionsByMember
+                    .map((m) => Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: GlassCard(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(m.memberName, style: GlassTypography.bodySm()),
+                                  Text('Đã góp: ${m.formattedAmount}', style: GlassTypography.labelNumeric()),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ))
+                    .toList(),
+              ),
+            );
+          },
+          orElse: () => const SizedBox.shrink(),
+        ),
+        Text('Sổ quỹ', style: GlassTypography.headlineSm()),
+        const SizedBox(height: 12),
+        entriesAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, __) => Text(errorMessage(e), style: GlassTypography.bodyMd(color: GlassColors.danger)),
+          data: (entries) {
+            if (entries.isEmpty) return Text('Chưa có dòng quỹ nào.', style: GlassTypography.bodyMd());
+            return Column(
+              children: entries
+                  .map((entry) => Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: GlassCard(
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(entry.merchantName ?? entry.categoryName ?? entry.kind.label, style: GlassTypography.bodyMd(color: GlassColors.textPrimary)),
+                                    Text('${entry.memberName} · ${DateFormat('dd/MM').format(entry.transactedAt)}', style: GlassTypography.bodySm()),
+                                  ],
+                                ),
+                              ),
+                              Text(
+                                '${entry.isCredit ? '+' : '-'}${entry.formattedAmount}',
+                                style: GlassTypography.labelNumeric(color: entry.isCredit ? GlassColors.success : GlassColors.textPrimary),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ))
+                  .toList(),
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+

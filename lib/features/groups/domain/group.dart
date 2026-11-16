@@ -54,7 +54,8 @@ enum GroupPermission {
   manageGoals('ManageGoals', 'Quản lý mục tiêu nhóm'),
   manageCategories('ManageCategories', 'Quản lý danh mục nhóm'),
   inviteMembers('InviteMembers', 'Mời thành viên'),
-  removeMembers('RemoveMembers', 'Xóa thành viên');
+  removeMembers('RemoveMembers', 'Xóa thành viên'),
+  manageFunds('ManageFunds', 'Quản lý quỹ chung');
 
   final String apiValue;
   final String label;
