@@ -19,14 +19,38 @@ import 'package:finmate/features/transactions/presentation/controllers/transacti
 class CreateTransactionBottomSheet extends ConsumerStatefulWidget {
   final int initialTab;
 
-  const CreateTransactionBottomSheet({super.key, this.initialTab = 0});
+  /// Điền sẵn từ nơi khác đã có số tiền/danh mục (ví dụ F5 "Kiểm tra mua sắm" — người dùng chọn
+  /// "Vẫn mua và trừ vào ngân sách" thì mở sheet này với đúng số tiền/danh mục đã nhập, không bắt
+  /// gõ lại).
+  final BigInt? initialAmountCents;
+  final String? initialDescription;
+  final String? initialCategoryId;
 
-  static Future<void> show(BuildContext context, {int initialTab = 0}) {
+  const CreateTransactionBottomSheet({
+    super.key,
+    this.initialTab = 0,
+    this.initialAmountCents,
+    this.initialDescription,
+    this.initialCategoryId,
+  });
+
+  static Future<void> show(
+    BuildContext context, {
+    int initialTab = 0,
+    BigInt? initialAmountCents,
+    String? initialDescription,
+    String? initialCategoryId,
+  }) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => CreateTransactionBottomSheet(initialTab: initialTab),
+      builder: (context) => CreateTransactionBottomSheet(
+        initialTab: initialTab,
+        initialAmountCents: initialAmountCents,
+        initialDescription: initialDescription,
+        initialCategoryId: initialCategoryId,
+      ),
     );
   }
 
@@ -47,6 +71,14 @@ class _CreateTransactionBottomSheetState extends ConsumerState<CreateTransaction
   String? _toAccountId;
   bool _isSaving = false;
   String? _classicError;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialAmountCents != null) _amountController.text = formatAmountDigits(widget.initialAmountCents!);
+    if (widget.initialDescription != null) _descController.text = widget.initialDescription!;
+    _categoryId = widget.initialCategoryId;
+  }
 
   @override
   void dispose() {

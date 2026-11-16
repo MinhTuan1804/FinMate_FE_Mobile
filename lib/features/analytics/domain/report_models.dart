@@ -63,6 +63,26 @@ class CategoryShare {
       );
 }
 
+/// Một ngày trong GET /reports/timeline — dùng để cộng dồn thu/chi theo kỳ tùy ý (F1 Ngày/Tuần/Năm),
+/// không cần giữ danh sách giao dịch chi tiết của ngày đó.
+class TimelineDaySummary {
+  final BigInt totalSpentCents;
+  final BigInt totalIncomeCents;
+  final int transactionCount;
+
+  const TimelineDaySummary({
+    required this.totalSpentCents,
+    required this.totalIncomeCents,
+    required this.transactionCount,
+  });
+
+  factory TimelineDaySummary.fromJson(Map<String, dynamic> json) => TimelineDaySummary(
+        totalSpentCents: parseCents(json['totalSpentCents']),
+        totalIncomeCents: parseCents(json['totalIncomeCents']),
+        transactionCount: (json['transactions'] as List?)?.length ?? 0,
+      );
+}
+
 /// Cơ cấu chi tiêu theo danh mục (GET /reports/category-breakdown)
 class CategoryBreakdown {
   final BigInt totalSpentCents;
@@ -103,6 +123,38 @@ class ForecastAdvice {
       suggestedDailyCutCents: json['suggestedDailyCutCents'] == null ? null : parseCents(json['suggestedDailyCutCents']),
     );
   }
+}
+
+/// Một nhận xét AI về chi tiêu (GET /reports/insights) — do `InsightGeneratorJob` sinh sẵn ở BE,
+/// không phải suy diễn ở FE.
+class SpendingInsight {
+  final String id;
+  final String insightType;
+  final String title;
+  final String body;
+  final String? categoryName;
+  final BigInt? amountCents;
+  final bool isRead;
+
+  const SpendingInsight({
+    required this.id,
+    required this.insightType,
+    required this.title,
+    required this.body,
+    required this.categoryName,
+    required this.amountCents,
+    required this.isRead,
+  });
+
+  factory SpendingInsight.fromJson(Map<String, dynamic> json) => SpendingInsight(
+        id: json['id'] as String,
+        insightType: json['insightType'] as String? ?? '',
+        title: json['title'] as String? ?? '',
+        body: json['body'] as String? ?? '',
+        categoryName: json['categoryName'] as String?,
+        amountCents: json['amountCents'] == null ? null : parseCents(json['amountCents']),
+        isRead: json['isRead'] as bool? ?? false,
+      );
 }
 
 /// Dự báo chi tiêu cuối tháng (GET /reports/forecast)

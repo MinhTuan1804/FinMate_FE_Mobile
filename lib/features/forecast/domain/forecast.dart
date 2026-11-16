@@ -804,6 +804,108 @@ class ForecastSettingsEntity {
       );
 }
 
+/// Một dòng giải thích trong bảng cách tính "mua món này có ổn không" — nguồn: confirmed (đã xác
+/// nhận) | user_entered (người dùng nhập) | estimated (ước tính).
+class PurchaseLineEntity {
+  final DateTime? date;
+  final String label;
+  final BigInt amountCents;
+  final String source;
+
+  const PurchaseLineEntity({this.date, required this.label, required this.amountCents, required this.source});
+
+  String get formattedAmount => formatVnd(amountCents);
+
+  factory PurchaseLineEntity.fromJson(Map<String, dynamic> json) => PurchaseLineEntity(
+        date: json['date'] == null ? null : DateTime.parse(json['date'] as String),
+        label: json['label'] as String,
+        amountCents: parseCents(json['amountCents']),
+        source: json['source'] as String,
+      );
+}
+
+/// Tác động lên ngân sách danh mục. [status] "unknown" = chưa có danh mục/ngân sách tương ứng —
+/// không coi ngân sách bằng 0.
+class PurchaseBudgetImpactEntity {
+  final String status;
+  final String? name;
+  final BigInt? limitCents;
+  final BigInt? projectedAfterCents;
+
+  const PurchaseBudgetImpactEntity({required this.status, this.name, this.limitCents, this.projectedAfterCents});
+
+  bool get isOver => status == 'over';
+  bool get isUnknown => status == 'unknown';
+
+  factory PurchaseBudgetImpactEntity.fromJson(Map<String, dynamic> json) => PurchaseBudgetImpactEntity(
+        status: json['status'] as String,
+        name: json['name'] as String?,
+        limitCents: json['limitCents'] == null ? null : parseCents(json['limitCents']),
+        projectedAfterCents: json['projectedAfterCents'] == null ? null : parseCents(json['projectedAfterCents']),
+      );
+}
+
+/// Tác động lên kế hoạch tháng (/me/spendable).
+class PurchasePlanImpactEntity {
+  final String status;
+  final BigInt? spendableAfterCents;
+
+  const PurchasePlanImpactEntity({required this.status, this.spendableAfterCents});
+
+  bool get isOver => status == 'over';
+
+  factory PurchasePlanImpactEntity.fromJson(Map<String, dynamic> json) => PurchasePlanImpactEntity(
+        status: json['status'] as String,
+        spendableAfterCents: json['spendableAfterCents'] == null ? null : parseCents(json['spendableAfterCents']),
+      );
+}
+
+/// "Mua món này có ổn không?" (POST /forecast/purchase-check). Chỉ đọc, không tạo giao dịch.
+class PurchaseCheckEntity {
+  /// assessable | partial | insufficient_data
+  final String status;
+
+  /// shortfall_risk | consider | off_plan | fits_plan | insufficient_data
+  final String verdict;
+  final String summary;
+  final BigInt amountCents;
+  final DateTime purchaseDate;
+  final String? item;
+  final BigInt? maxAffordableCents;
+  final DateTime? earliestSafeDate;
+  final PurchaseBudgetImpactEntity budget;
+  final PurchasePlanImpactEntity plan;
+  final List<PurchaseLineEntity> lines;
+
+  const PurchaseCheckEntity({
+    required this.status,
+    required this.verdict,
+    required this.summary,
+    required this.amountCents,
+    required this.purchaseDate,
+    this.item,
+    this.maxAffordableCents,
+    this.earliestSafeDate,
+    required this.budget,
+    required this.plan,
+    required this.lines,
+  });
+
+  factory PurchaseCheckEntity.fromJson(Map<String, dynamic> json) => PurchaseCheckEntity(
+        status: json['status'] as String,
+        verdict: json['verdict'] as String,
+        summary: json['summary'] as String,
+        amountCents: parseCents(json['amountCents']),
+        purchaseDate: DateTime.parse(json['purchaseDate'] as String),
+        item: json['item'] as String?,
+        maxAffordableCents: json['maxAffordableCents'] == null ? null : parseCents(json['maxAffordableCents']),
+        earliestSafeDate: json['earliestSafeDate'] == null ? null : DateTime.parse(json['earliestSafeDate'] as String),
+        budget: PurchaseBudgetImpactEntity.fromJson(json['budget'] as Map<String, dynamic>),
+        plan: PurchasePlanImpactEntity.fromJson(json['plan'] as Map<String, dynamic>),
+        lines: (json['lines'] as List? ?? const []).map((e) => PurchaseLineEntity.fromJson(e as Map<String, dynamic>)).toList(),
+      );
+}
+
 /// Kết quả loại/đưa lại một giao dịch khỏi dữ liệu dự báo (PATCH /transactions/{id}/forecast-exclusion).
 class TransactionForecastExclusionEntity {
   final String transactionId;

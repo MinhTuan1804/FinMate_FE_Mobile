@@ -114,7 +114,7 @@ void main() {
     expect(adapter.requests[2].path, '/api/v1/reports/forecast');
   });
 
-  group('AnalyticsScreen', () {
+  group('AnalyticsScreen (F1 — Tổng quan phân tích)', () {
     Future<void> pump(
       WidgetTester tester, {
       required MonthlySummary summary,
@@ -133,6 +133,7 @@ void main() {
           }),
           categoryBreakdownProvider.overrideWith((ref) async => breakdown),
           forecastProvider.overrideWith((ref) async => forecast),
+          spendingInsightsProvider.overrideWith((ref) async => const []),
           planningControllerProvider.overrideWith(
             (ref) => MockPlanningController(const AsyncValue.data(PlanningState(overallBudget: null, categoryBudgets: [], savingsGoals: [], daysRemainingInMonth: 10))),
           ),
@@ -142,16 +143,14 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    testWidgets('không có chi tiêu: trạng thái trống, ẩn thẻ so sánh khi changePercent = null', (tester) async {
+    testWidgets('không có chi tiêu: trạng thái trống ở cơ cấu chi tiêu, không bịa số', (tester) async {
       await pump(tester, summary: _summary(change: null, spent: 0), breakdown: _breakdown(const []), forecast: _forecast(spent: 0, projected: 0, basedOn: 0));
 
-      expect(find.text('Chưa có chi tiêu tháng này'), findsOneWidget);
-      expect(find.textContaining('Chi tiêu giảm'), findsNothing);
-      expect(find.textContaining('Chi tiêu tăng'), findsNothing);
-      expect(find.text('Chưa đủ dữ liệu để dự báo'), findsOneWidget);
+      expect(find.text('Chưa có chi tiêu tháng này.'), findsOneWidget);
+      expect(find.textContaining('so với tháng trước'), findsNothing);
     });
 
-    testWidgets('có dữ liệu: chú giải lấy từ backend, so sánh giảm/tăng đúng chiều', (tester) async {
+    testWidgets('có dữ liệu: % đổi lấy từ backend (giảm), danh mục hiện đúng tên/%/số tiền thật', (tester) async {
       await pump(
         tester,
         summary: _summary(change: -12.5, spent: 8800000, prev: 10000000),
@@ -159,25 +158,22 @@ void main() {
           CategoryShare(categoryId: 'c1', name: 'Ăn uống', slug: 'food', spentCents: BigInt.from(6600000), percent: 75),
           CategoryShare(categoryId: 'c2', name: 'Di chuyển', slug: 'transport', spentCents: BigInt.from(2200000), percent: 25),
         ]),
-        forecast: _forecast(advice: ForecastAdvice(monthlyIncomeCents: BigInt.from(15000000), projectedBalanceCents: BigInt.from(-500000), suggestedDailyCutCents: BigInt.from(20000))),
+        forecast: _forecast(),
       );
 
-      expect(find.text('Chi tiêu giảm 12,5%'), findsOneWidget);
-      expect(find.text('Bạn đã chi ít hơn 1.200.000 ₫ so với tháng trước.'), findsOneWidget);
-      expect(find.text('Ăn uống (75%)'), findsOneWidget);
+      expect(find.text('↓ 12,5% so với tháng trước'), findsOneWidget);
+      expect(find.text('Ăn uống'), findsOneWidget);
+      expect(find.text('75%'), findsOneWidget);
       expect(find.text('6.600.000 ₫'), findsOneWidget);
-      expect(find.text('Thu nhập tháng'), findsOneWidget);
-      expect(find.text('-500.000 ₫'), findsOneWidget); // số dư dự kiến cuối tháng (âm)
-      expect(find.text('Gợi ý cắt giảm mỗi ngày'), findsOneWidget);
-      expect(find.text('20.000 ₫'), findsOneWidget);
-      expect(find.textContaining('24.500.000'), findsNothing); // số giả cũ
+      expect(find.textContaining('+4.2%'), findsNothing); // số giả cũ của mockup, không bịa
     });
 
-    testWidgets('chi tiêu tăng: hiện "Chi tiêu tăng"', (tester) async {
+    testWidgets('chi tiêu tăng: mũi tên tăng, không bịa số thu nhập thay đổi', (tester) async {
       await pump(tester, summary: _summary(change: 20, spent: 12000000, prev: 10000000), breakdown: _breakdown(const []), forecast: _forecast());
 
-      expect(find.text('Chi tiêu tăng 20%'), findsOneWidget);
-      expect(find.text('Bạn đã chi nhiều hơn 2.000.000 ₫ so với tháng trước.'), findsOneWidget);
+      expect(find.text('↑ 20% so với tháng trước'), findsOneWidget);
+      // BE không trả % thay đổi thu nhập — F1 không được tự bịa 1 con số cho thẻ Thu nhập.
+      expect(find.textContaining('+8.5%'), findsNothing);
     });
 
     testWidgets('lỗi tải báo cáo: hiện thông điệp và nút Thử lại, không số giả', (tester) async {
@@ -187,11 +183,22 @@ void main() {
       expect(find.text('Thử lại'), findsWidgets);
     });
 
-    testWidgets('bộ chọn kỳ: chỉ "Tháng này" bật, tuần và năm hiển thị "Sắp có"', (tester) async {
+    testWidgets('bộ chọn kỳ: chỉ "Tháng" bật, bấm "Ngày" báo sắp có (BE chỉ hỗ trợ báo cáo theo tháng)', (tester) async {
       await pump(tester, summary: _summary(), breakdown: _breakdown(const []), forecast: _forecast());
 
-      expect(find.text('Tháng này'), findsOneWidget);
-      expect(find.text('Tuần và năm sắp có.'), findsOneWidget);
+      expect(find.text('Tháng'), findsOneWidget);
+      await tester.tap(find.text('Ngày'));
+      await tester.pump();
+
+      expect(find.textContaining('sắp có'), findsOneWidget);
+    });
+
+    testWidgets('F3/F4/F5 có lối vào ngay trên F1 (Stitch gốc không vẽ, roadmap yêu cầu)', (tester) async {
+      await pump(tester, summary: _summary(), breakdown: _breakdown(const []), forecast: _forecast());
+
+      expect(find.textContaining('Dự báo'), findsWidgets);
+      expect(find.textContaining('Cảnh báo'), findsWidgets);
+      expect(find.textContaining('Kiểm tra'), findsWidgets);
     });
   });
 }
