@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:finmate/core/native/widget_refresh_bridge.dart';
 import 'package:finmate/features/accounts/data/accounts_repository.dart';
 import 'package:finmate/features/accounts/domain/financial_account.dart';
 import 'package:finmate/features/auth/presentation/controllers/auth_controller.dart';
@@ -32,6 +33,10 @@ class AccountsController extends StateNotifier<AsyncValue<List<FinancialAccount>
     try {
       final list = await repository.getAccounts();
       if (mounted) state = AsyncValue.data(list);
+      // await (không fire-and-forget nữa): để load() chỉ thật sự "xong" sau khi widget đã nhận
+      // dữ liệu mới — caller (refreshDerivedData) cũng await, tránh race lúc thoát app ngay sau khi
+      // lưu giao dịch (xem ghi chú ở data_refresh.dart).
+      await syncAllWidgets();
     } catch (e, st) {
       if (mounted) state = AsyncValue.error(e, st);
     }

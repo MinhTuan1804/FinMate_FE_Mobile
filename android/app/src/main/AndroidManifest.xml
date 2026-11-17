@@ -30,6 +30,52 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- Luồng 9 — widget configuration activity. Android tự mở màn này (KHÔNG qua
+             app_router.dart) ngay sau khi người dùng kéo 1 widget FinMate ra từ trình chọn
+             "Tiện ích/Widgets"; xem android:configure trong w1/w2/w4x4_widget_info.xml. -->
+        <activity
+            android:name=".widgets.WidgetConfigActivity"
+            android:exported="true"
+            android:theme="@style/LaunchTheme"
+            android:excludeFromRecents="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE"/>
+            </intent-filter>
+        </activity>
+
+        <receiver
+            android:name=".widgets.SafeSpendWidgetReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/w1_widget_info"/>
+        </receiver>
+
+        <receiver
+            android:name=".widgets.OverviewWidgetReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/w2_widget_info"/>
+        </receiver>
+
+        <receiver
+            android:name=".widgets.DetailWidgetReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/w4x4_widget_info"/>
+        </receiver>
+
         <service
             android:name=".notifications.NotificationCaptureService"
             android:exported="true"

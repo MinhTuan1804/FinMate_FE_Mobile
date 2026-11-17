@@ -292,6 +292,18 @@ class ProfileScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
             OutlinedButton.icon(
+              key: const ValueKey('open-widget-settings'),
+              onPressed: () => context.push('/widget-settings'),
+              icon: const Icon(Icons.widgets_outlined, size: 18, color: AppColors.primary),
+              label: const Text('Widget trên màn hình chính', style: TextStyle(color: AppColors.primary)),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: AppColors.primary),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: const RoundedRectangleBorder(borderRadius: AppSpacing.roundedPill),
+              ),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
               key: const ValueKey('open-support'),
               onPressed: () => context.push('/support'),
               icon: const Icon(Icons.support_agent, size: 18, color: AppColors.primary),

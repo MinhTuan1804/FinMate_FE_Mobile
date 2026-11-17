@@ -1,5 +1,9 @@
 plugins {
     id("com.android.application")
+    // Compiler Compose cho các widget Jetpack Glance (Luồng 9). Plugin Kotlin Android gốc được
+    // flutter-gradle-plugin tự áp dụng (xem local.properties/flutter.kotlinVersion) nên không khai
+    // báo lại ở đây.
+    id("org.jetbrains.kotlin.plugin.compose")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
@@ -12,6 +16,10 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    buildFeatures {
+        compose = true
     }
 
     defaultConfig {
@@ -49,4 +57,10 @@ dependencies {
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20231013")
+
+    // Home-screen widgets (Luồng 9) — Jetpack Glance, widget UI dựng bằng Compose, không dùng RemoteViews thủ công.
+    implementation("androidx.glance:glance-appwidget:1.1.1")
+    implementation("androidx.glance:glance-material3:1.1.1")
+    // W1 — đồng bộ dữ liệu nền định kỳ (WorkManager, native, không qua Flutter engine).
+    implementation("androidx.work:work-runtime-ktx:2.9.1")
 }

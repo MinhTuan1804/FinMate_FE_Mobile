@@ -1,11 +1,14 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:home_widget/home_widget.dart';
 import 'package:finmate/core/native/notification_bridge.dart';
 import 'package:finmate/features/accounts/domain/financial_account.dart';
 import 'package:finmate/features/accounts/presentation/controllers/accounts_controller.dart';
 import 'package:finmate/features/analytics/presentation/reports_providers.dart';
 import 'package:finmate/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:finmate/features/planning/presentation/controllers/planning_controller.dart';
+import 'package:finmate/features/transactions/presentation/widgets/create_transaction_bottom_sheet.dart';
+import 'package:finmate/routes/app_router.dart';
 
 final notificationBridgeProvider = Provider<NotificationBridge>((ref) => sharedNotificationBridge);
 
@@ -35,6 +38,11 @@ class NotificationCaptureScope extends ConsumerStatefulWidget {
 }
 
 class _NotificationCaptureScopeState extends ConsumerState<NotificationCaptureScope> with WidgetsBindingObserver {
+  // resumed có thể bắn liên tiếp nhiều lần trong 1 khoảng ngắn (nhiều visibilityChanged) — không
+  // có chốt này, nhiều lượt gọi chồng lên nhau cùng đọc "pendingRoute" trước khi lượt trước kịp
+  // xoá, dẫn tới push trùng route nhiều lần (màn hình/":Hoàn tất" chồng instance cũ-mới lẫn lộn).
+  bool _syncing = false;
+
   @override
   void initState() {
     super.initState();
@@ -61,33 +69,66 @@ class _NotificationCaptureScopeState extends ConsumerState<NotificationCaptureSc
   }
 
   // Await tuần tự để lệnh tới native đúng thứ tự; không log gì vì có thể chứa nội dung thông báo.
+  // Chốt _syncing: resumed có thể bắn liên tiếp nên bỏ qua lượt gọi mới nếu lượt trước chưa xong,
+  // thay vì chạy chồng — tránh đọc/push trùng "pendingRoute" (xem khai báo _syncing).
   Future<void> _syncWithNative() async {
-    final bridge = ref.read(notificationBridgeProvider);
+    if (_syncing) return;
+    _syncing = true;
     try {
-      await bridge.flushQueue();
-      if (await bridge.consumeSessionExpired() && mounted) {
-        // Native bị từ chối refresh lúc app đóng: dọn gói theo dõi/baseUrl còn sót TRƯỚC khi báo hết phiên.
-        await bridge.clearSession();
-        if (mounted) ref.read(sessionExpiredProvider.notifier).state = true;
-      } else if (mounted) {
-        // Issue D: flushQueue có thể vừa khiến BE Auto-commit (Flow 1) hoặc gộp Transfer một giao
-        // dịch mới — không ai gọi onDataChanged cho đường này (chỉ createTransaction/confirmDraft ở
-        // transaction_controller.dart mới gọi), nên số dư/Thu nhập/Chi tiêu ở Trang chủ bị đứng im
-        // cho tới khi có thao tác khác vô tình invalidate. Gọi lại bất kể có gì mới hay không — cũng
-        // rẻ như mọi lần mở/quay lại app khác, đúng những gì refreshDerivedData() làm ở nơi khác
-        // (không gọi lại được hàm đó thẳng: nó nhận Ref của notifier, không nhận WidgetRef ở đây).
-        ref.read(accountsControllerProvider.notifier).load();
-        ref.read(planningControllerProvider.notifier).loadPlanningData(silent: true);
-        ref.invalidate(monthlySummaryProvider);
-        ref.invalidate(categoryBreakdownProvider);
-        ref.invalidate(forecastProvider);
+      final bridge = ref.read(notificationBridgeProvider);
+      try {
+        await bridge.flushQueue();
+        if (await bridge.consumeSessionExpired() && mounted) {
+          // Native bị từ chối refresh lúc app đóng: dọn gói theo dõi/baseUrl còn sót TRƯỚC khi báo hết phiên.
+          await bridge.clearSession();
+          if (mounted) ref.read(sessionExpiredProvider.notifier).state = true;
+        } else if (mounted) {
+          // Issue D: flushQueue có thể vừa khiến BE Auto-commit (Flow 1) hoặc gộp Transfer một giao
+          // dịch mới — không ai gọi onDataChanged cho đường này (chỉ createTransaction/confirmDraft ở
+          // transaction_controller.dart mới gọi), nên số dư/Thu nhập/Chi tiêu ở Trang chủ bị đứng im
+          // cho tới khi có thao tác khác vô tình invalidate. Gọi lại bất kể có gì mới hay không — cũng
+          // rẻ như mọi lần mở/quay lại app khác, đúng những gì refreshDerivedData() làm ở nơi khác
+          // (không gọi lại được hàm đó thẳng: nó nhận Ref của notifier, không nhận WidgetRef ở đây).
+          await ref.read(accountsControllerProvider.notifier).load();
+          await ref.read(planningControllerProvider.notifier).loadPlanningData(silent: true);
+          ref.invalidate(monthlySummaryProvider);
+          ref.invalidate(categoryBreakdownProvider);
+          ref.invalidate(forecastProvider);
+        }
+      } catch (_) {
+        // Lỗi cầu nối không được làm hỏng giao diện; lần resume sau sẽ thử lại.
       }
-    } catch (_) {
-      // Lỗi cầu nối không được làm hỏng giao diện; lần resume sau sẽ thử lại.
+      await _consumePendingRoute();
+      if (!mounted) return;
+      ref.read(notificationFlushTickProvider.notifier).state++;
+      ref.invalidate(notificationAccessEnabledProvider);
+    } finally {
+      _syncing = false;
     }
+  }
+
+  // Route widget yêu cầu (vd "Bù đắp ngân sách →" trên W1, ghi qua OpenPlanningCallback phía native)
+  // — đọc qua đúng cơ chế `home_widget` W1 đang dùng ổn định để lấy dữ liệu, không qua Intent/
+  // MethodChannel (từng bị nghi rơi mất qua lớp Background-Activity-Launch-workaround của Glance).
+  // Không có tín hiệu "native chủ động đẩy" nên phải tự kiểm tra lại mỗi lần app resume.
+  Future<void> _consumePendingRoute() async {
+    final route = await HomeWidget.getWidgetData<String>('pendingRoute');
+    if (route == null || route.isEmpty) return;
+    await HomeWidget.saveWidgetData<String>('pendingRoute', '');
     if (!mounted) return;
-    ref.read(notificationFlushTickProvider.notifier).state++;
-    ref.invalidate(notificationAccessEnabledProvider);
+    // "/quick-create" không phải route thật (CreateTransactionBottomSheet là 1 modal, không có
+    // path riêng) — nút "Ghi chép" trên W2 ghi route ảo này, mở thẳng sheet qua navigator context
+    // thay vì push 1 GoRoute không tồn tại.
+    if (route == '/quick-create') {
+      final quickCreateContext = ref.read(routerProvider).routerDelegate.navigatorKey.currentContext;
+      if (quickCreateContext != null && quickCreateContext.mounted) {
+        CreateTransactionBottomSheet.show(quickCreateContext);
+      }
+      return;
+    }
+    // push (không phải go): go() thay cả stack nên không còn gì bên dưới để Navigator.maybePop
+    // (dùng bởi K1WidgetConfigScreen's Hoàn tất/X) quay lại — giữ lịch sử để back hoạt động đúng.
+    ref.read(routerProvider).push(route);
   }
 
   Future<void> _pushPackages(List<FinancialAccount> accounts) async {

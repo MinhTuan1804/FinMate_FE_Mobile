@@ -62,6 +62,9 @@ import 'package:finmate/features/finance_methods/presentation/screens/b4_recomme
 import 'package:finmate/features/finance_methods/presentation/screens/b5_my_methods_screen.dart';
 import 'package:finmate/features/finance_methods/presentation/screens/b6_jar_detail_screen.dart';
 import 'package:finmate/features/finance_methods/presentation/screens/b7_alert_thresholds_screen.dart';
+import 'package:finmate/features/home_widget/data/widget_config_bridge.dart';
+import 'package:finmate/features/home_widget/domain/widget_config.dart';
+import 'package:finmate/features/home_widget/presentation/screens/k1_widget_config_screen.dart';
 import 'package:finmate/features/notifications_inbox/presentation/screens/notifications_inbox_screen.dart';
 
 const _splashPath = '/splash';
@@ -93,6 +96,10 @@ const _guestOnlyPaths = {
 
 /// Hàm điều hướng có điều kiện theo trạng thái đăng nhập (tách riêng để dễ kiểm thử)
 String? authRedirect(AsyncValue<UserProfile?> auth, String location) {
+  // URI lạ không phải path thật của app (vd. "glance-action://..." lọt vào từ trampoline nội bộ
+  // của Jetpack Glance trên Android 16) — về /home thay vì để GoRouter báo "Page Not Found".
+  if (!location.startsWith('/')) return '/home';
+
   // Đang kiểm tra/đăng nhập: giữ nguyên vị trí hiện tại
   if (auth.isLoading) return null;
 
@@ -129,6 +136,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     initialLocation: _splashPath,
     refreshListenable: refresh,
     redirect: (context, state) => authRedirect(ref.read(authControllerProvider), state.matchedLocation),
+    onException: (context, state, router) => router.go('/home'),
     routes: [
       GoRoute(
         path: _splashPath,
@@ -396,6 +404,20 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/group-finance',
         builder: (context, state) => GroupFinanceScreen(groupId: state.extra as String),
+      ),
+      GoRoute(
+        // Mở lại y hệt K1WidgetConfigScreen (dùng chung với lối vào native WidgetConfigActivity lúc
+        // ghim lần đầu) nhưng ở chế độ sửa — không có appWidgetId cụ thể nên áp dụng cho TẤT CẢ
+        // widget đang ghim của loại truyền qua ?kind= (xem editAllPinned).
+        path: '/widget-settings',
+        builder: (context, state) {
+          final kindId = state.uri.queryParameters['kind'];
+          return K1WidgetConfigScreen(
+            bridge: WidgetConfigBridge(),
+            initialKind: kindId != null ? HomeWidgetKind.fromId(kindId) : null,
+            editAllPinned: true,
+          );
+        },
       ),
     ],
   );

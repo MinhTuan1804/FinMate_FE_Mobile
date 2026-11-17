@@ -109,10 +109,13 @@ class HomeScreen extends ConsumerWidget {
                         ),
                       );
                     }
+                    final accountNames = {
+                      for (final a in ref.watch(accountsControllerProvider).valueOrNull ?? const <FinancialAccount>[]) a.id: a.name,
+                    };
                     return GlassCard(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                       child: Column(
-                        children: [for (final tx in recents) _buildTransactionRow(tx)],
+                        children: [for (final tx in recents) _buildTransactionRow(tx, accountNames)],
                       ),
                     );
                   },
@@ -329,12 +332,24 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildTransactionRow(TransactionEntity tx) {
+  /// Tên hiển thị ưu tiên: description → merchantName → tên ví (tra [accountNames] theo
+  /// tx.accountId) → categoryName → fallback cuối truyền riêng cho từng nhánh (giao dịch thường
+  /// vs. chuyển khoản nội bộ).
+  String _displayTitle(TransactionEntity tx, Map<String, String> accountNames, String fallback) {
+    if (tx.description.isNotEmpty) return tx.description;
+    if ((tx.merchantName ?? '').isNotEmpty) return tx.merchantName!;
+    final accountName = accountNames[tx.accountId];
+    if (accountName != null && accountName.isNotEmpty) return accountName;
+    if ((tx.categoryName ?? '').isNotEmpty) return tx.categoryName!;
+    return fallback;
+  }
+
+  Widget _buildTransactionRow(TransactionEntity tx, Map<String, String> accountNames) {
     if (tx.isInternalTransfer) {
       return GlassTransactionRow(
         icon: LucideIcons.arrowLeftRight,
         iconColor: GlassColors.slateAnchor,
-        title: tx.description.isNotEmpty ? tx.description : 'Chuyển tiền nội bộ',
+        title: _displayTitle(tx, accountNames, 'Chuyển tiền nội bộ'),
         subtitle: 'Nội bộ - Không tính chi tiêu',
         amountText: tx.formattedAmount,
         isExpense: false,
@@ -344,7 +359,7 @@ class HomeScreen extends ConsumerWidget {
     return GlassTransactionRow(
       icon: isExpense ? LucideIcons.arrowDownLeft : LucideIcons.arrowUpRight,
       iconColor: isExpense ? GlassColors.danger : GlassColors.success,
-      title: tx.description.isNotEmpty ? tx.description : (tx.categoryName ?? 'Giao dịch'),
+      title: _displayTitle(tx, accountNames, 'Giao dịch'),
       subtitle: tx.categoryName ?? 'Chung',
       amountText: '${isExpense ? '-' : '+'}${tx.formattedAmount}',
       isExpense: isExpense,

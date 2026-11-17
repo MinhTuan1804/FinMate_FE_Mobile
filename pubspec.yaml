@@ -40,6 +40,10 @@ dependencies:
   qr_flutter: ^4.1.0
   share_plus: ^10.1.4
 
+  # Home-screen Widgets (Luồng 9, Android/Jetpack Glance)
+  home_widget: ^0.7.0
+  workmanager: ^0.10.10
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
