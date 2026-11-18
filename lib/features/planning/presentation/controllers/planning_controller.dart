@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:finmate/core/native/widget_refresh_bridge.dart';
 import 'package:finmate/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:finmate/features/planning/data/planning_repository.dart';
 import 'package:finmate/features/planning/domain/entities/budget_entity.dart';
@@ -69,6 +70,8 @@ class PlanningController extends StateNotifier<AsyncValue<PlanningState>> {
           daysRemainingInMonth: _calculateDaysRemaining(),
         ),
       );
+      // await (không fire-and-forget nữa) — cùng lý do với accounts_controller.dart's load().
+      await syncAllWidgets();
     } catch (e, st) {
       if (mounted) state = AsyncValue.error(e, st);
     }

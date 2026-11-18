@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:finmate/core/database/sync_service.dart';
 import 'package:finmate/features/auth/presentation/controllers/auth_controller.dart';
@@ -27,8 +26,13 @@ class TransactionController
   final TransactionRepository repository;
   final SyncService syncService;
 
-  /// Gọi sau khi dữ liệu ghi thành công (tạo/chuyển/xác nhận giao dịch, hoặc đồng bộ được hàng đợi offline)
-  final VoidCallback? onDataChanged;
+  /// Gọi sau khi dữ liệu ghi thành công (tạo/chuyển/xác nhận giao dịch, hoặc đồng bộ được hàng đợi
+  /// offline). Trả về Future (không phải VoidCallback) và LUÔN được await ở mọi nơi gọi trong file
+  /// này — để widget home-screen (syncAllWidgets, tận cùng của refreshDerivedData) nhận dữ liệu mới
+  /// XONG rồi hàm tạo/xác nhận giao dịch mới thật sự return, tránh race: trước đây fire-and-forget
+  /// nên người dùng thoát app ngay sau khi lưu có thể thoát TRƯỚC khi widget kịp nhận dữ liệu mới,
+  /// phải mở lại app 1 lần nữa mới thấy số đúng.
+  final Future<void> Function()? onDataChanged;
 
   TransactionType? _filter;
   DateTime? _from;
@@ -76,7 +80,7 @@ class TransactionController
       } catch (_) {}
       final page = await _fetch(draftsOnly, filter, from, to);
       if (!mounted) return;
-      if (synced > 0) onDataChanged?.call();
+      if (synced > 0) await onDataChanged?.call();
       if (gen != _gen) return;
       _cursor = page.nextCursor;
       state = AsyncValue.data(page.items);
@@ -154,7 +158,7 @@ class TransactionController
     return loadTransactions();
   }
 
-  void _prepend(TransactionEntity tx) {
+  Future<void> _prepend(TransactionEntity tx) async {
     if (mounted && !_draftsOnly && (_filter == null || tx.type == _filter)) {
       // Lưu lại (server trả 200 bản đã có) không được hiện hai dòng cùng một giao dịch.
       state = AsyncValue.data([
@@ -162,7 +166,7 @@ class TransactionController
         ...(state.value ?? const []).where((t) => t.id != tx.id),
       ]);
     }
-    if (mounted) onDataChanged?.call();
+    if (mounted) await onDataChanged?.call();
   }
 
   Future<void> createTransaction({
@@ -191,7 +195,7 @@ class TransactionController
       receiptGroup: receiptGroup,
       clientRequestId: clientRequestId,
     );
-    _prepend(tx);
+    await _prepend(tx);
   }
 
   /// Xác nhận nháp: gỡ khỏi danh sách nháp rồi báo dữ liệu đổi (số dư/báo cáo thay đổi).
@@ -203,7 +207,7 @@ class TransactionController
           .where((t) => t.id != id)
           .toList(),
     );
-    onDataChanged?.call();
+    await onDataChanged?.call();
   }
 
   Future<void> saveDraft({
@@ -275,6 +279,6 @@ class TransactionController
       description: description,
       date: date,
     );
-    _prepend(tx);
+    await _prepend(tx);
   }
 }

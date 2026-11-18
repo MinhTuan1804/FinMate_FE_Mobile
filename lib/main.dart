@@ -7,6 +7,8 @@ import 'package:finmate/core/theme/app_theme.dart';
 import 'package:finmate/core/theme/glass/glass_theme_sync.dart';
 import 'package:finmate/features/notifications/presentation/notification_capture_scope.dart';
 import 'package:finmate/routes/app_router.dart';
+// ignore: unused_import
+import 'widget_config_main.dart' as widget_config_entrypoint;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

@@ -319,6 +319,7 @@ class ProfileScreen extends ConsumerWidget {
                 _Row(key: ValueKey('open-finance-methods'), icon: LucideIcons.wallet, label: 'Cách quản lý tài chính', route: '/finance-methods'),
                 _Row(key: ValueKey('open-category-management'), icon: LucideIcons.tag, label: 'Danh mục', route: '/profile/categories'),
                 _Row(key: ValueKey('open-subscription'), icon: LucideIcons.crown, label: 'Gói đăng ký', route: '/profile/subscription'),
+                _Row(key: ValueKey('open-qr-transfers'), icon: Icons.qr_code, label: 'QR chuyển khoản', route: '/qr-transfers/scan'),
               ],
             ),
             const SizedBox(height: 24),
@@ -326,6 +327,7 @@ class ProfileScreen extends ConsumerWidget {
               title: 'Ứng dụng & tài khoản',
               rows: [
                 _Row(key: ValueKey('open-devices'), icon: LucideIcons.smartphone, label: 'Thiết bị & thông báo push', route: '/devices'),
+                _Row(key: ValueKey('open-widget-settings'), icon: Icons.widgets_outlined, label: 'Widget trên màn hình chính', route: '/widget-settings'),
                 _Row(key: ValueKey('open-community'), icon: LucideIcons.messagesSquare, label: 'Cộng đồng', route: '/community'),
                 _Row(key: ValueKey('open-survey'), icon: LucideIcons.clipboardList, label: 'Khảo sát đầu vào', route: '/survey'),
                 _Row(key: ValueKey('open-appearance'), icon: LucideIcons.eye, label: 'Giao diện và hiển thị', route: '/profile/appearance'),
