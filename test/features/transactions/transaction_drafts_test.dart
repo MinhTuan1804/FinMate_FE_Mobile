@@ -121,7 +121,7 @@ void main() {
       return TransactionController(
         repository: TransactionRepository(apiClient: api, database: db),
         syncService: SyncService(db: db, apiClient: api),
-        onDataChanged: onDataChanged,
+        onDataChanged: onDataChanged == null ? null : () async => onDataChanged(),
       );
     }
 
