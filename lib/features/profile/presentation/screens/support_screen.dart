@@ -44,7 +44,8 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
       category: 'Kỹ thuật',
       status: TicketStatus.inProgress,
       createdAt: DateTime.now().subtract(const Duration(hours: 4)),
-      lastMessage: 'Nhân viên hỗ trợ: Đang kiểm tra lại định dạng thông báo VietQR...',
+      lastMessage:
+          'Nhân viên hỗ trợ: Đang kiểm tra lại định dạng thông báo VietQR...',
     ),
     SupportTicket(
       id: 'TK-1045',
@@ -52,7 +53,8 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
       category: 'Tư vấn',
       status: TicketStatus.closed,
       createdAt: DateTime.now().subtract(const Duration(days: 3)),
-      lastMessage: 'Đã giải quyết: Người dùng đã hoàn thành khảo sát và chọn hũ phù hợp.',
+      lastMessage:
+          'Đã giải quyết: Người dùng đã hoàn thành khảo sát và chọn hũ phù hợp.',
     ),
   ];
 
@@ -73,17 +75,31 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
               children: [
                 TextField(
                   controller: titleController,
-                  decoration: const InputDecoration(labelText: 'Tiêu đề vấn đề'),
+                  decoration: const InputDecoration(
+                    labelText: 'Tiêu đề vấn đề',
+                  ),
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: category,
+                  initialValue: category,
                   decoration: const InputDecoration(labelText: 'Chủ đề'),
                   items: const [
-                    DropdownMenuItem(value: 'Kỹ thuật', child: Text('Kỹ thuật & Lỗi ứng dụng')),
-                    DropdownMenuItem(value: 'Tài khoản', child: Text('Tài khoản & Đăng nhập')),
-                    DropdownMenuItem(value: 'Gói dịch vụ', child: Text('Gói cước & Thanh toán')),
-                    DropdownMenuItem(value: 'Góp ý', child: Text('Góp ý tính năng mới')),
+                    DropdownMenuItem(
+                      value: 'Kỹ thuật',
+                      child: Text('Kỹ thuật & Lỗi ứng dụng'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'Tài khoản',
+                      child: Text('Tài khoản & Đăng nhập'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'Gói dịch vụ',
+                      child: Text('Gói cước & Thanh toán'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'Góp ý',
+                      child: Text('Góp ý tính năng mới'),
+                    ),
                   ],
                   onChanged: (val) {
                     if (val != null) setDlgState(() => category = val);
@@ -102,7 +118,10 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Hủy'),
+            ),
             ElevatedButton(
               onPressed: () {
                 if (titleController.text.trim().isNotEmpty) {
@@ -123,7 +142,11 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
                   });
                   Navigator.pop(ctx);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Đã gửi yêu cầu hỗ trợ! Nhân viên sẽ phản hồi sớm.')),
+                    const SnackBar(
+                      content: Text(
+                        'Đã gửi yêu cầu hỗ trợ! Nhân viên sẽ phản hồi sớm.',
+                      ),
+                    ),
                   );
                 }
               },
@@ -188,10 +211,16 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
                           Container(
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
-                              color: AppColors.secondary.withValues(alpha: 0.16),
+                              color: AppColors.secondary.withValues(
+                                alpha: 0.16,
+                              ),
                               shape: BoxShape.circle,
                             ),
-                            child: const Icon(LucideIcons.headset, color: AppColors.secondary, size: 24),
+                            child: const Icon(
+                              LucideIcons.headset,
+                              color: AppColors.secondary,
+                              size: 24,
+                            ),
                           ),
                           const SizedBox(width: 14),
                           Expanded(
@@ -208,7 +237,9 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
                                 const SizedBox(height: 2),
                                 Text(
                                   'Thời gian phản hồi thông thường: dưới 15 phút',
-                                  style: AppTypography.caption(context).copyWith(fontSize: 12),
+                                  style: AppTypography.caption(
+                                    context,
+                                  ).copyWith(fontSize: 12),
                                 ),
                               ],
                             ),
@@ -218,7 +249,9 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
                       const Divider(height: 24),
                       Text(
                         'Bạn đang gặp sự cố về tài khoản, giao dịch hoặc cần tư vấn phương pháp quản lý tài chính? Đội ngũ hỗ trợ luôn sẵn sàng đồng hành.',
-                        style: AppTypography.caption(context).copyWith(fontSize: 13, height: 1.4),
+                        style: AppTypography.caption(
+                          context,
+                        ).copyWith(fontSize: 13, height: 1.4),
                       ),
                     ],
                   ),
@@ -227,7 +260,10 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
 
               const SizedBox(height: 24),
 
-              Text('DANH SÁCH YÊU CẦU HỖ TRỢ (TICKETS)', style: AppTypography.sectionLabel(context)),
+              Text(
+                'DANH SÁCH YÊU CẦU HỖ TRỢ (TICKETS)',
+                style: AppTypography.sectionLabel(context),
+              ),
               const SizedBox(height: 12),
 
               for (final ticket in _tickets) ...[
@@ -235,7 +271,8 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
                   padding: const EdgeInsets.only(bottom: 12),
                   child: LiquidGlassCard(
                     padding: const EdgeInsets.all(16),
-                    onTap: () => context.push('/profile/support/ticket', extra: ticket),
+                    onTap: () =>
+                        context.push('/profile/support/ticket', extra: ticket),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -251,9 +288,14 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
                             ),
                             const Spacer(),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
-                                color: _statusColor(ticket.status).withValues(alpha: 0.15),
+                                color: _statusColor(
+                                  ticket.status,
+                                ).withValues(alpha: 0.15),
                                 borderRadius: AppSpacing.roundedPill,
                               ),
                               child: Text(
@@ -290,12 +332,22 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              DateFormat('HH:mm - dd/MM/yyyy').format(ticket.createdAt),
-                              style: AppTypography.caption(context).copyWith(fontSize: 11.5),
+                              DateFormat(
+                                'HH:mm - dd/MM/yyyy',
+                              ).format(ticket.createdAt),
+                              style: AppTypography.caption(
+                                context,
+                              ).copyWith(fontSize: 11.5),
                             ),
                             const Row(
                               children: [
-                                Text('Xem chi tiết', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                                Text(
+                                  'Xem chi tiết',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                                 SizedBox(width: 4),
                                 Icon(LucideIcons.chevronRight, size: 14),
                               ],

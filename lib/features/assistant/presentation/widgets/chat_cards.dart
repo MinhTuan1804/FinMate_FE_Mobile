@@ -537,8 +537,9 @@ class SummaryCardView extends StatelessWidget {
 String? _dateLabel(DateTime? date) {
   if (date == null) return null;
   final now = DateTime.now();
-  if (date.year == now.year && date.month == now.month && date.day == now.day)
+  if (date.year == now.year && date.month == now.month && date.day == now.day) {
     return null;
+  }
   final day =
       '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}';
   return date.year == now.year ? 'Ngày $day' : 'Ngày $day/${date.year}';
@@ -1029,8 +1030,9 @@ class GoalDraftCardView extends ConsumerWidget {
       isScrollControlled: true,
       builder: (_) => _GoalEditSheet(goal: card.goal),
     );
-    if (result != null)
+    if (result != null) {
       controller.updateGoal(card.id, name: result.$1, targetCents: result.$2);
+    }
   }
 
   Future<void> _pickDeadline(
@@ -1044,11 +1046,12 @@ class GoalDraftCardView extends ConsumerWidget {
       firstDate: now.add(const Duration(days: 1)),
       lastDate: now.add(const Duration(days: 365 * 30)),
     );
-    if (picked != null)
+    if (picked != null) {
       controller.updateGoal(
         card.id,
         deadline: DateTime(picked.year, picked.month, picked.day, 23, 59, 59),
       );
+    }
   }
 
   @override

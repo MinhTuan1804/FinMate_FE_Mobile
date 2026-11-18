@@ -48,8 +48,9 @@ const Set<String> _accumulativeJarKeys = {
 };
 
 GlassProgressState _jarChipState(JarEntity jar) {
-  if (jar.level == 'over' || jar.level == 't2')
+  if (jar.level == 'over' || jar.level == 't2') {
     return GlassProgressState.danger;
+  }
   if (jar.level == 't1') return GlassProgressState.warning;
   return GlassProgressState.success;
 }
@@ -68,8 +69,9 @@ String _jarChipLabel(JarEntity jar) {
   if (_accumulativeJarKeys.contains(jar.key) && (jar.usedPct ?? 0) >= 100) {
     return 'Đạt ${jar.usedPct}% mục tiêu';
   }
-  if (jar.remainingCents != null)
+  if (jar.remainingCents != null) {
     return 'Còn ${formatVnd(jar.remainingCents!)}';
+  }
   return 'Ổn định';
 }
 
@@ -347,11 +349,13 @@ class _MethodBlocksSection extends ConsumerWidget {
               cards.add(const _GoalsCard());
             }
           case 'params':
-            if (_blockParams(um.method, block).isNotEmpty)
+            if (_blockParams(um.method, block).isNotEmpty) {
               cards.add(_ParamsCard(um: um, block: block));
+            }
           case 'starter_steps':
-            if (um.method.starterSteps.isNotEmpty)
+            if (um.method.starterSteps.isNotEmpty) {
               cards.add(_StepsCard(um: um));
+            }
         }
       }
     }

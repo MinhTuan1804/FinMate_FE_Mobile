@@ -3,7 +3,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import 'package:finmate/core/network/api_exceptions.dart';
-import 'package:finmate/core/format/money.dart';
 import 'package:finmate/features/assistant/data/assistant_repository.dart';
 import 'package:finmate/features/assistant/data/draft_saver.dart';
 import 'package:finmate/features/assistant/data/local_chat_decider.dart';
@@ -306,8 +305,9 @@ class AssistantController extends StateNotifier<AssistantState> {
     this.createGoal,
     Duration? retryEvery = const Duration(seconds: 30),
   }) : super(const AssistantState()) {
-    if (pending != null && retryEvery != null)
+    if (pending != null && retryEvery != null) {
       _retryTimer = Timer.periodic(retryEvery, (_) => retryPending());
+    }
   }
 
   @override
@@ -335,8 +335,9 @@ class AssistantController extends StateNotifier<AssistantState> {
     final outgoing = asked != null && _bareAmount.hasMatch(trimmed)
         ? '$asked $trimmed'
         : trimmed;
-    if (await _deliver(outgoing, const Uuid().v4(), source))
+    if (await _deliver(outgoing, const Uuid().v4(), source)) {
       unawaited(retryPending());
+    }
   }
 
   /// Gửi lại tin nhắn bị lỗi bằng đúng `clientRequestId` cũ để backend không tạo trùng
@@ -647,8 +648,9 @@ class AssistantController extends StateNotifier<AssistantState> {
   Future<void> confirmBatch(int messageId) async {
     final batch = _batch(messageId);
     final saver = this.saver;
-    if (batch == null || saver == null || batch.resolved || state.isSending)
+    if (batch == null || saver == null || batch.resolved || state.isSending) {
       return;
+    }
     if (!batch.allComplete) {
       _replace(
         batch.copyWith(
@@ -754,16 +756,18 @@ class AssistantController extends StateNotifier<AssistantState> {
       case ChatAction.confirm:
         final drafts = reply.drafts.isEmpty ? [reply.draft!] : reply.drafts;
         // Nhiều khoản trong một câu: lời báo của BE rồi mỗi khoản một thẻ, người dùng rà soát và lưu từng khoản.
-        if (reply.replyText != null)
+        if (reply.replyText != null) {
           _add(
             AssistantText(_nextId++, reply.replyText!),
           ); // lời nhắn của server (nhiều khoản, vế thiếu tiền, tổng không khớp)
+        }
         addBatch([for (final d in drafts) d.copyWith(source: source)]);
       case ChatAction.reply:
         _add(AssistantText(_nextId++, reply.replyText ?? ''));
       case ChatAction.goal:
-        if (reply.replyText != null)
+        if (reply.replyText != null) {
           _add(AssistantText(_nextId++, reply.replyText!));
+        }
         _add(GoalDraftCard(_nextId++, reply.goal!));
       case ChatAction.purchase:
         // Hỏi "mua X được không?" là xin kết luận: không bắt người dùng bấm thêm, thẻ tự gọi đánh giá và hiện kết quả. Lời của server ("bấm Đánh giá nhé") bỏ qua.
@@ -783,8 +787,9 @@ class AssistantController extends StateNotifier<AssistantState> {
     final card = _purchaseCard(messageId);
     if (card == null ||
         card.status == PurchaseCardStatus.checking ||
-        card.status == PurchaseCardStatus.cancelled)
+        card.status == PurchaseCardStatus.cancelled) {
       return;
+    }
     _replace(
       card.copyWith(status: PurchaseCardStatus.checking, clearError: true),
     );
@@ -799,13 +804,14 @@ class AssistantController extends StateNotifier<AssistantState> {
         ),
       );
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         _replace(
           card.copyWith(
             status: PurchaseCardStatus.pending,
             error: errorMessage(e),
           ),
         );
+      }
     }
   }
 
@@ -852,8 +858,11 @@ class AssistantController extends StateNotifier<AssistantState> {
   Future<void> confirmGoal(int messageId) async {
     final card = _goalCard(messageId);
     final create = createGoal;
-    if (card == null || create == null || card.status != GoalCardStatus.pending)
+    if (card == null ||
+        create == null ||
+        card.status != GoalCardStatus.pending) {
       return;
+    }
     final deadline = card.goal.deadline;
     if (deadline != null && !deadline.isAfter(DateTime.now())) {
       _replace(
@@ -867,10 +876,11 @@ class AssistantController extends StateNotifier<AssistantState> {
       if (!mounted) return;
       _replace(card.copyWith(status: GoalCardStatus.created, clearError: true));
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         _replace(
           card.copyWith(status: GoalCardStatus.pending, error: errorMessage(e)),
         );
+      }
     }
   }
 
