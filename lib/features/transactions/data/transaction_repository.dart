@@ -103,8 +103,9 @@ class TransactionRepository {
       );
     } on NetworkException {
       // Nháp chỉ có trên server nên offline không có gì để hiện.
-      if (status == TransactionStatus.draft)
+      if (status == TransactionStatus.draft) {
         return const TransactionPage(items: []);
+      }
       return TransactionPage(
         items: await _cached(type: type, fromDate: fromDate, toDate: toDate),
       );

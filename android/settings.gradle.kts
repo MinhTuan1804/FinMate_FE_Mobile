@@ -21,6 +21,8 @@ plugins {
     id("dev.flutter.flutter-plugin-loader") version "1.0.0"
     id("com.android.application") version "9.0.1" apply false
     id("org.jetbrains.kotlin.android") version "2.3.20" apply false
+    // Kotlin 2.x tách compiler Compose ra khỏi AGP; cần plugin này để build các màn Glance (Luồng 9 widgets).
+    id("org.jetbrains.kotlin.plugin.compose") version "2.3.20" apply false
 }
 
 include(":app")

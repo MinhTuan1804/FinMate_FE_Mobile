@@ -64,8 +64,9 @@ class _AiMemoryScreenState extends ConsumerState<AiMemoryScreen> {
     final q = _query.trim().toLowerCase();
     if (q.isNotEmpty &&
         !title.toLowerCase().contains(q) &&
-        !(entry?.value.toLowerCase().contains(q) ?? false))
+        !(entry?.value.toLowerCase().contains(q) ?? false)) {
       return false;
+    }
     return switch (_filter) {
       _Filter.all => true,
       _Filter.set => entry != null,
@@ -136,8 +137,9 @@ class _AiMemoryScreenState extends ConsumerState<AiMemoryScreen> {
     try {
       await ref.read(agentMemoryRepositoryProvider).delete(key);
       ref.invalidate(agentMemoryProvider);
-      if (context.mounted)
+      if (context.mounted) {
         _toast(context, 'Đã xóa ghi nhớ này khỏi bộ nhớ AI.');
+      }
     } on Object catch (e) {
       if (context.mounted) _toast(context, errorMessage(e));
     }

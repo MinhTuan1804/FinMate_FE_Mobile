@@ -27,7 +27,7 @@ class TransactionDetailScreen extends ConsumerStatefulWidget {
 
 class _TransactionDetailScreenState
     extends ConsumerState<TransactionDetailScreen> {
-  late TransactionEntity _tx = widget.transaction;
+  late final TransactionEntity _tx = widget.transaction;
 
   Future<void> _handleEdit() async {
     final updated = await DraftEditSheet.show(context, _tx);
@@ -93,7 +93,9 @@ class _TransactionDetailScreenState
     final isTransfer = _tx.isInternalTransfer;
     final typeColor = isTransfer
         ? AppColors.transferOn(context)
-        : (isExpense ? AppColors.expenseOn(context) : AppColors.incomeOn(context));
+        : (isExpense
+              ? AppColors.expenseOn(context)
+              : AppColors.incomeOn(context));
     final prefix = isTransfer ? '' : (isExpense ? '-' : '+');
     final categories = ref.watch(categoriesProvider).valueOrNull ?? const [];
     final slug = categories

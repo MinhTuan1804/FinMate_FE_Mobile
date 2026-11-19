@@ -84,10 +84,12 @@ class LocalChatDecider {
     required DateTime now,
     DraftSource source = DraftSource.chat,
   }) async {
-    if (analysis.goal != null)
+    if (analysis.goal != null) {
       return GoalDecision(analysis.goal!, replyText: analysis.replyText);
-    if (analysis.goal != null)
+    }
+    if (analysis.goal != null) {
       return GoalDecision(analysis.goal!, replyText: analysis.replyText);
+    }
     if (analysis.entries.isEmpty) {
       if (analysis.hasQuery) return const NeedSummary();
       return Reply(

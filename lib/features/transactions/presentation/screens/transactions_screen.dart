@@ -115,8 +115,9 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
         ),
       );
       // Nháp có thể không còn hợp lệ ở BE (đã duyệt/bị xóa): tải lại để dòng cũ không nằm lại danh sách.
-      if (mounted)
+      if (mounted) {
         ref.read(transactionControllerProvider.notifier).loadTransactions();
+      }
     } finally {
       _busyDrafts.remove(draft.id);
       if (mounted) setState(() {});
@@ -293,8 +294,9 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                       () {
                         // Đang ở Chờ duyệt thì tắt chế độ nháp; chỉ đổi loại khi khác loại đang lưu để khỏi tải thừa
                         if (drafts) controller.setDraftsOnly(false);
-                        if (!drafts || controller.filter != type)
+                        if (!drafts || controller.filter != type) {
                           controller.setFilter(type);
+                        }
                         setState(() {});
                       },
                     ),
@@ -340,8 +342,9 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                   ),
                 ),
                 data: (transactions) {
-                  if (drafts)
+                  if (drafts) {
                     return _buildDrafts(context, transactions, controller);
+                  }
                   if (transactions.isEmpty) return _buildEmpty(context, isDark);
 
                   // Nhóm theo ngày (giờ địa phương)
@@ -537,7 +540,8 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
 
   /// "Tháng 11, 2026" khi khoảng là đúng một tháng dương lịch, ngược lại "01/11/2026 – 16/11/2026"
   static String _rangeLabel(DateTimeRange r) {
-    final isMonth = r.start.day == 1 && _sameDay(r.end, _monthRange(r.start).end);
+    final isMonth =
+        r.start.day == 1 && _sameDay(r.end, _monthRange(r.start).end);
     if (isMonth) return 'Tháng ${r.start.month}, ${r.start.year}';
     final f = DateFormat('dd/MM/yyyy');
     return '${f.format(r.start)} – ${f.format(r.end)}';
@@ -549,8 +553,20 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     final presets = <(String, DateTimeRange)>[
       ('Tháng này', _monthRange(now)),
       ('Tháng trước', _monthRange(DateTime(now.year, now.month - 1))),
-      ('Năm nay', DateTimeRange(start: DateTime(now.year), end: DateTime(now.year, 12, 31))),
-      ('Năm trước', DateTimeRange(start: DateTime(now.year - 1), end: DateTime(now.year - 1, 12, 31))),
+      (
+        'Năm nay',
+        DateTimeRange(
+          start: DateTime(now.year),
+          end: DateTime(now.year, 12, 31),
+        ),
+      ),
+      (
+        'Năm trước',
+        DateTimeRange(
+          start: DateTime(now.year - 1),
+          end: DateTime(now.year - 1, 12, 31),
+        ),
+      ),
     ];
     // Giá trị "custom" là DateTimeRange rỗng đặc biệt: dùng null để phân biệt với đóng sheet
     final picked = await showModalBottomSheet<Object>(
@@ -746,7 +762,9 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     final isExpense = tx.type == TransactionType.expense;
     final color = isTransfer
         ? AppColors.transferOn(context)
-        : (isExpense ? AppColors.expenseOn(context) : AppColors.incomeOn(context));
+        : (isExpense
+              ? AppColors.expenseOn(context)
+              : AppColors.incomeOn(context));
     final prefix = isTransfer ? '' : (isExpense ? '-' : '+');
     final title = tx.description.isNotEmpty
         ? tx.description

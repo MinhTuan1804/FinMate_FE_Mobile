@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:finmate/core/network/api_exceptions.dart';
 import 'package:finmate/core/theme/glass/glass_colors.dart';
@@ -63,20 +62,28 @@ class _TermsConsentScreenState extends ConsumerState<TermsConsentScreen> {
         expand: false,
         builder: (context, scrollController) => GlassCard(
           level: 3,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(GlassRadius.hero)),
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(GlassRadius.hero),
+          ),
           child: SingleChildScrollView(
             controller: scrollController,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Điều khoản sử dụng & Chính sách quyền riêng tư', style: GlassTypography.headlineMd()),
+                Text(
+                  'Điều khoản sử dụng & Chính sách quyền riêng tư',
+                  style: GlassTypography.headlineMd(),
+                ),
                 const SizedBox(height: 16),
                 Text(
                   'FinMate giúp bạn ghi chép và theo dõi chi tiêu. Để làm được việc đó, chúng tôi xử lý các dữ liệu sau:',
                   style: GlassTypography.bodyMd(color: GlassColors.textPrimary),
                 ),
                 const SizedBox(height: 12),
-                _bullet('Tài khoản', 'email và thông tin đăng nhập, lưu trên máy chủ của FinMate.'),
+                _bullet(
+                  'Tài khoản',
+                  'email và thông tin đăng nhập, lưu trên máy chủ của FinMate.',
+                ),
                 _bullet(
                   'Dữ liệu tài chính của bạn (giao dịch, ví, ngân sách, mục tiêu tiết kiệm)',
                   'lưu trên điện thoại của bạn và được đồng bộ lên máy chủ của FinMate để sao lưu, khôi phục khi bạn đổi máy.',
@@ -137,15 +144,20 @@ class _TermsConsentScreenState extends ConsumerState<TermsConsentScreen> {
   }
 
   Widget _bullet(String label, String text) => Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: Text.rich(
-          TextSpan(children: [
-            TextSpan(text: '$label: ', style: const TextStyle(fontWeight: FontWeight.w700)),
-            TextSpan(text: text),
-          ]),
-          style: GlassTypography.bodyMd(color: GlassColors.textPrimary),
-        ),
-      );
+    padding: const EdgeInsets.only(bottom: 12),
+    child: Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(
+            text: '$label: ',
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+          TextSpan(text: text),
+        ],
+      ),
+      style: GlassTypography.bodyMd(color: GlassColors.textPrimary),
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -160,20 +172,40 @@ class _TermsConsentScreenState extends ConsumerState<TermsConsentScreen> {
               children: [
                 Text('Trước khi bắt đầu', style: GlassTypography.headlineLg()),
                 const SizedBox(height: 8),
-                Text('FinMate cam kết bảo vệ dữ liệu tài chính của bạn.', style: GlassTypography.bodyMd()),
+                Text(
+                  'FinMate cam kết bảo vệ dữ liệu tài chính của bạn.',
+                  style: GlassTypography.bodyMd(),
+                ),
                 const SizedBox(height: 24),
-                _principle(LucideIcons.shieldCheck, 'Bảo mật cấp ngân hàng', 'Dữ liệu được mã hóa và không bao giờ chia sẻ mật khẩu ngân hàng.'),
+                _principle(
+                  LucideIcons.shieldCheck,
+                  'Bảo mật cấp ngân hàng',
+                  'Dữ liệu được mã hóa và không bao giờ chia sẻ mật khẩu ngân hàng.',
+                ),
                 const SizedBox(height: 14),
-                _principle(LucideIcons.eyeOff, 'Không chia sẻ bên thứ ba', 'Chỉ gửi tên món (không giá tiền, không danh tính) cho dịch vụ phân loại AI.'),
+                _principle(
+                  LucideIcons.eyeOff,
+                  'Không chia sẻ bên thứ ba',
+                  'Chỉ gửi tên món (không giá tiền, không danh tính) cho dịch vụ phân loại AI.',
+                ),
                 const SizedBox(height: 14),
-                _principle(LucideIcons.settings2, 'Quyền kiểm soát thuộc về bạn', 'Xem, sửa, tắt tính năng AI hoặc xóa dữ liệu bất cứ lúc nào trong Cá nhân.'),
+                _principle(
+                  LucideIcons.settings2,
+                  'Quyền kiểm soát thuộc về bạn',
+                  'Xem, sửa, tắt tính năng AI hoặc xóa dữ liệu bất cứ lúc nào trong Cá nhân.',
+                ),
                 const SizedBox(height: 20),
                 GestureDetector(
                   onTap: _showFullText,
                   child: Text(
                     'Xem toàn văn Điều khoản dịch vụ & Chính sách quyền riêng tư',
-                    style: GlassTypography.bodyMd(color: GlassColors.slateAnchor)
-                        .copyWith(fontWeight: FontWeight.w600, decoration: TextDecoration.underline),
+                    style:
+                        GlassTypography.bodyMd(
+                          color: GlassColors.slateAnchor,
+                        ).copyWith(
+                          fontWeight: FontWeight.w600,
+                          decoration: TextDecoration.underline,
+                        ),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -182,9 +214,13 @@ class _TermsConsentScreenState extends ConsumerState<TermsConsentScreen> {
                   children: [
                     Checkbox(
                       value: _checked,
-                      onChanged: _busy ? null : (v) => setState(() => _checked = v ?? false),
+                      onChanged: _busy
+                          ? null
+                          : (v) => setState(() => _checked = v ?? false),
                       activeColor: GlassColors.ink,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(6),
+                      ),
                     ),
                     Expanded(
                       child: Padding(
@@ -193,7 +229,9 @@ class _TermsConsentScreenState extends ConsumerState<TermsConsentScreen> {
                           'Tôi đã đọc và đồng ý với Điều khoản sử dụng và Chính sách quyền riêng tư, gồm cả việc gửi tên món cho dịch vụ AI để phân loại, '
                           'đọc thông báo từ ứng dụng ngân hàng/ví bạn chọn, đăng nhập bằng Google, chia sẻ giao dịch trong nhóm tài chính chung, '
                           'và gửi ảnh hóa đơn nguyên bản cho dịch vụ đọc chữ',
-                          style: GlassTypography.bodySm(color: GlassColors.textPrimary),
+                          style: GlassTypography.bodySm(
+                            color: GlassColors.textPrimary,
+                          ),
                         ),
                       ),
                     ),
@@ -211,7 +249,9 @@ class _TermsConsentScreenState extends ConsumerState<TermsConsentScreen> {
                             children: [
                               Text(
                                 'Đóng góp dữ liệu ẩn danh để cải thiện mô hình FinMate AI (không bắt buộc)',
-                                style: GlassTypography.bodyLg().copyWith(fontWeight: FontWeight.w600),
+                                style: GlassTypography.bodyLg().copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                               const SizedBox(height: 4),
                               Text(
@@ -226,7 +266,9 @@ class _TermsConsentScreenState extends ConsumerState<TermsConsentScreen> {
                         Switch(
                           key: const ValueKey('training-switch'),
                           value: _training,
-                          onChanged: _busy ? null : (v) => setState(() => _training = v),
+                          onChanged: _busy
+                              ? null
+                              : (v) => setState(() => _training = v),
                           activeThumbColor: Colors.white,
                           activeTrackColor: GlassColors.ink,
                           inactiveTrackColor: GlassColors.secondarySurface,
@@ -237,7 +279,10 @@ class _TermsConsentScreenState extends ConsumerState<TermsConsentScreen> {
                 ),
                 if (_error != null) ...[
                   const SizedBox(height: 8),
-                  Text(_error!, style: GlassTypography.bodySm(color: GlassColors.danger)),
+                  Text(
+                    _error!,
+                    style: GlassTypography.bodySm(color: GlassColors.danger),
+                  ),
                 ],
                 const SizedBox(height: 20),
                 GlassPrimaryButton(
@@ -248,7 +293,10 @@ class _TermsConsentScreenState extends ConsumerState<TermsConsentScreen> {
                 const SizedBox(height: 12),
                 GlassGhostButton(
                   label: 'Từ chối và thoát',
-                  onPressed: _busy ? null : () => ref.read(authControllerProvider.notifier).logout(),
+                  onPressed: _busy
+                      ? null
+                      : () =>
+                            ref.read(authControllerProvider.notifier).logout(),
                 ),
               ],
             ),
@@ -270,7 +318,12 @@ class _TermsConsentScreenState extends ConsumerState<TermsConsentScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: GlassTypography.bodyLg().copyWith(fontWeight: FontWeight.w600)),
+                Text(
+                  title,
+                  style: GlassTypography.bodyLg().copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 const SizedBox(height: 4),
                 Text(desc, style: GlassTypography.bodySm()),
               ],
