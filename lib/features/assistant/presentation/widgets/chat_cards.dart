@@ -1021,6 +1021,41 @@ class DraftBatchCardView extends ConsumerWidget {
 }
 
 /// Thẻ xác nhận mục tiêu tiết kiệm từ câu chat. Hiện ngày hạn cụ thể (kèm cụm người dùng đã nói) để họ soát; không bao giờ tự tạo.
+/// Thẻ kết quả của câu lệnh tạo ngân sách / khoản định kỳ / khoản vay nợ: đang lưu, "Đã lưu" kèm "Hoàn tác", đã hoàn tác, hoặc lỗi kèm lý do.
+class ItemCardView extends ConsumerWidget {
+  final ItemCard card;
+  const ItemCardView({super.key, required this.card});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final controller = ref.read(assistantControllerProvider.notifier);
+    final (icon, color, text) = switch (card.status) {
+      ItemCardStatus.saving => (LucideIcons.loader, null, 'Đang lưu...'),
+      ItemCardStatus.created => (LucideIcons.circleCheck, AppColors.safe, '${card.summary ?? 'Đã lưu.'}${card.error == null ? '' : '\n${card.error}'}'),
+      ItemCardStatus.undone => (LucideIcons.circleX, null, 'Đã hoàn tác, mình không lưu mục này.'),
+      ItemCardStatus.failed => (LucideIcons.circleAlert, AppColors.danger, 'Chưa lưu được: ${card.error ?? 'có lỗi xảy ra'}'),
+    };
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.all(14),
+      decoration: _cardDecoration(context),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: color),
+          const SizedBox(width: 8),
+          Expanded(child: Text(text, style: AppTypography.body(context))),
+          if (card.status == ItemCardStatus.created)
+            TextButton(
+              key: const ValueKey('item-undo'),
+              onPressed: () => controller.undoItem(card.id),
+              child: const Text('Hoàn tác'),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 class GoalDraftCardView extends ConsumerWidget {
   final GoalDraftCard card;
   const GoalDraftCardView({super.key, required this.card});

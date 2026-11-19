@@ -613,7 +613,52 @@ class PurchaseAssessment {
       );
 }
 
-enum ChatAction { saved, summary, reply, confirm, goal, purchase }
+/// Ngân sách / khoản định kỳ / khoản vay nợ mà AI đọc ra từ câu chat và đã ĐỦ thông tin: app tạo ngay (có nút "Hoàn tác"). Thiếu thông tin thì server không trả bản này mà hỏi lại.
+class ChatItemDraft {
+  static const budget = 'budget';
+  static const recurring = 'recurring';
+  static const loan = 'loan';
+
+  /// budget | recurring | loan
+  final String kind;
+  final BigInt amountCents;
+
+  /// recurring: tên khoản; loan: tiêu đề ("Cho Bạn An vay")
+  final String? name;
+  final String? categorySlug;
+
+  /// recurring: weekly | monthly | yearly
+  final String? cadence;
+  final DateTime? nextDue;
+
+  /// loan: borrow (mình đi vay) | lend (mình cho vay)
+  final String? direction;
+  final String? counterparty;
+
+  const ChatItemDraft({
+    required this.kind,
+    required this.amountCents,
+    this.name,
+    this.categorySlug,
+    this.cadence,
+    this.nextDue,
+    this.direction,
+    this.counterparty,
+  });
+
+  factory ChatItemDraft.fromJson(Map<String, dynamic> json) => ChatItemDraft(
+    kind: json['kind'] as String? ?? '',
+    amountCents: parseCents(json['amountCents']),
+    name: json['name'] as String?,
+    categorySlug: json['categorySlug'] as String?,
+    cadence: json['cadence'] as String?,
+    nextDue: _parseDate(json['nextDue']),
+    direction: json['direction'] as String?,
+    counterparty: json['counterparty'] as String?,
+  );
+}
+
+enum ChatAction { saved, summary, reply, confirm, goal, purchase, item }
 
 /// Phản hồi của `POST /transactions/chat`
 class ChatReply {
@@ -633,6 +678,9 @@ class ChatReply {
   /// Khoản định mua khi [action] là [ChatAction.purchase]
   final PurchaseDraft? purchase;
 
+  /// Ngân sách / khoản định kỳ / vay nợ đủ thông tin khi [action] là [ChatAction.item]
+  final ChatItemDraft? item;
+
   const ChatReply({
     required this.action,
     this.intent,
@@ -643,6 +691,7 @@ class ChatReply {
     this.summary,
     this.goal,
     this.purchase,
+    this.item,
   });
 
   /// Phản hồi lạ hoặc thiếu dữ liệu tương ứng với `action` → trả lời văn bản chung, không ném
@@ -710,6 +759,17 @@ class ChatReply {
             intent: intent,
             replyText: replyText,
             purchase: draft,
+          );
+        case 'item':
+          final item = json['item'];
+          if (item is! Map<String, dynamic>) return generic();
+          final draft = ChatItemDraft.fromJson(item);
+          if (draft.amountCents <= BigInt.zero || draft.kind.isEmpty) return generic();
+          return ChatReply(
+            action: ChatAction.item,
+            intent: intent,
+            replyText: replyText,
+            item: draft,
           );
         case 'reply':
           return ChatReply(

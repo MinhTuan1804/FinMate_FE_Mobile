@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'package:intl/intl.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
+import 'package:finmate/core/format/money.dart';
 import 'package:finmate/core/network/api_exceptions.dart';
 import 'package:finmate/features/assistant/data/assistant_repository.dart';
 import 'package:finmate/features/assistant/data/draft_saver.dart';
@@ -12,7 +14,11 @@ import 'package:finmate/features/assistant/domain/agent_answer.dart';
 import 'package:finmate/features/assistant/domain/assistant_models.dart';
 import 'package:finmate/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:finmate/features/categories/presentation/categories_provider.dart';
+import 'package:finmate/features/planning/data/loans_repository.dart';
 import 'package:finmate/features/planning/presentation/controllers/planning_controller.dart';
+import 'package:finmate/features/recurring/data/recurring_items_repository.dart';
+import 'package:finmate/features/recurring/domain/recurring_item.dart';
+import 'package:finmate/features/recurring/presentation/controllers/recurring_items_controller.dart';
 import 'package:finmate/features/transactions/domain/entities/transaction_entity.dart';
 import 'package:finmate/features/transactions/presentation/controllers/data_refresh.dart';
 import 'package:finmate/features/transactions/presentation/controllers/transaction_controller.dart';
@@ -106,6 +112,35 @@ class DraftBatchCard extends ChatMessage {
     resolvedSummary: resolvedSummary ?? this.resolvedSummary,
     error: clearError ? null : (error ?? this.error),
   );
+}
+
+enum ItemCardStatus { saving, created, undone, failed }
+
+/// Kết quả tạo một ngân sách / khoản định kỳ / khoản vay nợ từ câu chat: [summary] là câu "Đã lưu..." và [undo] xóa (hoặc trả về như cũ) đúng thứ vừa tạo.
+class ItemOutcome {
+  final String summary;
+  final Future<void> Function() undo;
+
+  const ItemOutcome(this.summary, this.undo);
+}
+
+/// Thẻ báo kết quả của câu lệnh tạo ngân sách / khoản định kỳ / khoản vay nợ. Câu đủ thông tin thì app tạo ngay; thẻ hiện "Đã lưu" kèm "Hoàn tác".
+class ItemCard extends ChatMessage {
+  final ChatItemDraft item;
+  final ItemCardStatus status;
+  final String? summary;
+  final String? error;
+
+  const ItemCard(
+    super.id,
+    this.item, {
+    this.status = ItemCardStatus.saving,
+    this.summary,
+    this.error,
+  });
+
+  ItemCard copyWith({ItemCardStatus? status, String? summary, String? error}) =>
+      ItemCard(id, item, status: status ?? this.status, summary: summary ?? this.summary, error: error ?? this.error);
 }
 
 enum GoalCardStatus { pending, saving, created, cancelled }
@@ -290,6 +325,12 @@ final assistantControllerProvider =
               .read(planningControllerProvider.notifier)
               .createOrUpdateBudget(categoryId: category.id, limitAmountCents: limitCents);
         },
+        createItem: (item) => switch (item.kind) {
+          ChatItemDraft.budget => _createBudgetItem(ref, item),
+          ChatItemDraft.recurring => _createRecurringItem(ref, item),
+          ChatItemDraft.loan => _createLoanItem(ref, item),
+          _ => throw StateError('Loại này app chưa tạo được từ chat.'),
+        },
         onDataChanged: () {
           refreshDerivedData(ref);
           ref.invalidate(transactionControllerProvider);
@@ -300,6 +341,76 @@ final assistantControllerProvider =
       ); // câu giữ lại từ lần mất mạng trước (kể cả trước khi tắt app)
       return controller;
     });
+
+/// Đặt hạn mức tháng cho một nhóm. Nhóm đã có ngân sách thì đổi hạn mức (hoàn tác trả về mức cũ), chưa có thì tạo mới (hoàn tác xóa).
+Future<ItemOutcome> _createBudgetItem(Ref ref, ChatItemDraft item) async {
+  final categories = await ref.read(categoriesProvider.future);
+  final category = categories.where((c) => c.slug == item.categorySlug).firstOrNull;
+  if (category == null) {
+    throw StateError('Bạn chưa có nhóm này (hoặc đã ẩn), hãy bật lại nhóm rồi thử lại.');
+  }
+  final planning = ref.read(planningControllerProvider.notifier);
+  List<dynamic> budgetsOf() => ref.read(planningControllerProvider).valueOrNull?.categoryBudgets ?? const [];
+  final previous = budgetsOf().where((b) => b.categoryId == category.id).firstOrNull;
+  await planning.createOrUpdateBudget(categoryId: category.id, limitAmountCents: item.amountCents);
+  final summary = previous == null
+      ? 'Đã đặt ngân sách ${category.name} ${formatVnd(item.amountCents)}/tháng.'
+      : 'Đã đổi hạn mức ngân sách ${category.name} từ ${formatVnd(previous.limitAmountCents)} thành ${formatVnd(item.amountCents)}/tháng.';
+  return ItemOutcome(summary, () async {
+    if (previous != null) {
+      await planning.createOrUpdateBudget(categoryId: category.id, limitAmountCents: previous.limitAmountCents);
+      return;
+    }
+    final created = budgetsOf().where((b) => b.categoryId == category.id).firstOrNull;
+    if (created != null) await planning.deleteBudget(created.id);
+  });
+}
+
+/// Thêm khoản chi định kỳ (hóa đơn, gói đăng ký); hoàn tác hủy khoản đó.
+Future<ItemOutcome> _createRecurringItem(Ref ref, ChatItemDraft item) async {
+  final due = item.nextDue;
+  if (due == null) throw StateError('Thiếu ngày thanh toán tiếp theo.');
+  final repository = ref.read(recurringItemsRepositoryProvider);
+  final cadence = RecurringCadence.values.where((c) => c.name == item.cadence).firstOrNull ?? RecurringCadence.monthly;
+  final name = item.name ?? 'Khoản định kỳ';
+  final created = await repository.createItem(
+    direction: RecurringDirection.outflow,
+    name: name,
+    amountCents: item.amountCents,
+    cadence: cadence,
+    nextDueDate: due,
+  );
+  ref.invalidate(recurringItemsControllerProvider);
+  return ItemOutcome(
+    'Đã lưu khoản định kỳ "$name": ${formatVnd(item.amountCents)} ${cadence.label.toLowerCase()}, lần tới ${DateFormat('dd/MM/yyyy').format(due)}.',
+    () async {
+      await repository.cancel(created.id);
+      ref.invalidate(recurringItemsControllerProvider);
+    },
+  );
+}
+
+/// Ghi một khoản vay/nợ ("bạn An nợ tôi 700k" = mình cho vay); hoàn tác xóa khoản đó.
+Future<ItemOutcome> _createLoanItem(Ref ref, ChatItemDraft item) async {
+  final who = item.counterparty;
+  if (who == null || who.isEmpty) throw StateError('Thiếu tên người trong khoản vay nợ.');
+  final repository = ref.read(loansRepositoryProvider);
+  final lend = item.direction == 'lend';
+  final loan = await repository.createLoan(
+    type: lend ? LoanType.lend : LoanType.borrow,
+    title: item.name ?? (lend ? 'Cho $who vay' : 'Vay $who'),
+    counterparty: who,
+    principalCents: item.amountCents,
+  );
+  ref.invalidate(loansProvider);
+  return ItemOutcome(
+    lend ? 'Đã ghi: $who nợ bạn ${formatVnd(item.amountCents)}.' : 'Đã ghi: bạn nợ $who ${formatVnd(item.amountCents)}.',
+    () async {
+      await repository.deleteLoan(loan.id);
+      ref.invalidate(loansProvider);
+    },
+  );
+}
 
 class _FailedVoice {
   final String path;
@@ -324,6 +435,12 @@ const _outOfScopeIntent = 'out_of_scope';
 
 /// `intent` của server khi nó vừa hỏi giá một khoản định mua
 const _purchaseNeedsAmount = 'purchase_needs_amount';
+
+/// `intent` của server cho câu tạo ngân sách / khoản định kỳ / vay nợ (có `item` khi đủ thông tin, không thì `replyText` là câu hỏi lại)
+const _createItemIntent = 'create_item';
+
+/// Câu trả lời cho câu hỏi lại thường ngắn; dài hơn mức này thì coi là câu mới, không ghép vào câu dở
+const _maxFollowUpLength = 40;
 
 /// Tin chỉ có một số tiền ("15tr", "15 triệu", "800k", "1.500.000đ"): có thể là câu trả lời cho câu hỏi giá vừa rồi
 final _bareAmount = RegExp(
@@ -366,6 +483,13 @@ class AssistantController extends StateNotifier<AssistantState> {
 
   /// Đặt hạn mức tháng của một nhóm (theo slug) khi người dùng bấm thẻ đề xuất của agent; null = thẻ đề xuất không áp dụng được
   final Future<void> Function(String categorySlug, BigInt limitCents)? setBudgetLimit;
+
+  /// Tạo ngân sách / khoản định kỳ / khoản vay nợ mà câu chat đã nói đủ thông tin; null = app không tạo được (trả lời hướng dẫn thêm ở tab Kế hoạch)
+  final Future<ItemOutcome> Function(ChatItemDraft item)? createItem;
+  final Map<int, Future<void> Function()> _itemUndo = {};
+
+  /// Câu tạo ngân sách / khoản định kỳ / vay nợ mà bot vừa hỏi lại phần thiếu. Server không nhớ gì giữa hai tin, nên tin kế tiếp (ngắn: "hằng tháng", "ngày 5", "ăn uống") được ghép vào sau câu này rồi phân tích lại.
+  String? _askedItem;
   Timer? _retryTimer;
   bool _retrying = false;
 
@@ -395,6 +519,7 @@ class AssistantController extends StateNotifier<AssistantState> {
     this.changeGoalDeadline,
     this.autoCreateGoals = true,
     this.setBudgetLimit,
+    this.createItem,
     Duration? retryEvery = const Duration(seconds: 30),
   }) : super(const AssistantState()) {
     if (pending != null && retryEvery != null) {
@@ -423,9 +548,13 @@ class AssistantController extends StateNotifier<AssistantState> {
 
     final asked = _askedPurchase;
     _askedPurchase = null;
+    final askedItem = _askedItem;
+    _askedItem = null;
     _add(UserText(_nextId++, trimmed));
     final outgoing = asked != null && _bareAmount.hasMatch(trimmed)
         ? '$asked $trimmed'
+        : askedItem != null && trimmed.length <= _maxFollowUpLength && !trimmed.contains('?')
+        ? '$askedItem, $trimmed'
         : trimmed;
     if (await _deliver(outgoing, const Uuid().v4(), source)) {
       unawaited(retryPending());
@@ -484,6 +613,7 @@ class AssistantController extends StateNotifier<AssistantState> {
         );
         if (!mounted) return true;
         _askedPurchase = reply.intent == _purchaseNeedsAmount ? text : null;
+        _askedItem = reply.intent == _createItemIntent && reply.action == ChatAction.reply ? text : null;
         if (_wantsAgent(reply)) {
           await _answerWithAgent(text, reply, source);
         } else {
@@ -960,11 +1090,50 @@ class AssistantController extends StateNotifier<AssistantState> {
         _add(AssistantText(_nextId++, reply.replyText ?? ''));
       case ChatAction.goal:
         await _presentGoal(reply.goal!, serverText: reply.replyText);
+      case ChatAction.item:
+        await _presentItem(reply.item!);
       case ChatAction.purchase:
         // Hỏi "mua X được không?" là xin kết luận: không bắt người dùng bấm thêm, thẻ tự gọi đánh giá và hiện kết quả. Lời của server ("bấm Đánh giá nhé") bỏ qua.
         final id = _nextId++;
         _add(PurchaseCard(id, reply.purchase!));
         unawaited(assessPurchase(id));
+    }
+  }
+
+  /// Câu lệnh đã đủ thông tin (người dùng ra lệnh rõ, hoàn tác được): tạo ngay rồi hiện "Đã lưu" kèm "Hoàn tác". Lỗi thì thẻ báo lý do, không để lại gì.
+  Future<void> _presentItem(ChatItemDraft item) async {
+    final creator = createItem;
+    if (creator == null) {
+      _add(AssistantText(_nextId++, 'Mình hiểu rồi nhưng chưa tạo được mục này từ chat. Bạn thêm giúp mình ở tab Kế hoạch nhé.'));
+      return;
+    }
+    final id = _nextId++;
+    final card = ItemCard(id, item);
+    _add(card);
+    try {
+      final outcome = await creator(item);
+      _itemUndo[id] = outcome.undo;
+      if (!mounted) return;
+      _replace(card.copyWith(status: ItemCardStatus.created, summary: outcome.summary));
+      onDataChanged?.call();
+    } catch (e) {
+      if (mounted) _replace(card.copyWith(status: ItemCardStatus.failed, error: e is StateError ? e.message : errorMessage(e)));
+    }
+  }
+
+  /// "Hoàn tác" thẻ tạo ngân sách / khoản định kỳ / vay nợ; lỗi thì thẻ giữ nguyên kèm lý do để bấm lại.
+  Future<void> undoItem(int messageId) async {
+    final card = state.messages.whereType<ItemCard>().where((m) => m.id == messageId).firstOrNull;
+    final undo = _itemUndo[messageId];
+    if (card == null || undo == null || card.status != ItemCardStatus.created) return;
+    try {
+      await undo();
+      _itemUndo.remove(messageId);
+      if (!mounted) return;
+      _replace(card.copyWith(status: ItemCardStatus.undone));
+      onDataChanged?.call();
+    } catch (e) {
+      if (mounted) _replace(card.copyWith(error: e is StateError ? e.message : errorMessage(e)));
     }
   }
 

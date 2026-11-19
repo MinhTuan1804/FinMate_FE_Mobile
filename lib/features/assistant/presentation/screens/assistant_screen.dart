@@ -555,6 +555,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
     DraftCard m => AiRow(child: DraftCardView(card: m)),
     DraftBatchCard m => AiRow(child: DraftBatchCardView(card: m)),
     GoalDraftCard m => AiRow(child: GoalDraftCardView(card: m)),
+    ItemCard m => AiRow(child: ItemCardView(card: m)),
     PurchaseCard m => AiRow(child: PurchaseCardView(card: m)),
     AgentCard m => AiRow(child: AgentCardView(card: m)),
     ErrorNote m => AiRow(
