@@ -141,7 +141,7 @@ class _AcceptInvitationScreenState extends ConsumerState<AcceptInvitationScreen>
                     icon: _loading
                         ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                         : const Icon(LucideIcons.userPlus, size: 18),
-                    label: Text('Chấp nhận & Tham gia nhóm', style: GlassTypography.buttonText()),
+                    label: FittedBox(fit: BoxFit.scaleDown, child: Text('Chấp nhận & Tham gia nhóm', style: GlassTypography.buttonText(), maxLines: 1)),
                   ),
                 ),
                 const SizedBox(height: 8),

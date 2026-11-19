@@ -3,42 +3,43 @@ import 'package:finmate/core/theme/glass/glass_colors.dart';
 import 'package:finmate/core/theme/glass/glass_radius.dart';
 import 'package:finmate/core/theme/glass/glass_typography.dart';
 import 'package:finmate/shared/widgets/glass/glass_buttons.dart';
+import 'package:finmate/shared/widgets/glass/glass_card.dart';
 import 'package:finmate/shared/widgets/glass/glass_radio_card.dart';
 
 /// Khung kính (glass) dùng chung cho mọi dialog — cùng phong cách `GlassCard` level 3 (modal) đã
 /// dùng ở các bottom sheet (I3's `_FundEntrySheetScaffold`, `_GroupSettingsSheet` cũ), nhưng hiện
 /// giữa màn hình qua [showDialog] thay vì trượt lên từ đáy. Không gọi trực tiếp — dùng các hàm tĩnh
 /// của [GlassDialog] bên dưới.
-class _GlassDialogShell extends StatelessWidget {
+class GlassDialogShell extends StatelessWidget {
   final String title;
   final Widget child;
 
-  const _GlassDialogShell({required this.title, required this.child});
+  const GlassDialogShell({required this.title, required this.child});
 
   @override
   Widget build(BuildContext context) {
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Container(
-        padding: const EdgeInsets.all(20),
+      elevation: 0,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 400),
-        decoration: BoxDecoration(
-          color: GlassColors.glassFillModal,
+        // GlassCard làm mờ nội dung phía sau; chỉ tô màu bán trong suốt thì chữ của màn dưới xuyên qua hộp thoại.
+        child: GlassCard(
+          level: 3,
+          padding: const EdgeInsets.all(20),
           borderRadius: GlassRadius.roundedCardLarge,
-          border: Border.all(color: GlassColors.glassBorderModal),
-          boxShadow: [GlassColors.level3Shadow()],
-        ),
-        child: Material(
-          type: MaterialType.transparency,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: GlassTypography.headlineSm()),
-              const SizedBox(height: 16),
-              child,
-            ],
+          child: Material(
+            type: MaterialType.transparency,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Semantics(header: true, child: Text(title, style: GlassTypography.headlineSm())),
+                const SizedBox(height: 16),
+                child,
+              ],
+            ),
           ),
         ),
       ),
@@ -66,7 +67,7 @@ class GlassDialog {
   }) {
     return showDialog<bool>(
       context: context,
-      builder: (ctx) => _GlassDialogShell(
+      builder: (ctx) => GlassDialogShell(
         title: title,
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -128,7 +129,7 @@ class GlassDialog {
   }) {
     return showDialog<T>(
       context: context,
-      builder: (ctx) => _GlassDialogShell(
+      builder: (ctx) => GlassDialogShell(
         title: title,
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -166,7 +167,7 @@ class GlassDialog {
   }) {
     return showDialog<T>(
       context: context,
-      builder: (ctx) => _GlassDialogShell(
+      builder: (ctx) => GlassDialogShell(
         title: title,
         child: StatefulBuilder(
           builder: (ctx2, setState) => Column(

@@ -196,13 +196,13 @@ class RecurringItemsScreen extends ConsumerWidget {
             key: ValueKey('confirm-${item.id}'),
             onPressed: () => _runAction(context, ref, () => ref.read(recurringItemsControllerProvider.notifier).confirm(item.id), 'Đã xác nhận'),
             icon: const Icon(LucideIcons.check, size: 16),
-            label: const Text('Xác nhận'),
+            label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Xác nhận', maxLines: 1)),
           ),
           TextButton.icon(
             key: ValueKey('reject-${item.id}'),
             onPressed: () => _runAction(context, ref, () => ref.read(recurringItemsControllerProvider.notifier).reject(item.id), 'Đã từ chối'),
             icon: Icon(LucideIcons.x, size: 16, color: AppColors.danger),
-            label: Text('Từ chối', style: TextStyle(color: AppColors.danger)),
+            label: FittedBox(fit: BoxFit.scaleDown, child: Text('Từ chối', style: TextStyle(color: AppColors.danger), maxLines: 1)),
           ),
         ];
       case RecurringStatus.active:
@@ -231,7 +231,7 @@ class RecurringItemsScreen extends ConsumerWidget {
             key: ValueKey('resume-${item.id}'),
             onPressed: () => _runAction(context, ref, () => ref.read(recurringItemsControllerProvider.notifier).resume(item.id), 'Đã tiếp tục'),
             icon: const Icon(LucideIcons.refreshCw, size: 16),
-            label: const Text('Tiếp tục'),
+            label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Tiếp tục', maxLines: 1)),
           ),
           IconButton(
             key: ValueKey('edit-${item.id}'),
@@ -382,7 +382,7 @@ class _RecurringDialogState extends State<RecurringFormDialog> {
             OutlinedButton.icon(
               onPressed: _pickDate,
               icon: const Icon(LucideIcons.calendar, size: 16),
-              label: Text(_nextDueDate == null ? 'Chọn ngày đến hạn tiếp theo' : DateFormat('dd/MM/yyyy').format(_nextDueDate!)),
+              label: FittedBox(fit: BoxFit.scaleDown, child: Text(_nextDueDate == null ? 'Chọn ngày đến hạn tiếp theo' : DateFormat('dd/MM/yyyy').format(_nextDueDate!), maxLines: 1)),
             ),
             if (widget.categories.isNotEmpty) ...[
               const SizedBox(height: 12),

@@ -203,7 +203,7 @@ class ProfileScreen extends ConsumerWidget {
               name: user?.displayName ?? '',
               email: user?.email ?? '',
               incomeCents: user?.monthlyIncomeCents,
-              planLabel: (plan != null && !plan.isFree) ? plan.planName : null,
+              planLabel: (plan != null && plan.enabled && !plan.isFree) ? plan.planName : null,
             ),
             const SizedBox(height: 24),
             _Group(
@@ -310,7 +310,7 @@ class ProfileScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 24),
             // Các mục dưới đây không có trong Figma H1 nhưng vẫn cần lối vào từ màn này.
-            const _Group(
+            _Group(
               title: 'Quản lý tài chính',
               rows: [
                 _Row(key: ValueKey('open-recurring'), icon: LucideIcons.refreshCw, label: 'Khoản thu/chi định kỳ', route: '/recurring-items'),
@@ -318,7 +318,9 @@ class ProfileScreen extends ConsumerWidget {
                 _Row(key: ValueKey('open-forecast'), icon: LucideIcons.trendingUp, label: 'Dự báo tài chính', route: '/forecast'),
                 _Row(key: ValueKey('open-finance-methods'), icon: LucideIcons.wallet, label: 'Cách quản lý tài chính', route: '/finance-methods'),
                 _Row(key: ValueKey('open-category-management'), icon: LucideIcons.tag, label: 'Danh mục', route: '/profile/categories'),
-                _Row(key: ValueKey('open-subscription'), icon: LucideIcons.crown, label: 'Gói đăng ký', route: '/profile/subscription'),
+                // Gói đăng ký chưa đưa vào sử dụng (cờ features.subscriptions tắt): ẩn lối vào, bật cờ ở backend là hiện lại.
+                if (plan?.enabled == true)
+                  const _Row(key: ValueKey('open-subscription'), icon: LucideIcons.crown, label: 'Gói đăng ký', route: '/profile/subscription'),
               ],
             ),
             const SizedBox(height: 24),
@@ -337,7 +339,7 @@ class ProfileScreen extends ConsumerWidget {
             OutlinedButton.icon(
               onPressed: () => _logout(context, ref),
               icon: const Icon(LucideIcons.logOut, size: 18, color: AppColors.danger),
-              label: const Text('Đăng xuất tài khoản', style: TextStyle(color: AppColors.danger)),
+              label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Đăng xuất tài khoản', style: TextStyle(color: AppColors.danger), maxLines: 1)),
               style: OutlinedButton.styleFrom(
                 backgroundColor: AppColors.inset(context, 0.7),
                 side: BorderSide(color: AppColors.danger.withValues(alpha: 0.5)),
@@ -421,7 +423,7 @@ class _ProfileCard extends StatelessWidget {
                 key: const ValueKey('open-edit-profile'),
                 onPressed: () => context.push('/profile/edit'),
                 icon: const Icon(LucideIcons.pencil, size: 14),
-                label: const Text('Sửa'),
+                label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Sửa', maxLines: 1)),
                 style: OutlinedButton.styleFrom(
                   shape: const StadiumBorder(),
                   backgroundColor: AppColors.inset(context, 0.8),

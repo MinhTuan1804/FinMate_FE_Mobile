@@ -9,6 +9,9 @@ class OnboardingInput {
   final BigInt cashBalanceCents;
   final List<AccountProviderInfo> selectedProviders;
 
+  /// Số dư ban đầu của từng tài khoản đã chọn, theo id nhà cung cấp; thiếu = 0.
+  final Map<String, BigInt> providerBalancesCents;
+
   /// Ngân sách chi tiêu cả tháng (tùy chọn); null = không đặt
   final BigInt? monthlyBudgetCents;
 
@@ -16,6 +19,7 @@ class OnboardingInput {
     required this.monthlyIncomeCents,
     required this.cashBalanceCents,
     required this.selectedProviders,
+    this.providerBalancesCents = const {},
     this.monthlyBudgetCents,
   });
 }
@@ -62,6 +66,7 @@ class OnboardingController {
         name: provider.displayName,
         type: provider.type,
         providerConfigId: provider.id,
+        initialBalanceCents: input.providerBalancesCents[provider.id],
       );
       existing = accounts.current;
     }

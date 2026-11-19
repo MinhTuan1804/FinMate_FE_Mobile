@@ -75,6 +75,22 @@ void main() {
     expect(backend.accounts.first['initialBalanceCents'] ?? backend.accounts.first['balanceCents'], 500000);
   });
 
+  test('số dư ban đầu nhập cho từng tài khoản đã chọn được gửi lên, thiếu thì để mặc định', () async {
+    final vcb = _provider('vietcombank');
+    final momo = _provider('momo');
+    await controller.complete(OnboardingInput(
+      monthlyIncomeCents: 1000,
+      cashBalanceCents: BigInt.zero,
+      selectedProviders: [vcb, momo],
+      providerBalancesCents: {vcb.id: BigInt.from(2500000)},
+    ));
+
+    final bank = backend.accounts.firstWhere((a) => a['accountType'] == 'Bank');
+    final wallet = backend.accounts.firstWhere((a) => a['accountType'] == 'EWallet');
+    expect(bank['balanceCents'], 2500000);
+    expect(wallet['balanceCents'] ?? 0, 0);
+  });
+
   test('chạy lại không tạo trùng tài khoản (idempotent)', () async {
     final input = OnboardingInput(
       monthlyIncomeCents: 1000,

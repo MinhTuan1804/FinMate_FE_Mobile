@@ -29,13 +29,16 @@ class I7GroupSettingsScreen extends ConsumerWidget {
   final String groupId;
   const I7GroupSettingsScreen({super.key, required this.groupId});
 
-  Future<void> _runAction(BuildContext context, WidgetRef ref, Future<void> Function() action, String successMessage) async {
+  /// Trả về true khi [action] thành công.
+  Future<bool> _runAction(BuildContext context, WidgetRef ref, Future<void> Function() action, String successMessage) async {
     final messenger = ScaffoldMessenger.of(context);
     try {
       await action();
       messenger.showSnackBar(SnackBar(content: Text(successMessage)));
+      return true;
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text(errorMessage(e)), backgroundColor: GlassColors.danger));
+      return false;
     }
   }
 
@@ -85,8 +88,8 @@ class I7GroupSettingsScreen extends ConsumerWidget {
     }, 'Đã đổi chế độ hiển thị');
   }
 
-  Future<void> _toggleAlerts(BuildContext context, WidgetRef ref, bool enabled) async {
-    await _runAction(
+  Future<bool> _toggleAlerts(BuildContext context, WidgetRef ref, bool enabled) {
+    return _runAction(
       context,
       ref,
       () => ref.read(groupsRepositoryProvider).setAlerts(groupId: groupId, enabled: enabled),
@@ -284,7 +287,7 @@ class I7GroupSettingsScreen extends ConsumerWidget {
                                     key: const ValueKey('create-fund'),
                                     onPressed: () => _createFund(context, ref),
                                     icon: const Icon(LucideIcons.plusCircle, size: 16),
-                                    label: const Text('Tạo quỹ chung'),
+                                    label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Tạo quỹ chung', maxLines: 1)),
                                   ),
                               ],
                             ),
@@ -294,27 +297,7 @@ class I7GroupSettingsScreen extends ConsumerWidget {
                   Text('CẢNH BÁO', style: GlassTypography.labelCaps(color: GlassColors.textMuted)),
                   const SizedBox(height: 8),
                   GlassCard(
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            key: const ValueKey('toggle-alerts-on'),
-                            onPressed: () => _toggleAlerts(context, ref, true),
-                            icon: const Icon(LucideIcons.bellRing, size: 16),
-                            label: const Text('Bật cảnh báo'),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            key: const ValueKey('toggle-alerts-off'),
-                            onPressed: () => _toggleAlerts(context, ref, false),
-                            icon: const Icon(LucideIcons.bellOff, size: 16),
-                            label: const Text('Tắt cảnh báo'),
-                          ),
-                        ),
-                      ],
-                    ),
+                    child: _AlertToggle(onChange: (enabled) => _toggleAlerts(context, ref, enabled)),
                   ),
                   const SizedBox(height: 20),
                   Text('VÙNG QUẢN TRỊ NÂNG CAO', style: GlassTypography.labelCaps(color: GlassColors.danger)),
@@ -346,7 +329,7 @@ class I7GroupSettingsScreen extends ConsumerWidget {
                           shape: RoundedRectangleBorder(borderRadius: GlassRadius.roundedPill),
                         ),
                         icon: const Icon(LucideIcons.trash2, size: 16),
-                        label: const Text('Giải tán nhóm'),
+                        label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Giải tán nhóm', maxLines: 1)),
                       ),
                     ),
                   ] else
@@ -362,7 +345,7 @@ class I7GroupSettingsScreen extends ConsumerWidget {
                           shape: RoundedRectangleBorder(borderRadius: GlassRadius.roundedPill),
                         ),
                         icon: const Icon(LucideIcons.logOut, size: 16),
-                        label: const Text('Rời khỏi nhóm'),
+                        label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Rời khỏi nhóm', maxLines: 1)),
                       ),
                     ),
                 ],
@@ -373,4 +356,61 @@ class I7GroupSettingsScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// Hai nút Bật/Tắt cảnh báo: nút vừa bấm thành công sẽ sáng (active). BE chỉ có PUT, không trả trạng
+/// thái hiện tại, nên chưa bấm lần nào thì chưa nút nào sáng — không đoán trạng thái.
+class _AlertToggle extends StatefulWidget {
+  final Future<bool> Function(bool enabled) onChange;
+  const _AlertToggle({required this.onChange});
+
+  @override
+  State<_AlertToggle> createState() => _AlertToggleState();
+}
+
+class _AlertToggleState extends State<_AlertToggle> {
+  bool? _on;
+  bool _busy = false;
+
+  Future<void> _set(bool enabled) async {
+    if (_busy || _on == enabled) return;
+    setState(() => _busy = true);
+    final ok = await widget.onChange(enabled);
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      if (ok) _on = enabled;
+    });
+  }
+
+  Widget _button({required Key key, required bool enabled, required IconData icon, required String label}) {
+    final active = _on == enabled;
+    return Expanded(
+      child: Semantics(
+        selected: active,
+        child: OutlinedButton.icon(
+          key: key,
+          onPressed: _busy ? null : () => _set(enabled),
+          style: OutlinedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            backgroundColor: active ? GlassColors.ink : null,
+            foregroundColor: active ? GlassColors.onInk : null,
+            side: active ? BorderSide(color: GlassColors.ink) : null,
+          ),
+          icon: Icon(icon, size: 16),
+          // Một dòng, tự thu nhỏ chữ khi hẹp thay vì xuống hàng.
+          label: FittedBox(fit: BoxFit.scaleDown, child: Text(label, maxLines: 1)),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      _button(key: const ValueKey('toggle-alerts-on'), enabled: true, icon: LucideIcons.bellRing, label: 'Bật cảnh báo'),
+      const SizedBox(width: 8),
+      _button(key: const ValueKey('toggle-alerts-off'), enabled: false, icon: LucideIcons.bellOff, label: 'Tắt cảnh báo'),
+    ],
+  );
 }

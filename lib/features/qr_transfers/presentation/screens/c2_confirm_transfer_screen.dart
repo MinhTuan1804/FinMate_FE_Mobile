@@ -340,7 +340,7 @@ class _C2ConfirmTransferScreenState extends ConsumerState<C2ConfirmTransferScree
                                 key: const ValueKey('c2-lookup-counterparty'),
                                 onPressed: _lookingUp ? null : _lookupCounterparty,
                                 icon: const Icon(LucideIcons.search, size: 16),
-                                label: const Text('Tra cứu danh mục đã nhớ'),
+                                label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Tra cứu danh mục đã nhớ', maxLines: 1)),
                               ),
                             ),
                             if (_lookupChecked)

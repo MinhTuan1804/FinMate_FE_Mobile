@@ -23,7 +23,9 @@ import 'package:finmate/shared/widgets/glass/glass_transaction_row.dart';
 
 /// Ví đang được chọn qua chip trên Trang chủ; null = "Tất cả" (tổng mọi ví, hành vi mặc định
 /// trước đây). Issue D (2026-11-13): trước đây chip chỉ trang trí, không đổi số liệu nào cả.
-final homeSelectedAccountProvider = StateProvider.autoDispose<String?>((ref) => null);
+final homeSelectedAccountProvider = StateProvider.autoDispose<String?>(
+  (ref) => null,
+);
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -38,7 +40,10 @@ class HomeScreen extends ConsumerWidget {
         backgroundColor: Colors.transparent,
         body: SafeArea(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 20.0,
+              vertical: 16.0,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -50,17 +55,28 @@ class HomeScreen extends ConsumerWidget {
                       children: [
                         Text('Xin chào,', style: GlassTypography.bodyMd()),
                         const SizedBox(height: 2),
-                        Text(user?.displayName ?? 'Bạn của FinMate', style: GlassTypography.headlineLg()),
+                        Text(
+                          user?.displayName ?? 'Bạn của FinMate',
+                          style: GlassTypography.headlineLg(),
+                        ),
                       ],
                     ),
                     Row(
                       children: [
                         IconButton(
-                          icon: Icon(LucideIcons.bell, size: 22, color: GlassColors.textPrimary),
+                          icon: Icon(
+                            LucideIcons.bell,
+                            size: 22,
+                            color: GlassColors.textPrimary,
+                          ),
                           onPressed: () => context.push('/notifications'),
                         ),
                         IconButton(
-                          icon: Icon(LucideIcons.circleUser, size: 24, color: GlassColors.textPrimary),
+                          icon: Icon(
+                            LucideIcons.circleUser,
+                            size: 24,
+                            color: GlassColors.textPrimary,
+                          ),
                           onPressed: () => context.push('/profile'),
                         ),
                       ],
@@ -83,19 +99,33 @@ class HomeScreen extends ConsumerWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('GIAO DỊCH GẦN ĐÂY', style: GlassTypography.labelCaps()),
+                    Text(
+                      'GIAO DỊCH GẦN ĐÂY',
+                      style: GlassTypography.labelCaps(),
+                    ),
                     TextButton(
                       onPressed: () => context.push('/transactions'),
-                      child: Text('Xem tất cả', style: GlassTypography.bodyMd(color: GlassColors.accentSkyBlue)),
+                      child: Text(
+                        'Xem tất cả',
+                        style: GlassTypography.bodyMd(
+                          color: GlassColors.accentSkyBlue,
+                        ),
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 8),
                 txState.when(
                   loading: () => const Center(
-                    child: Padding(padding: EdgeInsets.all(20.0), child: CircularProgressIndicator()),
+                    child: Padding(
+                      padding: EdgeInsets.all(20.0),
+                      child: CircularProgressIndicator(),
+                    ),
                   ),
-                  error: (_, __) => Text('Không thể tải giao dịch', style: GlassTypography.bodyMd()),
+                  error: (_, __) => Text(
+                    'Không thể tải giao dịch',
+                    style: GlassTypography.bodyMd(),
+                  ),
                   data: (transactions) {
                     final recents = transactions.take(4).toList();
                     if (recents.isEmpty) {
@@ -110,9 +140,14 @@ class HomeScreen extends ConsumerWidget {
                       );
                     }
                     return GlassCard(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 4,
+                      ),
                       child: Column(
-                        children: [for (final tx in recents) _buildTransactionRow(tx)],
+                        children: [
+                          for (final tx in recents) _buildTransactionRow(tx),
+                        ],
                       ),
                     );
                   },
@@ -129,20 +164,29 @@ class HomeScreen extends ConsumerWidget {
   Widget _buildBalanceCard(BuildContext context, WidgetRef ref) {
     final accounts = ref.watch(accountsControllerProvider);
     final selectedAccountId = ref.watch(homeSelectedAccountProvider);
-    final summary = ref.watch(monthlySummaryForAccountProvider(selectedAccountId));
+    final summary = ref.watch(
+      monthlySummaryForAccountProvider(selectedAccountId),
+    );
 
-    final selectedAccount = accounts.valueOrNull?.where((a) => a.id == selectedAccountId).firstOrNull;
+    final selectedAccount = accounts.valueOrNull
+        ?.where((a) => a.id == selectedAccountId)
+        .firstOrNull;
     final balanceText = accounts.when(
       data: (list) => formatVnd(
-        selectedAccount?.balanceCents ?? list.fold(BigInt.zero, (sum, a) => sum + a.balanceCents),
+        selectedAccount?.balanceCents ??
+            list.fold(BigInt.zero, (sum, a) => sum + a.balanceCents),
       ),
       loading: () => '...',
       error: (_, __) => '—',
     );
     final hasNoAccount = accounts.valueOrNull?.isEmpty ?? false;
     final hasError = accounts.hasError || summary.hasError;
-    final income = summary.valueOrNull == null ? '—' : '+${formatVnd(summary.value!.totalIncomeCents)}';
-    final expense = summary.valueOrNull == null ? '—' : '-${formatVnd(summary.value!.totalSpentCents)}';
+    final income = summary.valueOrNull == null
+        ? '—'
+        : '+${formatVnd(summary.value!.totalIncomeCents)}';
+    final expense = summary.valueOrNull == null
+        ? '—'
+        : '-${formatVnd(summary.value!.totalSpentCents)}';
 
     return GlassCard(
       level: 2,
@@ -152,22 +196,41 @@ class HomeScreen extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            selectedAccount == null ? 'TỔNG TÀI SẢN KHẢ DỤNG' : 'SỐ DƯ · ${selectedAccount.name.toUpperCase()}',
+            selectedAccount == null
+                ? 'TỔNG TÀI SẢN KHẢ DỤNG'
+                : 'SỐ DƯ · ${selectedAccount.name.toUpperCase()}',
             style: GlassTypography.labelCaps(),
           ),
           const SizedBox(height: 8),
           Text(balanceText, style: GlassTypography.displayHero()),
           if (hasNoAccount) ...[
             const SizedBox(height: 4),
-            Text('Bạn chưa có tài khoản. Bấm "Ghi chép" để tạo ví đầu tiên.', style: GlassTypography.bodySm()),
+            Text(
+              'Bạn chưa có tài khoản. Bấm "Ghi chép" để tạo ví đầu tiên.',
+              style: GlassTypography.bodySm(),
+            ),
           ],
           const SizedBox(height: 18),
           Divider(height: 1, color: GlassColors.glassBorder),
           const SizedBox(height: 16),
           Row(
             children: [
-              Expanded(child: _flowItem('Thu nhập', income, LucideIcons.arrowDownLeft, GlassColors.success)),
-              Expanded(child: _flowItem('Chi tiêu', expense, LucideIcons.arrowUpRight, GlassColors.danger)),
+              Expanded(
+                child: _flowItem(
+                  'Thu nhập',
+                  income,
+                  LucideIcons.arrowDownLeft,
+                  GlassColors.success,
+                ),
+              ),
+              Expanded(
+                child: _flowItem(
+                  'Chi tiêu',
+                  expense,
+                  LucideIcons.arrowUpRight,
+                  GlassColors.danger,
+                ),
+              ),
             ],
           ),
           if (hasError)
@@ -178,7 +241,12 @@ class HomeScreen extends ConsumerWidget {
                   ref.invalidate(monthlySummaryForAccountProvider);
                   ref.read(accountsControllerProvider.notifier).load();
                 },
-                child: Text('Thử lại', style: GlassTypography.bodyMd(color: GlassColors.accentSkyBlue)),
+                child: Text(
+                  'Thử lại',
+                  style: GlassTypography.bodyMd(
+                    color: GlassColors.accentSkyBlue,
+                  ),
+                ),
               ),
             ),
         ],
@@ -191,7 +259,10 @@ class HomeScreen extends ConsumerWidget {
       children: [
         Container(
           padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(color: color.withValues(alpha: 0.12), shape: BoxShape.circle),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.12),
+            shape: BoxShape.circle,
+          ),
           child: Icon(icon, size: 16, color: color),
         ),
         const SizedBox(width: 10),
@@ -200,7 +271,11 @@ class HomeScreen extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(label, style: GlassTypography.bodySm()),
-              Text(value, overflow: TextOverflow.ellipsis, style: GlassTypography.labelNumeric(color: color)),
+              Text(
+                value,
+                overflow: TextOverflow.ellipsis,
+                style: GlassTypography.labelNumeric(color: color),
+              ),
             ],
           ),
         ),
@@ -220,8 +295,11 @@ class HomeScreen extends ConsumerWidget {
         final now = DateTime.now();
         final lastDayOfMonth = DateTime(now.year, now.month + 1, 0).day;
         final daysRemaining = lastDayOfMonth - now.day + 1;
-        final perDay = daysRemaining > 0 ? s.spendableCents! ~/ BigInt.from(daysRemaining) : BigInt.zero;
-        final percentUsed = s.incomeCents == null || s.incomeCents == BigInt.zero
+        final perDay = daysRemaining > 0
+            ? s.spendableCents! ~/ BigInt.from(daysRemaining)
+            : BigInt.zero;
+        final percentUsed =
+            s.incomeCents == null || s.incomeCents == BigInt.zero
             ? 0.0
             : (s.spentCents.toDouble() / s.incomeCents!.toDouble() * 100);
 
@@ -232,17 +310,29 @@ class HomeScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Chi an toàn hôm nay', style: GlassTypography.labelCaps()),
+                    Text(
+                      'Chi an toàn hôm nay',
+                      style: GlassTypography.labelCaps(),
+                    ),
                     const SizedBox(height: 6),
-                    Text(formatVnd(perDay), style: GlassTypography.headlineLg()),
+                    Text(
+                      formatVnd(perDay),
+                      style: GlassTypography.headlineLg(),
+                    ),
                     const SizedBox(height: 2),
-                    Text('Đã chi: ${formatVnd(s.spentCents)}', style: GlassTypography.bodySm()),
+                    Text(
+                      'Đã chi: ${formatVnd(s.spentCents)}',
+                      style: GlassTypography.bodySm(),
+                    ),
                   ],
                 ),
               ),
               GlassCircularProgress(
                 percent: percentUsed,
-                center: Text('${percentUsed.round()}%', style: GlassTypography.labelNumeric()),
+                center: Text(
+                  '${percentUsed.round()}%',
+                  style: GlassTypography.labelNumeric(),
+                ),
               ),
             ],
           ),
@@ -253,7 +343,6 @@ class HomeScreen extends ConsumerWidget {
 
   Widget _buildQuickActions(BuildContext context) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         _buildActionItem(
           context,
@@ -262,9 +351,25 @@ class HomeScreen extends ConsumerWidget {
           onTap: () => CreateTransactionBottomSheet.show(context),
           highlight: true,
         ),
-        _buildActionItem(context, icon: LucideIcons.target, label: 'Kế hoạch', onTap: () => context.push('/planning')),
-        _buildActionItem(context, icon: LucideIcons.chartPie, label: 'Báo cáo', onTap: () => context.push('/analytics')),
-        _buildActionItem(context, icon: LucideIcons.arrowLeftRight, label: 'Lịch sử', onTap: () => context.push('/transactions')),
+        // Kế hoạch / Báo cáo / Lịch sử đã có ở thanh điều hướng dưới nên không lặp lại ở đây; thay bằng các màn khó tìm hơn.
+        _buildActionItem(
+          context,
+          icon: LucideIcons.users,
+          label: 'Nhóm tài chính',
+          onTap: () => context.push('/groups'),
+        ),
+        _buildActionItem(
+          context,
+          icon: LucideIcons.chartLine,
+          label: 'Dự báo',
+          onTap: () => context.push('/forecast'),
+        ),
+        _buildActionItem(
+          context,
+          icon: LucideIcons.lifeBuoy,
+          label: 'Hỗ trợ',
+          onTap: () => context.push('/support'),
+        ),
       ],
     );
   }
@@ -276,22 +381,51 @@ class HomeScreen extends ConsumerWidget {
     required VoidCallback onTap,
     bool highlight = false,
   }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        children: [
-          Container(
-            width: 54,
-            height: 54,
-            decoration: BoxDecoration(
-              color: highlight ? GlassColors.ink : GlassColors.secondarySurface,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Icon(icon, size: 22, color: highlight ? GlassColors.onInk : GlassColors.slateAnchor),
+    return Expanded(
+      child: Semantics(
+        button: true,
+        label: label,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onTap,
+          child: Column(
+            children: [
+              Container(
+                width: 54,
+                height: 54,
+                decoration: BoxDecoration(
+                  // Ô phụ: nền xanh nhạt + viền mảnh để thấy rõ khung (secondarySurface gần trùng màu nền thẻ nên mất khung).
+                  color: highlight
+                      ? GlassColors.ink
+                      : GlassColors.activeFill,
+                  borderRadius: BorderRadius.circular(16),
+                  border: highlight
+                      ? null
+                      : Border.all(color: GlassColors.activeBorder),
+                ),
+                child: Icon(
+                  icon,
+                  size: 22,
+                  color: highlight
+                      ? GlassColors.onInk
+                      : GlassColors.activeFg,
+                ),
+              ),
+              const SizedBox(height: 8),
+              // Một dòng, tự thu nhỏ chữ khi hẹp ("Nhóm tài chính" dài hơn các nhãn khác).
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  style: GlassTypography.bodySm(
+                    color: GlassColors.textPrimary,
+                  ).copyWith(fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
-          Text(label, style: GlassTypography.bodySm(color: GlassColors.textPrimary).copyWith(fontWeight: FontWeight.w600)),
-        ],
+        ),
       ),
     );
   }
@@ -309,20 +443,39 @@ class HomeScreen extends ConsumerWidget {
             Container(
               width: 40,
               height: 40,
-              decoration: BoxDecoration(color: GlassColors.secondarySurface, shape: BoxShape.circle),
-              child: Icon(LucideIcons.wallet, size: 20, color: GlassColors.slateAnchor),
+              decoration: BoxDecoration(
+                color: GlassColors.secondarySurface,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                LucideIcons.wallet,
+                size: 20,
+                color: GlassColors.slateAnchor,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Cách quản lý của bạn', style: GlassTypography.bodyLg(color: GlassColors.textPrimary).copyWith(fontWeight: FontWeight.w600)),
-                  Text('Xem phương pháp và các hũ đang dùng', style: GlassTypography.bodySm()),
+                  Text(
+                    'Cách quản lý của bạn',
+                    style: GlassTypography.bodyLg(
+                      color: GlassColors.textPrimary,
+                    ).copyWith(fontWeight: FontWeight.w600),
+                  ),
+                  Text(
+                    'Xem phương pháp và các hũ đang dùng',
+                    style: GlassTypography.bodySm(),
+                  ),
                 ],
               ),
             ),
-            Icon(LucideIcons.chevronRight, size: 18, color: GlassColors.textMuted),
+            Icon(
+              LucideIcons.chevronRight,
+              size: 18,
+              color: GlassColors.textMuted,
+            ),
           ],
         ),
       ),
@@ -334,7 +487,9 @@ class HomeScreen extends ConsumerWidget {
       return GlassTransactionRow(
         icon: LucideIcons.arrowLeftRight,
         iconColor: GlassColors.slateAnchor,
-        title: tx.description.isNotEmpty ? tx.description : 'Chuyển tiền nội bộ',
+        title: tx.description.isNotEmpty
+            ? tx.description
+            : 'Chuyển tiền nội bộ',
         subtitle: 'Nội bộ - Không tính chi tiêu',
         amountText: tx.formattedAmount,
         isExpense: false,
@@ -344,7 +499,9 @@ class HomeScreen extends ConsumerWidget {
     return GlassTransactionRow(
       icon: isExpense ? LucideIcons.arrowDownLeft : LucideIcons.arrowUpRight,
       iconColor: isExpense ? GlassColors.danger : GlassColors.success,
-      title: tx.description.isNotEmpty ? tx.description : (tx.categoryName ?? 'Giao dịch'),
+      title: tx.description.isNotEmpty
+          ? tx.description
+          : (tx.categoryName ?? 'Giao dịch'),
       subtitle: tx.categoryName ?? 'Chung',
       amountText: '${isExpense ? '-' : '+'}${tx.formattedAmount}',
       isExpense: isExpense,
@@ -366,18 +523,28 @@ class _AccountChipRow extends ConsumerWidget {
 
     final selected = ref.watch(homeSelectedAccountProvider);
 
-    Widget chip({required VoidCallback onTap, required Widget child, required bool isSelected}) => GestureDetector(
-          onTap: onTap,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: isSelected ? GlassColors.activeFill : GlassColors.glassFill,
-              borderRadius: GlassRadius.roundedPill,
-              border: Border.all(color: isSelected ? GlassColors.activeBorder : GlassColors.glassBorder),
-            ),
-            child: child,
+    Widget chip({
+      required VoidCallback onTap,
+      required Widget child,
+      required bool isSelected,
+    }) => GestureDetector(
+      onTap: onTap,
+      child: Container(
+        // ListView ngang cao 44 ép chip cao 44: canh giữa để chữ không dính phía trên
+        alignment: Alignment.center,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? GlassColors.activeFill : GlassColors.glassFill,
+          borderRadius: GlassRadius.roundedPill,
+          border: Border.all(
+            color: isSelected
+                ? GlassColors.activeBorder
+                : GlassColors.glassBorder,
           ),
-        );
+        ),
+        child: child,
+      ),
+    );
 
     return SizedBox(
       height: 44,
@@ -389,32 +556,44 @@ class _AccountChipRow extends ConsumerWidget {
           if (i == 0) {
             final isSelected = selected == null;
             return chip(
-              onTap: () => ref.read(homeSelectedAccountProvider.notifier).state = null,
+              onTap: () =>
+                  ref.read(homeSelectedAccountProvider.notifier).state = null,
               isSelected: isSelected,
               child: Text(
                 'Tất cả',
-                style: GlassTypography.bodySm(color: isSelected ? GlassColors.activeFg : GlassColors.textSecondary)
-                    .copyWith(fontWeight: FontWeight.w600),
+                style: GlassTypography.bodySm(
+                  color: isSelected
+                      ? GlassColors.activeFg
+                      : GlassColors.textSecondary,
+                ).copyWith(fontWeight: FontWeight.w600),
               ),
             );
           }
           final account = list[i - 1];
           final isSelected = account.id == selected;
           return chip(
-            onTap: () => ref.read(homeSelectedAccountProvider.notifier).state = isSelected ? null : account.id,
+            onTap: () => ref.read(homeSelectedAccountProvider.notifier).state =
+                isSelected ? null : account.id,
             isSelected: isSelected,
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   account.name,
-                  style: GlassTypography.bodySm(color: isSelected ? GlassColors.activeFg : GlassColors.textSecondary)
-                      .copyWith(fontWeight: FontWeight.w600),
+                  style: GlassTypography.bodySm(
+                    color: isSelected
+                        ? GlassColors.activeFg
+                        : GlassColors.textSecondary,
+                  ).copyWith(fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(width: 6),
                 Text(
                   formatVnd(account.balanceCents),
-                  style: GlassTypography.labelNumeric(color: isSelected ? GlassColors.activeFg : GlassColors.textPrimary),
+                  style: GlassTypography.labelNumeric(
+                    color: isSelected
+                        ? GlassColors.activeFg
+                        : GlassColors.textPrimary,
+                  ),
                 ),
               ],
             ),

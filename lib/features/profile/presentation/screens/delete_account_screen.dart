@@ -259,7 +259,7 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
                 icon: _isLoading
                     ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                     : const Icon(LucideIcons.trash2, size: 18),
-                label: const Text('Xóa vĩnh viễn tài khoản của tôi'),
+                label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Xóa vĩnh viễn tài khoản của tôi', maxLines: 1)),
               ),
               const SizedBox(height: 10),
               LiquidGlassPillButton(

@@ -1274,7 +1274,7 @@ class _TransactionReviewScreenState
                       ? null
                       : () => _pickGroupCategory(g, categories),
                   icon: const Icon(LucideIcons.tag, size: 16),
-                  label: const Text('Đổi danh mục'),
+                  label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Đổi danh mục', maxLines: 1)),
                 ),
                 TextButton.icon(
                   onPressed: canSkip
@@ -1284,7 +1284,7 @@ class _TransactionReviewScreenState
                     g.skipped ? LucideIcons.undo2 : LucideIcons.ban,
                     size: 16,
                   ),
-                  label: Text(g.skipped ? 'Giữ lại' : 'Bỏ nhóm'),
+                  label: FittedBox(fit: BoxFit.scaleDown, child: Text(g.skipped ? 'Giữ lại' : 'Bỏ nhóm', maxLines: 1)),
                 ),
               ],
             ),
@@ -1323,11 +1323,15 @@ class _TransactionReviewScreenState
       child: DropdownButtonFormField<String>(
         key: ValueKey('acc-$role-$value-${accounts.length}'),
         initialValue: value,
-        isExpanded: false,
+        isExpanded: true,
+        alignment: AlignmentDirectional.centerEnd,
         style: AppTypography.bodyLarge(
           context,
         ).copyWith(fontWeight: FontWeight.w500, letterSpacing: -0.15),
-        icon: const Icon(LucideIcons.chevronDown, size: 16),
+        icon: const Padding(
+          padding: EdgeInsets.only(left: 4),
+          child: Icon(LucideIcons.chevronDown, size: 16),
+        ),
         decoration: InputDecoration(
           filled: false,
           isDense: true,
@@ -1335,7 +1339,7 @@ class _TransactionReviewScreenState
           enabledBorder: InputBorder.none,
           focusedBorder: InputBorder.none,
           disabledBorder: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(vertical: 12),
+          contentPadding: const EdgeInsets.fromLTRB(0, 12, 4, 12),
         ),
         items: accounts
             .map(

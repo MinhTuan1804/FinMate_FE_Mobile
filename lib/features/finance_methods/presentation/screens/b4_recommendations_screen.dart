@@ -171,7 +171,22 @@ class _RecommendationSection extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               async.when(
-                loading: () => const GlassLoadingSpinner(),
+                loading: () => Padding(
+                  key: const ValueKey('method-recommendation-loading'),
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Row(
+                    children: [
+                      const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Đang phân tích khảo sát và đưa ra gợi ý… có thể mất vài giây.',
+                          style: GlassTypography.bodyMd(color: GlassColors.textPrimary),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 error: (e, __) => Text(errorMessage(e), style: GlassTypography.bodySm(color: GlassColors.danger)),
                 data: (rec) {
                   if (rec == null) {
@@ -189,9 +204,15 @@ class _RecommendationSection extends ConsumerWidget {
                       const SizedBox(height: 8),
                       Semantics(
                         header: true,
-                        child: Text(
-                          rec.primary.method.name,
-                          style: GlassTypography.headlineMd().copyWith(fontWeight: FontWeight.w700, letterSpacing: -0.5),
+                        // Tên phương pháp một dòng, tự thu nhỏ chữ khi dài thay vì xuống hàng.
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            rec.primary.method.name,
+                            maxLines: 1,
+                            style: GlassTypography.headlineMd().copyWith(fontWeight: FontWeight.w700, letterSpacing: -0.5),
+                          ),
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -210,7 +231,11 @@ class _RecommendationSection extends ConsumerWidget {
                       ],
                       if (rec.support != null) ...[
                         const SizedBox(height: 20),
-                        Text('Bổ trợ: ${rec.support!.method.name}', style: GlassTypography.bodyLg().copyWith(fontWeight: FontWeight.w600)),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text('Bổ trợ: ${rec.support!.method.name}', maxLines: 1, style: GlassTypography.bodyLg().copyWith(fontWeight: FontWeight.w600)),
+                        ),
                         const SizedBox(height: 4),
                         Text(rec.support!.reason, style: GlassTypography.bodyMd()),
                       ],
@@ -244,7 +269,7 @@ class _RecommendationSection extends ConsumerWidget {
                 child: GlassGhostButton(
                   key: const ValueKey('method-generate-recommendation'),
                   label: 'Tạo gợi ý mới',
-                  onPressed: generate,
+                  onPressed: async.isLoading ? null : generate,
                 ),
               ),
             ],
@@ -381,28 +406,34 @@ class _CatalogSection extends ConsumerWidget {
                       children: [
                         Text(_roleLabel(m.role), style: GlassTypography.bodySm()),
                         const SizedBox(height: 4),
-                        Text(m.name, style: GlassTypography.bodyLg().copyWith(fontWeight: FontWeight.w600)),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(m.name, maxLines: 1, style: GlassTypography.bodyLg().copyWith(fontWeight: FontWeight.w600)),
+                        ),
                         const SizedBox(height: 8),
                         Text(m.summary, style: GlassTypography.bodySm(color: GlassColors.textSecondary).copyWith(height: 16.5 / 12)),
                         if (m.canBePrimary || m.canBeSupport) ...[
-                          const SizedBox(height: 11),
-                          Divider(height: 1, color: GlassColors.glassBorder),
-                          const SizedBox(height: 4),
-                          // Nút xuống hàng riêng dưới mô tả: để cạnh nhau thì cột chữ bị ép hẹp, xuống dòng từng từ
-                          Wrap(
-                            spacing: 8,
+                          const SizedBox(height: 14),
+                          // Nút thật (nền + viền rõ), cùng hàng chia đều; nhãn tự thu nhỏ nếu hẹp.
+                          Row(
                             children: [
                               if (m.canBePrimary)
-                                TextButton(
-                                  key: ValueKey('method-choose-primary-${m.code}'),
-                                  onPressed: () => _choose(context, ref, m.code, 'primary'),
-                                  child: const Text('Chọn chính'),
+                                Expanded(
+                                  child: GlassPrimaryButton(
+                                    key: ValueKey('method-choose-primary-${m.code}'),
+                                    label: 'Chọn chính',
+                                    onPressed: () => _choose(context, ref, m.code, 'primary'),
+                                  ),
                                 ),
+                              if (m.canBePrimary && m.canBeSupport) const SizedBox(width: 10),
                               if (m.canBeSupport)
-                                TextButton(
-                                  key: ValueKey('method-choose-supporting-${m.code}'),
-                                  onPressed: () => _choose(context, ref, m.code, 'supporting'),
-                                  child: const Text('Chọn bổ trợ'),
+                                Expanded(
+                                  child: GlassSecondaryButton(
+                                    key: ValueKey('method-choose-supporting-${m.code}'),
+                                    label: 'Chọn bổ trợ',
+                                    onPressed: () => _choose(context, ref, m.code, 'supporting'),
+                                  ),
                                 ),
                             ],
                           ),

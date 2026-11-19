@@ -545,7 +545,7 @@ class _AiMemoryScreenState extends ConsumerState<AiMemoryScreen> {
     return OutlinedButton.icon(
       onPressed: onPressed,
       icon: const Icon(LucideIcons.circlePlus, size: 18),
-      label: const Text('Thêm ghi nhớ'),
+      label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Thêm ghi nhớ', maxLines: 1)),
       style: OutlinedButton.styleFrom(
         minimumSize: const Size.fromHeight(56),
         shape: const StadiumBorder(),

@@ -264,7 +264,11 @@ class _ActiveMethodHero extends ConsumerWidget {
           const SizedBox(height: 12),
           Text('Phương pháp đang áp dụng', style: GlassTypography.bodySm()),
           const SizedBox(height: 2),
-          Text(active.method.name, style: GlassTypography.headlineMd()),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(active.method.name, maxLines: 1, style: GlassTypography.headlineMd()),
+          ),
           const SizedBox(height: 14),
           Container(height: 1, color: Colors.white.withValues(alpha: 0.5)),
           const SizedBox(height: 14),

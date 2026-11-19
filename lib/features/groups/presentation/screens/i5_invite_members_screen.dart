@@ -309,7 +309,7 @@ class _InviteCodeCard extends StatelessWidget {
                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đã sao chép mã lời mời')));
                   },
                   icon: const Icon(LucideIcons.copy, size: 16),
-                  label: const Text('Sao chép'),
+                  label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Sao chép', maxLines: 1)),
                 ),
               ),
               const SizedBox(width: 8),
@@ -322,7 +322,7 @@ class _InviteCodeCard extends StatelessWidget {
                     'Mở app FinMate → "Nhập mã lời mời" → dán mã này để tham gia.',
                   ),
                   icon: const Icon(LucideIcons.share2, size: 16),
-                  label: const Text('Chia sẻ'),
+                  label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Chia sẻ', maxLines: 1)),
                 ),
               ),
             ],

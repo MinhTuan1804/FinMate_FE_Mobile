@@ -9,8 +9,10 @@ import 'package:finmate/features/assistant/data/draft_saver.dart';
 import 'package:finmate/features/assistant/data/local_chat_decider.dart';
 import 'package:finmate/features/assistant/data/local_first_chat.dart';
 import 'package:finmate/features/assistant/data/pending_message_store.dart';
+import 'package:finmate/features/assistant/domain/agent_answer.dart';
 import 'package:finmate/features/assistant/domain/assistant_models.dart';
 import 'package:finmate/features/auth/presentation/controllers/auth_controller.dart';
+import 'package:finmate/features/categories/presentation/categories_provider.dart';
 import 'package:finmate/features/planning/presentation/controllers/planning_controller.dart';
 import 'package:finmate/features/transactions/domain/entities/transaction_entity.dart';
 import 'package:finmate/features/transactions/presentation/controllers/data_refresh.dart';
@@ -109,29 +111,36 @@ class DraftBatchCard extends ChatMessage {
 
 enum GoalCardStatus { pending, saving, created, cancelled }
 
-/// Câu đặt mục tiêu tiết kiệm: thẻ xác nhận. Không bao giờ tự tạo; người dùng sửa rồi bấm "Tạo mục tiêu" (app gọi `POST /saving-goals`)
+/// Câu đặt mục tiêu tiết kiệm. Câu lệnh đủ số tiền và hạn thì app tạo ngay (thẻ hiện "Đã tạo" kèm nút "Hoàn tác" theo [goalId]); thiếu một trong hai thì
+/// thẻ chờ: người dùng sửa rồi bấm "Tạo mục tiêu" (app gọi `POST /saving-goals`)
 class GoalDraftCard extends ChatMessage {
   final GoalDraft goal;
   final GoalCardStatus status;
   final String? error;
+
+  /// Id mục tiêu đã tạo (có khi [status] là created); dùng để hoàn tác
+  final String? goalId;
 
   const GoalDraftCard(
     super.id,
     this.goal, {
     this.status = GoalCardStatus.pending,
     this.error,
+    this.goalId,
   });
 
   GoalDraftCard copyWith({
     GoalDraft? goal,
     GoalCardStatus? status,
     String? error,
+    String? goalId,
     bool clearError = false,
   }) => GoalDraftCard(
     id,
     goal ?? this.goal,
     status: status ?? this.status,
     error: clearError ? null : (error ?? this.error),
+    goalId: goalId ?? this.goalId,
   );
 }
 
@@ -167,6 +176,37 @@ class PurchaseCard extends ChatMessage {
   );
 }
 
+/// Câu trả lời của AI Financial Agent (`POST /agent/ask`): kết luận, các mệnh đề, bằng chứng ("Vì sao?") và thẻ đề xuất.
+/// Agent chỉ đề xuất; [applied] là các thẻ đề xuất người dùng đã bấm áp dụng, [applying] là thẻ đang gọi API, [error] là lỗi của lần áp dụng gần nhất.
+class AgentCard extends ChatMessage {
+  final AgentAnswer answer;
+  final Set<int> applied;
+  final int? applying;
+  final String? error;
+
+  const AgentCard(
+    super.id,
+    this.answer, {
+    this.applied = const {},
+    this.applying,
+    this.error,
+  });
+
+  AgentCard copyWith({
+    Set<int>? applied,
+    int? applying,
+    bool clearApplying = false,
+    String? error,
+    bool clearError = false,
+  }) => AgentCard(
+    id,
+    answer,
+    applied: applied ?? this.applied,
+    applying: clearApplying ? null : (applying ?? this.applying),
+    error: clearError ? null : (error ?? this.error),
+  );
+}
+
 class ErrorNote extends ChatMessage {
   final String message;
 
@@ -179,23 +219,28 @@ class ErrorNote extends ChatMessage {
 class AssistantState {
   final List<ChatMessage> messages;
   final bool isSending;
+  /// Đang chờ AI Financial Agent (có thể mất vài chục giây): màn hình đổi dòng chờ để người dùng không tưởng app treo.
+  final bool isAskingAgent;
   final String? selectedAccountId;
 
   const AssistantState({
     this.messages = const [],
     this.isSending = false,
+    this.isAskingAgent = false,
     this.selectedAccountId,
   });
 
   AssistantState copyWith({
     List<ChatMessage>? messages,
     bool? isSending,
+    bool? isAskingAgent,
     String? selectedAccountId,
     bool clearAccount = false,
   }) {
     return AssistantState(
       messages: messages ?? this.messages,
       isSending: isSending ?? this.isSending,
+      isAskingAgent: isAskingAgent ?? this.isAskingAgent,
       selectedAccountId: clearAccount
           ? null
           : (selectedAccountId ?? this.selectedAccountId),
@@ -221,6 +266,31 @@ final assistantControllerProvider =
               targetAmountCents: target,
               targetDate: deadline,
             ),
+        deleteGoal: (id) => ref.read(planningControllerProvider.notifier).cancelSavingsGoal(id),
+        // Thẻ `change_goal_deadline` của agent: giữ tên và số tiền, chỉ đổi hạn
+        changeGoalDeadline: (id, deadline) async {
+          final planning = ref.read(planningControllerProvider.notifier);
+          var goals = ref.read(planningControllerProvider).valueOrNull?.savingsGoals ?? const [];
+          var goal = goals.where((g) => g.id == id).firstOrNull;
+          if (goal == null) {
+            await planning.loadPlanningData(silent: true);
+            goals = ref.read(planningControllerProvider).valueOrNull?.savingsGoals ?? const [];
+            goal = goals.where((g) => g.id == id).firstOrNull;
+          }
+          if (goal == null) throw StateError('Không tìm thấy mục tiêu này (có thể bạn đã xóa), hãy tạo lại mục tiêu.');
+          await planning.updateGoal(id: id, name: goal.title, targetCents: goal.targetAmountCents, deadline: deadline);
+        },
+        // Thẻ đề xuất `set_budget_limit` của agent: đổi mã nhóm (slug) sang nhóm của chính người dùng rồi tạo/sửa hạn mức tháng
+        setBudgetLimit: (slug, limitCents) async {
+          final categories = await ref.read(categoriesProvider.future);
+          final category = categories.where((c) => c.slug == slug).firstOrNull;
+          if (category == null) {
+            throw StateError('Bạn chưa có nhóm này (hoặc đã ẩn), hãy bật lại nhóm rồi thử lại.');
+          }
+          await ref
+              .read(planningControllerProvider.notifier)
+              .createOrUpdateBudget(categoryId: category.id, limitAmountCents: limitCents);
+        },
         onDataChanged: () {
           refreshDerivedData(ref);
           ref.invalidate(transactionControllerProvider);
@@ -247,6 +317,12 @@ class _FailedSend {
   const _FailedSend(this.text, this.requestId, this.source);
 }
 
+/// `intent` của server cho câu kế hoạch/dự báo: app hỏi AI Financial Agent thay vì chat trả lời
+const _askAgentIntent = 'ask_agent';
+
+/// `intent` của server cho câu chat không hiểu
+const _outOfScopeIntent = 'out_of_scope';
+
 /// `intent` của server khi nó vừa hỏi giá một khoản định mua
 const _purchaseNeedsAmount = 'purchase_needs_amount';
 
@@ -272,13 +348,25 @@ class AssistantController extends StateNotifier<AssistantState> {
   /// Hàng chờ cho câu chưa phân tích được vì mất mạng; null = mất mạng thì hiện thẻ lỗi như trước
   final PendingMessageStore? pending;
 
-  /// Tạo mục tiêu tiết kiệm sau khi người dùng xác nhận thẻ (gọi `POST /saving-goals`); null = thẻ mục tiêu không tạo được
-  final Future<void> Function(
+  /// Tạo mục tiêu tiết kiệm (gọi `POST /saving-goals`), trả id mục tiêu; null = app không tạo được mục tiêu
+  final Future<String?> Function(
     String name,
     BigInt targetCents,
     DateTime? deadline,
   )?
   createGoal;
+
+  /// Hủy mục tiêu vừa tạo (nút "Hoàn tác"); null = không hoàn tác được
+  final Future<void> Function(String goalId)? deleteGoal;
+
+  /// Đổi hạn một mục tiêu đã có sang [deadline] (thẻ `change_goal_deadline` của agent); null = thẻ không áp dụng được
+  final Future<void> Function(String goalId, DateTime deadline)? changeGoalDeadline;
+
+  /// Câu lệnh đặt mục tiêu ĐỦ số tiền và hạn thì tạo ngay rồi tư vấn khả thi (người dùng đã ra lệnh rõ, hoàn tác được); thiếu một trong hai thì vẫn hiện thẻ xác nhận để người dùng điền nốt
+  final bool autoCreateGoals;
+
+  /// Đặt hạn mức tháng của một nhóm (theo slug) khi người dùng bấm thẻ đề xuất của agent; null = thẻ đề xuất không áp dụng được
+  final Future<void> Function(String categorySlug, BigInt limitCents)? setBudgetLimit;
   Timer? _retryTimer;
   bool _retrying = false;
 
@@ -304,6 +392,10 @@ class AssistantController extends StateNotifier<AssistantState> {
     this.saver,
     this.pending,
     this.createGoal,
+    this.deleteGoal,
+    this.changeGoalDeadline,
+    this.autoCreateGoals = true,
+    this.setBudgetLimit,
     Duration? retryEvery = const Duration(seconds: 30),
   }) : super(const AssistantState()) {
     if (pending != null && retryEvery != null)
@@ -391,7 +483,11 @@ class AssistantController extends StateNotifier<AssistantState> {
         );
         if (!mounted) return true;
         _askedPurchase = reply.intent == _purchaseNeedsAmount ? text : null;
-        _present(reply, source);
+        if (_wantsAgent(reply)) {
+          await _answerWithAgent(text, reply, source);
+        } else {
+          await _present(reply, source);
+        }
       }
       return true;
     } catch (e) {
@@ -482,7 +578,11 @@ class AssistantController extends StateNotifier<AssistantState> {
         );
         if (!mounted) return true;
         _add(UserText(_nextId++, voice.transcript));
-        _present(voice.chat, DraftSource.voice);
+        if (_wantsAgent(voice.chat)) {
+          await _answerWithAgent(voice.transcript, voice.chat, DraftSource.voice);
+        } else {
+          await _present(voice.chat, DraftSource.voice);
+        }
       }
       return true;
     } catch (e) {
@@ -546,8 +646,7 @@ class AssistantController extends StateNotifier<AssistantState> {
         _add(AssistantText(_nextId++, text));
         _addNotes(notes);
       case GoalDecision(:final goal, :final replyText, :final notes):
-        if (replyText != null) _add(AssistantText(_nextId++, replyText));
-        _add(GoalDraftCard(_nextId++, goal));
+        await _presentGoal(goal, serverText: replyText);
         _addNotes(notes);
       case NeedSummary():
         final reply = await repository.chat(
@@ -556,7 +655,7 @@ class AssistantController extends StateNotifier<AssistantState> {
           clientRequestId: requestId,
         );
         if (!mounted) return;
-        _present(reply, source);
+        await _present(reply, source);
     }
   }
 
@@ -588,6 +687,101 @@ class AssistantController extends StateNotifier<AssistantState> {
       .whereType<DraftBatchCard>()
       .where((m) => m.id == messageId)
       .firstOrNull;
+
+  /// Chat có chuyển câu này sang AI Financial Agent không: server gắn `ask_agent` cho câu kế hoạch/dự báo ("nếu thu nhập giảm 30% thì sao",
+  /// "bao lâu đủ tiền mua nhà"), và `out_of_scope` cho câu chat không hiểu (agent có lời từ chối và tra tri thức tốt hơn câu "chỉ giúp ghi chi tiêu").
+  /// Một ô nhập cho cả hai: người dùng không phải chọn chế độ.
+  static bool _wantsAgent(ChatReply reply) =>
+      reply.action == ChatAction.reply && (reply.intent == _askAgentIntent || reply.intent == _outOfScopeIntent);
+
+  /// Hỏi agent (`POST /agent/ask`) và thêm [AgentCard]; không ghi giao dịch. Agent lỗi (429 vượt hạn mức, 503 AI không dùng được...):
+  /// câu chat không hiểu thì giữ lời đáp cũ của chat, câu kế hoạch thì hiện lỗi thành một dòng của trợ lý.
+  Future<void> _answerWithAgent(String question, ChatReply chatReply, DraftSource source) async {
+    state = state.copyWith(isAskingAgent: true);
+    try {
+      final answer = await repository.askAgent(question);
+      if (!mounted) return;
+      _add(AgentCard(_nextId++, answer));
+    } catch (e) {
+      if (!mounted) return;
+      if (chatReply.intent == _outOfScopeIntent) {
+        await _present(chatReply, source);
+      } else {
+        _add(AssistantText(_nextId++, errorMessage(e)));
+      }
+    } finally {
+      if (mounted) state = state.copyWith(isAskingAgent: false);
+    }
+  }
+
+  AgentCard? _agentCard(int messageId) =>
+      state.messages.whereType<AgentCard>().where((m) => m.id == messageId).firstOrNull;
+
+  /// Việc phía sau nút của một thẻ đề xuất; null nếu app không làm được loại này (thiếu hàm, hoặc loại lạ). Mỗi loại một việc:
+  /// đặt hạn mức tháng; mở thẻ mục tiêu để người dùng sửa và xác nhận; kiểm tra lại khoản mua với giá thấp hơn; hẹn nhắc đúng ngày.
+  /// Không việc nào tự ghi tiền: thẻ mục tiêu vẫn cần bấm "Tạo mục tiêu", kiểm tra mua chỉ đọc.
+  Future<void> Function()? _actionRunner(AgentSuggestedAction a) {
+    switch (a.kind) {
+      case AgentSuggestedAction.setBudgetLimit:
+        final setLimit = setBudgetLimit;
+        return setLimit == null ? null : () => setLimit(a.categorySlug!, a.amountVnd!);
+      case AgentSuggestedAction.createGoal:
+        final create = createGoal;
+        if (create == null) return null;
+        return () async {
+          final due = a.date!;
+          final goal = GoalDraft(
+            name: 'Mục tiêu tiết kiệm',
+            nameIsDefault: true,
+            targetCents: a.amountVnd!,
+            deadline: DateTime(due.year, due.month, due.day, 23, 59, 59),
+          );
+          // Người dùng đã bấm nút nên tạo luôn (không bắt xác nhận lần hai); thẻ "Đã tạo" kèm "Hoàn tác" hiện trong chat
+          final goalId = await create(goal.name, goal.targetCents, goal.deadline);
+          _add(GoalDraftCard(_nextId++, goal, status: GoalCardStatus.created, goalId: goalId));
+        };
+      case AgentSuggestedAction.changeGoalDeadline:
+        final change = changeGoalDeadline;
+        if (change == null) return null;
+        return () async {
+          final due = a.date!;
+          await change(a.targetId!, DateTime(due.year, due.month, due.day, 23, 59, 59));
+        };
+      case AgentSuggestedAction.lowerAmountTo:
+        return () async {
+          final id = _nextId++;
+          _add(PurchaseCard(id, PurchaseDraft(amountCents: a.amountVnd!)));
+          unawaited(assessPurchase(id));
+        };
+      case AgentSuggestedAction.waitUntil:
+        return () async {
+          await repository.schedulePurchaseReminder(a.date!);
+        };
+      default:
+        return null;
+    }
+  }
+
+  /// Bấm một thẻ đề xuất của agent; mỗi thẻ áp dụng một lần. Lỗi thì thẻ giữ nguyên để bấm lại, kèm lý do. Agent không bao giờ tự làm việc này.
+  Future<void> applyAgentAction(int messageId, int index) async {
+    final card = _agentCard(messageId);
+    if (card == null || card.applying != null) return;
+    if (index < 0 || index >= card.answer.suggestedActions.length || card.applied.contains(index)) return;
+    final action = card.answer.suggestedActions[index];
+    final run = action.canApply ? _actionRunner(action) : null;
+    if (run == null) return;
+    _replace(card.copyWith(applying: index, clearError: true));
+    try {
+      await run();
+      if (!mounted) return;
+      final latest = _agentCard(messageId) ?? card;
+      _replace(latest.copyWith(applied: {...latest.applied, index}, clearApplying: true));
+    } catch (e) {
+      if (!mounted) return;
+      final latest = _agentCard(messageId) ?? card;
+      _replace(latest.copyWith(clearApplying: true, error: e is StateError ? e.message : errorMessage(e)));
+    }
+  }
 
   void _replace(ChatMessage updated) {
     if (!mounted) return;
@@ -744,7 +938,7 @@ class AssistantController extends StateNotifier<AssistantState> {
     }
   }
 
-  void _present(ChatReply reply, DraftSource source) {
+  Future<void> _present(ChatReply reply, DraftSource source) async {
     switch (reply.action) {
       case ChatAction.saved:
         _add(SavedCard(_nextId++, reply.transaction!));
@@ -762,9 +956,7 @@ class AssistantController extends StateNotifier<AssistantState> {
       case ChatAction.reply:
         _add(AssistantText(_nextId++, reply.replyText ?? ''));
       case ChatAction.goal:
-        if (reply.replyText != null)
-          _add(AssistantText(_nextId++, reply.replyText!));
-        _add(GoalDraftCard(_nextId++, reply.goal!));
+        await _presentGoal(reply.goal!, serverText: reply.replyText);
       case ChatAction.purchase:
         // Hỏi "mua X được không?" là xin kết luận: không bắt người dùng bấm thêm, thẻ tự gọi đánh giá và hiện kết quả. Lời của server ("bấm Đánh giá nhé") bỏ qua.
         final id = _nextId++;
@@ -863,9 +1055,9 @@ class AssistantController extends StateNotifier<AssistantState> {
     }
     _replace(card.copyWith(status: GoalCardStatus.saving, clearError: true));
     try {
-      await create(card.goal.name, card.goal.targetCents, deadline);
+      final goalId = await create(card.goal.name, card.goal.targetCents, deadline);
       if (!mounted) return;
-      _replace(card.copyWith(status: GoalCardStatus.created, clearError: true));
+      _replace(card.copyWith(status: GoalCardStatus.created, goalId: goalId, clearError: true));
     } catch (e) {
       if (mounted)
         _replace(
@@ -878,6 +1070,87 @@ class AssistantController extends StateNotifier<AssistantState> {
     final card = _goalCard(messageId);
     if (card == null || card.status != GoalCardStatus.pending) return;
     _replace(card.copyWith(status: GoalCardStatus.cancelled, clearError: true));
+  }
+
+  /// Hiện câu đặt mục tiêu. Đủ số tiền và hạn (còn ở tương lai) thì hỏi agent mục tiêu có KHẢ THI không TRƯỚC khi tạo:
+  /// khả thi thì app tạo ngay (người dùng đã ra lệnh rõ, hoàn tác được) rồi hiện phân tích; chưa khả thi, hoặc chưa đánh giá được (agent lỗi, thiếu dữ liệu),
+  /// thì KHÔNG tạo: hiện phân tích kèm phương án (vd kéo dài hạn) và thẻ xác nhận để người dùng quyết định (tạo theo hạn đã nêu, tạo phương án khác, hay bỏ).
+  /// Thiếu số tiền hoặc hạn, hoặc hạn do AI đọc hộ, thì chỉ có thẻ xác nhận như trước.
+  bool _canAutoCreate(GoalDraft goal) {
+    final deadline = goal.deadline;
+    // AI đọc hộ hạn/tên (luật không hiểu câu): người dùng soát ngày rồi tự bấm tạo, không tự tạo
+    return autoCreateGoals &&
+        !goal.aiAssisted &&
+        createGoal != null &&
+        goal.targetCents > BigInt.zero &&
+        deadline != null &&
+        deadline.isAfter(DateTime.now());
+  }
+
+  /// [serverText] là lời của server kèm thẻ ("Bạn kiểm tra rồi bấm Tạo mục tiêu nhé"): chỉ đúng khi thẻ chờ xác nhận, nên bỏ khi app tạo ngay
+  Future<void> _presentGoal(GoalDraft goal, {String? serverText}) async {
+    if (!_canAutoCreate(goal)) {
+      if (serverText != null) _add(AssistantText(_nextId++, serverText));
+      _add(GoalDraftCard(_nextId++, goal));
+      return;
+    }
+
+    final answer = await _assessGoal(goal);
+    if (!mounted) return;
+    final assessed = answer != null && answer.isAnswered && answer.evidenceById(_goalPlanEvidenceId) != null;
+    if (assessed && answer.verdict == _feasibleVerdict) {
+      final id = _nextId++;
+      _add(GoalDraftCard(id, goal));
+      await confirmGoal(id);
+      final created = _goalCard(id);
+      if (!mounted || created == null || created.status != GoalCardStatus.created) return; // lỗi tạo: thẻ chờ kèm lý do để bấm lại
+      _add(AgentCard(_nextId++, answer));
+      return;
+    }
+
+    _add(AssistantText(
+      _nextId++,
+      assessed
+          ? 'Mình chưa tạo mục tiêu này vì với số liệu hiện tại nó chưa khả thi. Đây là phân tích của mình; bạn có thể tạo luôn theo hạn bạn nêu, hoặc chọn phương án khác bên dưới.'
+          : 'Mình chưa đánh giá được độ khả thi của mục tiêu này lúc này nên chưa tạo. Bạn xem lại rồi bấm Tạo mục tiêu nếu muốn.',
+    ));
+    if (answer != null) _add(AgentCard(_nextId++, answer));
+    _add(GoalDraftCard(_nextId++, goal));
+  }
+
+  /// Id của bằng chứng số tiền mục tiêu mà công cụ `goal_plan` luôn trả: có nó mới chắc câu trả lời là đánh giá ĐÚNG mục tiêu này, không phải công cụ khác
+  static const _goalPlanEvidenceId = 'goal_target';
+  static const _feasibleVerdict = 'feasible';
+
+  /// Hỏi agent mục tiêu có khả thi không (công cụ `goal_plan`: mỗi tháng cần góp bao nhiêu, chưa khả thi thì kéo dài bao lâu). Lỗi (429, 503, mất mạng...) trả null.
+  Future<AgentAnswer?> _assessGoal(GoalDraft goal) async {
+    // Số tháng theo lịch (19/11/2026 → 19/11/2029 là đúng 36 tháng); chia ngày cho 30 cho ra 37 vì mỗi năm dư 5–6 ngày.
+    final now = DateTime.now();
+    final end = goal.deadline!;
+    final months = ((end.year - now.year) * 12 + end.month - now.month + (end.day > now.day ? 1 : 0)).clamp(1, 600);
+    state = state.copyWith(isAskingAgent: true);
+    try {
+      return await repository.assessGoal(goal.targetCents, months);
+    } catch (_) {
+      return null;
+    } finally {
+      if (mounted) state = state.copyWith(isAskingAgent: false);
+    }
+  }
+
+  /// "Hoàn tác" mục tiêu vừa được tạo từ câu lệnh: hủy mục tiêu đó (coi như xóa). Lỗi thì thẻ giữ nguyên kèm lý do để bấm lại.
+  Future<void> undoGoal(int messageId) async {
+    final card = _goalCard(messageId);
+    final cancel = deleteGoal;
+    final goalId = card?.goalId;
+    if (card == null || cancel == null || goalId == null || card.status != GoalCardStatus.created) return;
+    try {
+      await cancel(goalId);
+      if (!mounted) return;
+      _replace(card.copyWith(status: GoalCardStatus.cancelled, clearError: true));
+    } catch (e) {
+      if (mounted) _replace(card.copyWith(error: errorMessage(e)));
+    }
   }
 
   /// Gửi ảnh hóa đơn vào chat để quét; kết quả là thẻ nháp cần xác nhận

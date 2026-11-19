@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:finmate/features/accounts/data/accounts_repository.dart';
 import 'package:finmate/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:finmate/features/categories/domain/category.dart';
@@ -18,12 +20,20 @@ Future<void> _pump(WidgetTester tester, RouteAdapter adapter) async {
     categoriesProvider.overrideWith((ref) async => const <Category>[]),
   ]);
   addTearDown(container.dispose);
-  tester.view.physicalSize = const Size(800, 2000);
+  tester.view.physicalSize = const Size(360, 2000);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(UncontrolledProviderScope(
     container: container,
-    child: const MaterialApp(home: RecurringTransactionsScreen()),
+    child: MaterialApp.router(
+      routerConfig: GoRouter(routes: [
+        GoRoute(path: '/', builder: (_, __) => const RecurringTransactionsScreen()),
+        GoRoute(
+          path: '/planning/recurring/form',
+          builder: (_, state) => Scaffold(body: Text('FORM:${(state.extra as RecurringItemEntity?)?.name ?? 'new'}')),
+        ),
+      ]),
+    ),
   ));
   await tester.pumpAndSettle();
 }
@@ -65,6 +75,45 @@ void main() {
     await tester.tap(find.text('Xác nhận'));
     await tester.pumpAndSettle();
     expect(confirms, 1);
+  });
+
+  testWidgets('thẻ tổng và chip lọc có số đếm; lọc Đề xuất chỉ còn khoản đề xuất (360dp, không tràn)', (tester) async {
+    await _pump(tester, RouteAdapter((o) => respondFixture('recurring_items')));
+
+    expect(find.text('1 khoản hoạt động'), findsOneWidget);
+    expect(find.text('Tất cả (2)'), findsOneWidget);
+    expect(find.text('Đề xuất (1)'), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const ValueKey('recurring-filter-suggested')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('recurring-filter-suggested')));
+    await tester.tap(find.byKey(const ValueKey('recurring-filter-suggested')));
+    await tester.pumpAndSettle();
+    expect(find.text('Lương'), findsOneWidget);
+    expect(find.text('Tiền nhà'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('khoản chi đến hạn trong 7 ngày hiện nhãn còn N ngày', (tester) async {
+    final item = {
+      ...(fixtureData('recurring_items') as List)[0] as Map<String, dynamic>,
+      'nextDueDate': DateFormat('yyyy-MM-dd').format(DateTime.now().add(const Duration(days: 3))),
+    };
+    await _pump(tester, RouteAdapter((o) => respondJson({'success': true, 'data': [item]})));
+    expect(find.text('Sắp đến hạn (còn 3 ngày)'), findsOneWidget);
+  });
+
+  testWidgets('nút Thêm mở form mới; bấm thẻ mở form sửa với khoản đã chọn', (tester) async {
+    await _pump(tester, RouteAdapter((o) => respondFixture('recurring_items')));
+
+    await tester.tap(find.byKey(const ValueKey('recurring-add')));
+    await tester.pumpAndSettle();
+    expect(find.text('FORM:new'), findsOneWidget);
+
+    tester.state<NavigatorState>(find.byType(Navigator).first).pop();
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Tiền nhà'));
+    await tester.pumpAndSettle();
+    expect(find.text('FORM:Tiền nhà'), findsOneWidget);
   });
 
   testWidgets('lỗi tải hiện thông điệp, Thử lại tải lại được', (tester) async {

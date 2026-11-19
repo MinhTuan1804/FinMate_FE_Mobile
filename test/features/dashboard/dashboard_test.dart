@@ -92,9 +92,13 @@ void main() {
       expect(find.text('Finny'), findsNothing);
       expect(find.textContaining('Hỏi FinMate'), findsOneWidget);
       expect(find.text('Ghi chép'), findsOneWidget);
-      expect(find.text('Kế hoạch'), findsNWidgets(2));
-      expect(find.text('Báo cáo'), findsOneWidget);
-      expect(find.text('Lịch sử'), findsOneWidget);
+      // Lối tắt: Nhóm tài chính / Dự báo / Hỗ trợ; Kế hoạch chỉ còn ở thanh điều hướng dưới (không lặp lại).
+      expect(find.text('Nhóm tài chính'), findsOneWidget);
+      expect(find.text('Dự báo'), findsOneWidget);
+      expect(find.text('Hỗ trợ'), findsOneWidget);
+      expect(find.text('Kế hoạch'), findsOneWidget);
+      expect(find.text('Báo cáo'), findsNothing);
+      expect(find.text('Lịch sử'), findsNothing);
     });
 
     testWidgets('số dư = tổng số dư các tài khoản; thu/chi tháng lấy từ báo cáo (không số giả)', (tester) async {

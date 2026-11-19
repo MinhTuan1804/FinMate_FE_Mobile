@@ -177,7 +177,7 @@ class _WebSessionButton extends ConsumerWidget {
     return OutlinedButton.icon(
       key: const ValueKey('create-web-session'),
       icon: const Icon(Icons.open_in_browser),
-      label: const Text('Tạo liên kết mua/gia hạn gói'),
+      label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Tạo liên kết mua/gia hạn gói', maxLines: 1)),
       onPressed: () async {
         final createWebSession = ref.read(webSessionActionProvider);
         try {

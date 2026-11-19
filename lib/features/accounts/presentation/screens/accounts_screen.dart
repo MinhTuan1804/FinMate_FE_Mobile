@@ -150,7 +150,7 @@ class AccountsScreen extends ConsumerWidget {
                         TextButton.icon(
                           onPressed: () => _showBalance(context, ref, account),
                           icon: const Icon(LucideIcons.refreshCw, size: 16),
-                          label: const Text('Xem số dư mới nhất'),
+                          label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Xem số dư mới nhất', maxLines: 1)),
                         ),
                         const Spacer(),
                         IconButton(

@@ -336,7 +336,7 @@ class _ForecastScreenState extends ConsumerState<ForecastScreen> {
                     key: const ValueKey('forecast-scenario-button'),
                     onPressed: _scenarioBusy ? null : _openScenario,
                     icon: const Icon(LucideIcons.plusCircle, size: 16),
-                    label: const Text('Thử kịch bản'),
+                    label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Thử kịch bản', maxLines: 1)),
                   ),
                   if (isScenario)
                     TextButton(
@@ -844,7 +844,7 @@ class _ForecastScreenState extends ConsumerState<ForecastScreen> {
                   key: const ValueKey('goal-scenario-button'),
                   onPressed: _goalScenarioBusy ? null : () => _openGoalScenario(goalId),
                   icon: const Icon(LucideIcons.plusCircle, size: 16),
-                  label: const Text('Thử mức góp khác'),
+                  label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Thử mức góp khác', maxLines: 1)),
                 ),
                 if (isScenario)
                   TextButton(
@@ -963,7 +963,7 @@ class _ScenarioDialogState extends State<_ScenarioDialog> {
               key: const ValueKey('scenario-date'),
               onPressed: _pickDate,
               icon: const Icon(Icons.calendar_today, size: 16),
-              label: Text(DateFormat('dd/MM/yyyy').format(_date)),
+              label: FittedBox(fit: BoxFit.scaleDown, child: Text(DateFormat('dd/MM/yyyy').format(_date), maxLines: 1)),
             ),
           ],
         ),

@@ -38,6 +38,7 @@ class F3CashflowForecastScreen extends ConsumerStatefulWidget {
 
 class _F3CashflowForecastScreenState extends ConsumerState<F3CashflowForecastScreen> {
   _Horizon _horizon = _Horizon.days30;
+  _ScenarioRun? _scenario;
 
   DateTime get _to {
     final now = DateTime.now();
@@ -106,13 +107,16 @@ class _F3CashflowForecastScreenState extends ConsumerState<F3CashflowForecastScr
         _buildSummaryCard(forecast),
         const SizedBox(height: 16),
         _buildChartCard(forecast),
+        const SizedBox(height: 12),
+        _buildBalanceFacts(forecast),
         const SizedBox(height: 16),
         if (forecast.mainCauses.isNotEmpty) ...[
-          Text('Các yếu tố ảnh hưởng dòng tiền', style: GlassTypography.headlineSm()),
+          Text('Mô phỏng áp lực dòng tiền', style: GlassTypography.headlineSm()),
           const SizedBox(height: 10),
-          for (final cause in forecast.mainCauses) ...[_causeRow(cause), const SizedBox(height: 10)],
+          for (final (i, cause) in forecast.mainCauses.indexed) ...[_CauseTile(cause: cause, events: _eventsOf(forecast, cause), initiallyOpen: i == 0), const SizedBox(height: 10)],
           const SizedBox(height: 6),
         ],
+        if (_scenario != null) ...[_buildScenarioCard(forecast, _scenario!), const SizedBox(height: 16)],
         _buildScenarioButton(),
         const SizedBox(height: 10),
         _buildAiSummaryLink(),
@@ -131,7 +135,7 @@ class _F3CashflowForecastScreenState extends ConsumerState<F3CashflowForecastScr
             padding: const EdgeInsets.symmetric(vertical: 10),
             decoration: BoxDecoration(color: selected ? GlassColors.ink : Colors.transparent, borderRadius: GlassRadius.roundedPill),
             child: Center(
-              child: Text(label, style: GlassTypography.bodyMd(color: selected ? Colors.white : GlassColors.textMuted).copyWith(fontWeight: selected ? FontWeight.w600 : FontWeight.w400)),
+              child: Text(label, style: GlassTypography.bodyMd(color: selected ? GlassColors.onInk : GlassColors.textMuted).copyWith(fontWeight: selected ? FontWeight.w600 : FontWeight.w400)),
             ),
           ),
         ),
@@ -151,38 +155,62 @@ class _F3CashflowForecastScreenState extends ConsumerState<F3CashflowForecastScr
     );
   }
 
+  /// Thu/Chi dự kiến thật: thu = các khoản có dấu dương trong events; chi = các khoản âm + chi tiêu hằng ngày
+  /// (flexibleSpendCents, BE không đưa vào events). Cộng lại khớp với số dư cuối kỳ.
+  (BigInt, BigInt) _inflowOutflow(CashflowForecastEntity f) {
+    var inflow = BigInt.zero;
+    var outflow = BigInt.zero;
+    for (final d in f.days) {
+      outflow += d.flexibleSpendCents.abs();
+      for (final e in d.events) {
+        if (e.amountCents > BigInt.zero) {
+          inflow += e.amountCents;
+        } else {
+          outflow += e.amountCents.abs();
+        }
+      }
+    }
+    return (inflow, outflow);
+  }
+
+  List<(DateTime, CashflowEventEntity)> _eventsOf(CashflowForecastEntity f, CashflowCauseEntity cause) => [
+        for (final d in f.days)
+          for (final e in d.events)
+            if (e.label == cause.label) (d.date, e),
+      ];
+
+  String _signedPercent(double v) => '${v >= 0 ? '+' : '-'}${v.abs().toStringAsFixed(1).replaceAll('.', ',')}%';
+
   Widget _buildSummaryCard(CashflowForecastEntity forecast) {
+    final (inflow, outflow) = _inflowOutflow(forecast);
+    // % thay đổi số dư cuối kỳ so với hiện tại — chỉ tính khi số dư hiện tại dương (tránh chia cho 0/âm)
+    final change = forecast.startBalanceCents > BigInt.zero ? (forecast.endBalanceCents - forecast.startBalanceCents).toDouble() / forecast.startBalanceCents.toDouble() * 100 : null;
     return GlassCard(
       level: 2,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          // Wrap: tiêu đề dài và nhãn độ tin cậy tự xuống dòng khi hẹp thay vì tràn phải
+          Wrap(
+            spacing: 10,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Row(children: [Icon(LucideIcons.sparkles, size: 14, color: GlassColors.slateAnchor), const SizedBox(width: 6), Text('MÔ HÌNH AI DỰ BÁO DÒNG TIỀN', style: GlassTypography.labelCaps())]),
+              Row(mainAxisSize: MainAxisSize.min, children: [Icon(LucideIcons.sparkles, size: 14, color: GlassColors.slateAnchor), const SizedBox(width: 6), Flexible(child: Text('MÔ HÌNH AI DỰ BÁO DÒNG TIỀN', maxLines: 2, overflow: TextOverflow.ellipsis, style: GlassTypography.labelCaps()))]),
               GlassBadge(text: _confidenceLabel[forecast.confidence] ?? forecast.confidence, color: forecast.confidence == 'high' ? GlassColors.success : GlassColors.warning),
+              if (change != null) GlassBadge(text: '${_signedPercent(change)} so với hiện tại', color: change >= 0 ? GlassColors.success : GlassColors.danger),
             ],
           ),
           const SizedBox(height: 10),
           Text('Dự kiến số dư cuối kỳ', style: GlassTypography.bodyMd()),
           const SizedBox(height: 2),
-          Text(formatVnd(forecast.endBalanceCents), style: GlassTypography.displayHero()),
+          FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(formatVnd(forecast.endBalanceCents), maxLines: 1, style: GlassTypography.displayHero())),
           const SizedBox(height: 14),
           Row(
             children: [
-              Expanded(
-                child: _miniStat(
-                  icon: LucideIcons.trendingDown,
-                  color: GlassColors.danger,
-                  label: 'Thấp nhất dự kiến',
-                  value: '${formatVnd(forecast.lowestBalanceCents)} (${DateFormat('dd/MM').format(forecast.lowestDay)})',
-                ),
-              ),
+              Expanded(child: _miniStat(icon: LucideIcons.arrowUp, color: GlassColors.success, label: 'Thu dự kiến', value: '+${formatVnd(inflow)}')),
               const SizedBox(width: 10),
-              Expanded(
-                child: _miniStat(icon: LucideIcons.waves, color: GlassColors.accentSkyBlue, label: 'Số dư hiện tại', value: formatVnd(forecast.startBalanceCents)),
-              ),
+              Expanded(child: _miniStat(icon: LucideIcons.arrowDown, color: GlassColors.danger, label: 'Chi dự kiến', value: '-${formatVnd(outflow)}')),
             ],
           ),
         ],
@@ -190,7 +218,21 @@ class _F3CashflowForecastScreenState extends ConsumerState<F3CashflowForecastScr
     );
   }
 
-  Widget _miniStat({required IconData icon, required Color color, required String label, required String value}) {
+  Widget _buildBalanceFacts(CashflowForecastEntity forecast) {
+    return Row(
+      children: [
+        Expanded(
+          child: _miniStat(icon: LucideIcons.trendingDown, color: GlassColors.danger, label: 'Thấp nhất dự kiến', value: formatVnd(forecast.lowestBalanceCents), note: 'Ngày ${DateFormat('dd/MM').format(forecast.lowestDay)}'),
+        ),
+        const SizedBox(width: 10),
+        Expanded(child: _miniStat(icon: LucideIcons.waves, color: GlassColors.accentSkyBlue, label: 'Số dư hiện tại', value: formatVnd(forecast.startBalanceCents))),
+      ],
+    );
+  }
+
+  /// Ô số liệu nhỏ: nhãn một dòng, số tiền một dòng (tự co nếu hẹp), ghi chú phụ (ví dụ ngày) ở dòng riêng.
+  /// Luôn có dòng ghi chú (rỗng nếu không có) để hai ô cạnh nhau cao bằng nhau.
+  Widget _miniStat({required IconData icon, required Color color, required String label, required String value, String? note}) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(color: GlassColors.secondarySurface, borderRadius: GlassRadius.roundedInput),
@@ -199,9 +241,14 @@ class _F3CashflowForecastScreenState extends ConsumerState<F3CashflowForecastScr
         children: [
           Icon(icon, size: 16, color: color),
           const SizedBox(height: 6),
-          Text(label, style: GlassTypography.bodySm()),
+          Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: GlassTypography.bodySm()),
           const SizedBox(height: 2),
-          Text(value, style: GlassTypography.bodyMd(color: GlassColors.textPrimary).copyWith(fontWeight: FontWeight.w700)),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(value, maxLines: 1, style: GlassTypography.bodyMd(color: GlassColors.textPrimary).copyWith(fontWeight: FontWeight.w700)),
+          ),
+          Text(note ?? ' ', maxLines: 1, overflow: TextOverflow.ellipsis, style: GlassTypography.bodySm()),
         ],
       ),
     );
@@ -238,12 +285,18 @@ class _F3CashflowForecastScreenState extends ConsumerState<F3CashflowForecastScr
           Text('Xu hướng số dư dự kiến', style: GlassTypography.headlineSm()),
           const SizedBox(height: 2),
           Text('Dải mờ: khoảng thận trọng – lạc quan theo AI', style: GlassTypography.bodySm()),
+          const SizedBox(height: 8),
+          Row(mainAxisSize: MainAxisSize.min, children: [
+            CustomPaint(size: const Size(24, 2), painter: _DashPainter(GlassColors.slateAnchor)),
+            const SizedBox(width: 8),
+            Flexible(child: Text('Dự báo AI từ ${DateFormat('dd/MM').format(days.first.date)} – ${DateFormat('dd/MM').format(days.last.date)}', maxLines: 1, overflow: TextOverflow.ellipsis, style: GlassTypography.bodySm())),
+          ]),
           if (biggestIndex >= 0) ...[
             const SizedBox(height: 10),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               decoration: BoxDecoration(color: GlassColors.ink, borderRadius: GlassRadius.roundedPill),
-              child: Text(biggestLabel, style: GlassTypography.bodySm(color: Colors.white)),
+              child: Text(biggestLabel, style: GlassTypography.bodySm(color: GlassColors.onInk)),
             ),
           ],
           const SizedBox(height: 16),
@@ -270,6 +323,40 @@ class _F3CashflowForecastScreenState extends ConsumerState<F3CashflowForecastScr
                   ),
                 ),
                 borderData: FlBorderData(show: false),
+                // Chỉ đường số dư dự kiến (bar 2) có tooltip: ngày + số tiền VNĐ. Hai dải mờ không hiện số thô nữa.
+                lineTouchData: LineTouchData(
+                  touchTooltipData: LineTouchTooltipData(
+                    getTooltipColor: (_) => GlassColors.ink,
+                    tooltipRoundedRadius: 12,
+                    tooltipPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    fitInsideHorizontally: true,
+                    getTooltipItems: (touched) => [
+                      for (final s in touched)
+                        if (s.barIndex != 2)
+                          null
+                        else
+                          LineTooltipItem(
+                            '${DateFormat('dd/MM').format(days[s.x.round().clamp(0, days.length - 1)].date)}\n',
+                            GlassTypography.bodySm(color: GlassColors.onInk.withValues(alpha: 0.75)),
+                            children: [
+                              TextSpan(
+                                text: formatVnd(BigInt.from(s.y.round())),
+                                style: GlassTypography.bodyMd(color: GlassColors.onInk).copyWith(fontWeight: FontWeight.w700),
+                              ),
+                            ],
+                          ),
+                    ],
+                  ),
+                  getTouchedSpotIndicator: (bar, indexes) => [
+                    for (final _ in indexes)
+                      bar.barWidth == 0
+                          ? null
+                          : TouchedSpotIndicatorData(
+                              FlLine(color: GlassColors.slateAnchor.withValues(alpha: 0.4), strokeWidth: 1.5),
+                              const FlDotData(show: true),
+                            ),
+                  ],
+                ),
                 lineBarsData: [
                   LineChartBarData(spots: highSpots, isCurved: true, color: GlassColors.accentSkyBlue.withValues(alpha: 0.25), barWidth: 0, dotData: const FlDotData(show: false)),
                   LineChartBarData(spots: lowSpots, isCurved: true, color: GlassColors.accentSkyBlue.withValues(alpha: 0.25), barWidth: 0, dotData: const FlDotData(show: false)),
@@ -278,6 +365,7 @@ class _F3CashflowForecastScreenState extends ConsumerState<F3CashflowForecastScr
                     isCurved: true,
                     color: GlassColors.slateAnchor,
                     barWidth: 3,
+                    dashArray: [8, 5],
                     dotData: FlDotData(
                       show: true,
                       checkToShowDot: (spot, _) => spot.x.round() == biggestIndex,
@@ -294,21 +382,6 @@ class _F3CashflowForecastScreenState extends ConsumerState<F3CashflowForecastScr
     );
   }
 
-  Widget _causeRow(CashflowCauseEntity cause) {
-    final isInflow = cause.amountCents >= BigInt.zero;
-    return GlassCard(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        children: [
-          Icon(isInflow ? LucideIcons.arrowUpRight : LucideIcons.arrowDownRight, size: 18, color: isInflow ? GlassColors.success : GlassColors.danger),
-          const SizedBox(width: 12),
-          Expanded(child: Text(cause.label, style: GlassTypography.bodyMd(color: GlassColors.textPrimary))),
-          Text(cause.formattedAmount, style: GlassTypography.labelNumeric(color: isInflow ? GlassColors.success : GlassColors.danger)),
-        ],
-      ),
-    );
-  }
-
   // Đúng sơ đồ điều hướng F3→F6 (roadmap) — Stitch F3 không vẽ nút này, thêm theo rule "bổ sung
   // nút điều hướng còn thiếu".
   Widget _buildAiSummaryLink() {
@@ -318,7 +391,7 @@ class _F3CashflowForecastScreenState extends ConsumerState<F3CashflowForecastScr
         onPressed: () => context.push('/analytics/insights'),
         style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14), side: BorderSide(color: GlassColors.glassBorder), shape: RoundedRectangleBorder(borderRadius: GlassRadius.roundedPill)),
         icon: Icon(LucideIcons.sparkles, size: 18, color: GlassColors.textPrimary),
-        label: Text('Xem nhận xét AI & báo cáo tháng', style: GlassTypography.bodyMd(color: GlassColors.textPrimary).copyWith(fontWeight: FontWeight.w600)),
+        label: FittedBox(fit: BoxFit.scaleDown, child: Text('Xem nhận xét AI & báo cáo tháng', style: GlassTypography.bodyMd(color: GlassColors.textPrimary).copyWith(fontWeight: FontWeight.w600), maxLines: 1)),
       ),
     );
   }
@@ -330,12 +403,12 @@ class _F3CashflowForecastScreenState extends ConsumerState<F3CashflowForecastScr
         onPressed: () => _openScenarioSheet(context),
         style: ElevatedButton.styleFrom(
           backgroundColor: GlassColors.ink,
-          foregroundColor: Colors.white,
+          foregroundColor: GlassColors.onInk,
           padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(borderRadius: GlassRadius.roundedPill),
         ),
         icon: const Icon(LucideIcons.slidersHorizontal, size: 18),
-        label: const Text('Tùy chỉnh kịch bản thu chi'),
+        label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Tùy chỉnh kịch bản thu chi', maxLines: 1)),
       ),
     );
   }
@@ -353,9 +426,11 @@ class _F3CashflowForecastScreenState extends ConsumerState<F3CashflowForecastScr
       builder: (sheetContext) => StatefulBuilder(
         builder: (sheetContext, setSheetState) => Padding(
           padding: EdgeInsets.only(bottom: MediaQuery.of(sheetContext).viewInsets.bottom),
-          child: Container(
+          // GlassCard có BackdropFilter làm mờ nội dung phía sau; chỉ tô màu trong suốt thì chữ của màn dưới xuyên qua sheet.
+          child: GlassCard(
+            level: 3,
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
-            decoration: BoxDecoration(color: GlassColors.glassFillModal, borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -383,7 +458,9 @@ class _F3CashflowForecastScreenState extends ConsumerState<F3CashflowForecastScr
                         child: Padding(
                           padding: const EdgeInsets.only(right: 8),
                           child: ChoiceChip(
-                            label: Text(d.label),
+                            label: Text(d.label, style: TextStyle(color: direction == d ? GlassColors.activeFg : GlassColors.textSecondary, fontWeight: FontWeight.w600)),
+                            selectedColor: GlassColors.activeFill,
+                            showCheckmark: false,
                             selected: direction == d,
                             onSelected: (_) => setSheetState(() => direction = d),
                           ),
@@ -406,13 +483,13 @@ class _F3CashflowForecastScreenState extends ConsumerState<F3CashflowForecastScr
                         ]);
                         navigator.pop();
                         if (!mounted) return;
-                        _showScenarioResult(result);
+                        setState(() => _scenario = _ScenarioRun(label: labelController.text.trim(), amount: amount, direction: direction, date: date, result: result));
                       } catch (e) {
                         if (!mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errorMessage(e))));
                       }
                     },
-                    style: ElevatedButton.styleFrom(backgroundColor: GlassColors.ink, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: GlassRadius.roundedPill)),
+                    style: ElevatedButton.styleFrom(backgroundColor: GlassColors.ink, foregroundColor: GlassColors.onInk, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: GlassRadius.roundedPill)),
                     child: const Text('Xem kết quả'),
                   ),
                 ),
@@ -424,17 +501,139 @@ class _F3CashflowForecastScreenState extends ConsumerState<F3CashflowForecastScr
     );
   }
 
-  void _showScenarioResult(CashflowForecastEntity result) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: GlassColors.glassFillModal,
-        title: Text('Số dư cuối kỳ nếu xảy ra', style: GlassTypography.headlineSm()),
-        content: Text(formatVnd(result.endBalanceCents), style: GlassTypography.displayHero()),
-        actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Đóng'))],
+  Widget _buildScenarioCard(CashflowForecastEntity base, _ScenarioRun run) {
+    final isIn = run.direction == RecurringDirection.inflow;
+    final name = run.label.isEmpty ? (isIn ? 'khoản thu giả định' : 'khoản chi giả định') : run.label;
+    final end = run.result.endBalanceCents;
+    // Thanh = số dư cuối kỳ sau kịch bản so với dự báo gốc (chỉ vẽ khi gốc dương)
+    final ratio = base.endBalanceCents > BigInt.zero ? (end.toDouble() / base.endBalanceCents.toDouble()).clamp(0.0, 1.0) : null;
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(color: GlassColors.accentSkyBlue.withValues(alpha: 0.25), shape: BoxShape.circle),
+              child: Icon(LucideIcons.sparkles, size: 18, color: GlassColors.slateAnchor),
+            ),
+            const SizedBox(width: 12),
+            Expanded(child: Text('Kịch bản giả định', style: GlassTypography.headlineSm())),
+          ]),
+          const SizedBox(height: 12),
+          Text('${isIn ? 'Thu thêm' : 'Chi thêm'} ${formatVnd(run.amount)} ($name) ngày ${DateFormat('dd/MM').format(run.date)}: số dư cuối kỳ còn ${formatVnd(end)}, thấp nhất ${formatVnd(run.result.lowestBalanceCents)} ngày ${DateFormat('dd/MM').format(run.result.lowestDay)}.', style: GlassTypography.bodyMd()),
+          if (ratio != null) ...[
+            const SizedBox(height: 12),
+            Semantics(
+              label: 'Số dư cuối kỳ sau kịch bản bằng ${(ratio * 100).round()}% dự báo gốc',
+              child: ClipRRect(borderRadius: GlassRadius.roundedPill, child: LinearProgressIndicator(value: ratio, minHeight: 6, color: GlassColors.slateAnchor, backgroundColor: GlassColors.secondarySurface)),
+            ),
+            const SizedBox(height: 4),
+            Text('So với dự báo gốc ${formatVnd(base.endBalanceCents)}', style: GlassTypography.bodySm()),
+          ],
+        ],
       ),
     );
   }
+}
+
+class _ScenarioRun {
+  final String label;
+  final BigInt amount;
+  final RecurringDirection direction;
+  final DateTime date;
+  final CashflowForecastEntity result;
+  const _ScenarioRun({required this.label, required this.amount, required this.direction, required this.date, required this.result});
+}
+
+/// Thẻ nguyên nhân chính; mở ra thấy các khoản phát sinh thật cùng tên trong kỳ (nếu có).
+class _CauseTile extends StatefulWidget {
+  final CashflowCauseEntity cause;
+  final List<(DateTime, CashflowEventEntity)> events;
+  final bool initiallyOpen;
+  const _CauseTile({required this.cause, required this.events, required this.initiallyOpen});
+
+  @override
+  State<_CauseTile> createState() => _CauseTileState();
+}
+
+class _CauseTileState extends State<_CauseTile> {
+  late bool _open = widget.initiallyOpen && widget.events.isNotEmpty;
+
+  @override
+  Widget build(BuildContext context) {
+    final cause = widget.cause;
+    final isInflow = cause.amountCents >= BigInt.zero;
+    final color = isInflow ? GlassColors.success : GlassColors.danger;
+    final canOpen = widget.events.isNotEmpty;
+    return GlassCard(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Semantics(
+            button: canOpen,
+            expanded: canOpen ? _open : null,
+            child: InkWell(
+              onTap: canOpen ? () => setState(() => _open = !_open) : null,
+              child: Row(
+                children: [
+                  Icon(isInflow ? LucideIcons.arrowUpRight : LucideIcons.arrowDownRight, size: 18, color: color),
+                  const SizedBox(width: 12),
+                  Expanded(child: Text(cause.label, style: GlassTypography.bodyMd(color: GlassColors.textPrimary).copyWith(fontWeight: FontWeight.w600))),
+                  const SizedBox(width: 8),
+                  Text(cause.formattedAmount, style: GlassTypography.labelNumeric(color: color)),
+                  if (canOpen) ...[const SizedBox(width: 6), Icon(_open ? LucideIcons.chevronUp : LucideIcons.chevronDown, size: 16, color: GlassColors.textMuted)],
+                ],
+              ),
+            ),
+          ),
+          if (_open)
+            Container(
+              margin: const EdgeInsets.only(top: 10, left: 8),
+              padding: const EdgeInsets.only(left: 12),
+              decoration: BoxDecoration(border: Border(left: BorderSide(color: GlassColors.accentSkyBlue, width: 2))),
+              child: Column(
+                children: [
+                  for (final (date, e) in widget.events)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(children: [
+                        Text(DateFormat('dd/MM').format(date), style: GlassTypography.bodySm()),
+                        const SizedBox(width: 10),
+                        Expanded(child: Text(e.label, maxLines: 1, overflow: TextOverflow.ellipsis, style: GlassTypography.bodyMd(color: GlassColors.textPrimary))),
+                        const SizedBox(width: 8),
+                        Text(formatVnd(e.amountCents), style: GlassTypography.bodySm(color: GlassColors.textSecondary)),
+                      ]),
+                    ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Nét đứt mẫu cho chú thích "Dự báo AI".
+class _DashPainter extends CustomPainter {
+  final Color color;
+  const _DashPainter(this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 2.5
+      ..strokeCap = StrokeCap.round;
+    for (var x = 0.0; x < size.width; x += 8) {
+      canvas.drawLine(Offset(x, size.height / 2), Offset((x + 5).clamp(0, size.width), size.height / 2), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DashPainter old) => old.color != color;
 }
 
 final _cashflowForHorizonProvider = FutureProvider.autoDispose.family<CashflowForecastEntity, DateTime>(

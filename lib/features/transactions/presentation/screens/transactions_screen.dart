@@ -422,7 +422,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                   child: TextButton.icon(
                     onPressed: controller.loadTransactions,
                     icon: const Icon(LucideIcons.refreshCw, size: 16),
-                    label: const Text('Tải lại'),
+                    label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Tải lại', maxLines: 1)),
                   ),
                 ),
               ],

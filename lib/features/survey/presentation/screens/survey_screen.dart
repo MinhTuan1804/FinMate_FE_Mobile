@@ -28,6 +28,7 @@ class SurveyScreen extends ConsumerStatefulWidget {
 
 class _SurveyScreenState extends ConsumerState<SurveyScreen> {
   Map<String, String> _draftAnswers = {};
+  bool _submitting = false;
 
   void _syncDraftFrom(SurveyEntity survey) {
     _draftAnswers = {for (final a in survey.answers) a.questionCode: a.optionCode};
@@ -58,6 +59,7 @@ class _SurveyScreenState extends ConsumerState<SurveyScreen> {
         .where((e) => visibleCodes.contains(e.key))
         .map((e) => SurveyAnswerEntity(questionCode: e.key, optionCode: e.value))
         .toList();
+    setState(() => _submitting = true);
     try {
       await ref.read(surveyControllerProvider.notifier).submit(answers);
       // Nộp lại khảo sát thì gợi ý cũ đã lỗi thời: tạo mới (backend tái dùng nếu tín hiệu không đổi). Lỗi AI/mạng không chặn luồng.
@@ -71,6 +73,8 @@ class _SurveyScreenState extends ConsumerState<SurveyScreen> {
       context.push('/finance-methods');
     } catch (e) {
       _showMessage(surveyErrorMessage(e));
+    } finally {
+      if (mounted) setState(() => _submitting = false);
     }
   }
 
@@ -203,6 +207,19 @@ class _SurveyScreenState extends ConsumerState<SurveyScreen> {
                       ],
                     ),
                   ),
+                  if (_submitting)
+                    Padding(
+                      key: const ValueKey('survey-submitting-note'),
+                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+                      child: Semantics(
+                        liveRegion: true,
+                        child: Text(
+                          'Đang phân tích câu trả lời và đưa ra gợi ý… có thể mất vài giây.',
+                          textAlign: TextAlign.center,
+                          style: GlassTypography.bodySm(color: GlassColors.textSecondary),
+                        ),
+                      ),
+                    ),
                   GlassBottomDock(
                     actions: unchanged
                         ? [
@@ -214,10 +231,11 @@ class _SurveyScreenState extends ConsumerState<SurveyScreen> {
                             ),
                           ]
                         : [
-                            GlassGhostButton(label: 'Bỏ qua', onPressed: _skip),
+                            GlassGhostButton(label: 'Bỏ qua', onPressed: _submitting ? null : _skip),
                             GlassPrimaryButton(
                               label: 'Gửi khảo sát',
-                              onPressed: _draftAnswers.isEmpty ? null : () => _submit(survey),
+                              loading: _submitting,
+                              onPressed: _draftAnswers.isEmpty || _submitting ? null : () => _submit(survey),
                             ),
                           ],
                   ),

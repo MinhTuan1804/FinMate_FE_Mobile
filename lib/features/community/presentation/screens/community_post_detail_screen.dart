@@ -193,7 +193,7 @@ class CommunityPostDetailScreen extends ConsumerWidget {
                     key: const ValueKey('community-add-comment'),
                     onPressed: () => _addComment(context, ref),
                     icon: const Icon(Icons.add_comment_outlined),
-                    label: const Text('Bình luận'),
+                    label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Bình luận', maxLines: 1)),
                   ),
                 ],
               ),

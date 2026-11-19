@@ -435,12 +435,16 @@ class GoalDraft {
   final DateTime? deadline;
   final String? deadlineText;
 
+  /// Hạn hoặc tên do AI đọc hộ vì luật không hiểu câu: app không tự tạo mục tiêu, để người dùng soát ngày rồi bấm tạo
+  final bool aiAssisted;
+
   const GoalDraft({
     required this.name,
     this.nameIsDefault = false,
     required this.targetCents,
     this.deadline,
     this.deadlineText,
+    this.aiAssisted = false,
   });
 
   factory GoalDraft.fromJson(Map<String, dynamic> json) {
@@ -455,6 +459,7 @@ class GoalDraft {
           ? null
           : DateTime.tryParse(deadline)?.toLocal(),
       deadlineText: json['deadlineText'] as String?,
+      aiAssisted: json['aiAssisted'] == true,
     );
   }
 
@@ -471,6 +476,7 @@ class GoalDraft {
     deadline: clearDeadline ? null : (deadline ?? this.deadline),
     // đổi hạn bằng tay thì cụm đã nói không còn đúng nữa
     deadlineText: clearDeadline || deadline != null ? null : deadlineText,
+    aiAssisted: aiAssisted,
   );
 
   /// Số tiền cần nạp mỗi tháng để kịp hạn (làm tròn lên, tối thiểu 1 tháng); null nếu không có hạn. Cùng công thức với `SavingsGoalEntity.requiredPerMonth`.

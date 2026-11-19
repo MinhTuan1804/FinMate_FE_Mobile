@@ -42,7 +42,7 @@ void main() {
 
   tearDown(() => db.close());
 
-  Future<void> pumpProfile(WidgetTester tester, {AuthController? controller}) async {
+  Future<void> pumpProfile(WidgetTester tester, {AuthController? controller, bool subscriptionsEnabled = true}) async {
     tester.view.physicalSize = const Size(800, 2400);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -54,7 +54,14 @@ void main() {
         apiClientProvider.overrideWithValue(testApiClient(RouteAdapter((o) {
           if (o.path.contains('/financial-accounts')) return respondFixture('accounts');
           if (o.path.contains('/alert-thresholds')) return respondFixture('alert_thresholds');
-          if (o.path.contains('/subscriptions/me')) return respondFixture('subscriptions_me');
+          if (o.path.contains('/subscriptions/me')) {
+            return respondJson({
+              'success': true,
+              'data': {'enabled': subscriptionsEnabled, 'planCode': 'free', 'planName': 'Miễn phí', 'isFree': true, 'nextPurchaseStartsAt': '2026-11-10T10:00:00Z', 'upcoming': [], 'features': []},
+              'error': null,
+              'meta': null,
+            });
+          }
           return respondJson({'success': true, 'data': null});
         }))),
       ],
@@ -67,6 +74,22 @@ void main() {
     ));
     await tester.pumpAndSettle();
   }
+
+  testWidgets('gói đăng ký tắt (features.subscriptions = false): ẩn mục "Gói đăng ký" dù các mục cùng nhóm vẫn hiện', (tester) async {
+    await pumpProfile(tester, subscriptionsEnabled: false);
+
+    await tester.scrollUntilVisible(find.text('Cách quản lý tài chính'), 300, scrollable: find.byType(Scrollable).first);
+    expect(find.text('Cách quản lý tài chính'), findsOneWidget);
+    expect(find.byKey(const ValueKey('open-subscription')), findsNothing);
+    expect(find.text('Gói đăng ký'), findsNothing);
+  });
+
+  testWidgets('gói đăng ký bật: mục "Gói đăng ký" hiện lại', (tester) async {
+    await pumpProfile(tester, subscriptionsEnabled: true);
+
+    await tester.scrollUntilVisible(find.byKey(const ValueKey('open-subscription')), 300, scrollable: find.byType(Scrollable).first);
+    expect(find.text('Gói đăng ký'), findsOneWidget);
+  });
 
   testWidgets('hiện tên và email, không còn cấp độ/XP/tủ đồ', (tester) async {
     await pumpProfile(tester);

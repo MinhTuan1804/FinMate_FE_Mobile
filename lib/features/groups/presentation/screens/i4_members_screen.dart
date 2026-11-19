@@ -172,7 +172,7 @@ class I4MembersScreen extends ConsumerWidget {
                         key: const ValueKey('transfer-ownership'),
                         onPressed: () => _transferOwnership(context, ref, members, myUserId),
                         icon: const Icon(LucideIcons.users, size: 16),
-                        label: const Text('Chuyển quyền chủ nhóm'),
+                        label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Chuyển quyền chủ nhóm', maxLines: 1)),
                       ),
                     ],
                     const SizedBox(height: 20),
@@ -186,7 +186,7 @@ class I4MembersScreen extends ConsumerWidget {
                           key: const ValueKey('invite-more-members'),
                           onPressed: () => context.push('/group-invite', extra: groupId),
                           icon: const Icon(LucideIcons.link, size: 18),
-                          label: const Text('Mời thêm thành viên mới'),
+                          label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Mời thêm thành viên mới', maxLines: 1)),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: GlassColors.ink,
                             foregroundColor: Colors.white,

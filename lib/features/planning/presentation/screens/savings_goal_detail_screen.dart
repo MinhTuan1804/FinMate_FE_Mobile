@@ -4,14 +4,74 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:finmate/core/format/money.dart';
+import 'package:finmate/core/network/api_exceptions.dart';
 import 'package:finmate/core/theme/app_colors.dart';
-import 'package:finmate/core/theme/app_spacing.dart';
-import 'package:finmate/core/theme/app_typography.dart';
-import 'package:finmate/core/widgets/glass/liquid_glass.dart';
+import 'package:finmate/core/theme/glass/glass_colors.dart';
+import 'package:finmate/core/theme/glass/glass_radius.dart';
+import 'package:finmate/core/theme/glass/glass_typography.dart';
 import 'package:finmate/features/planning/domain/entities/savings_goal_entity.dart';
 import 'package:finmate/features/planning/presentation/controllers/planning_controller.dart';
+import 'package:finmate/shared/widgets/glass/glass_app_bar.dart';
+import 'package:finmate/shared/widgets/glass/glass_background.dart';
+import 'package:finmate/shared/widgets/glass/glass_badge.dart';
+import 'package:finmate/shared/widgets/glass/glass_bottom_dock.dart';
+import 'package:finmate/shared/widgets/glass/glass_buttons.dart';
+import 'package:finmate/shared/widgets/glass/glass_card.dart';
+import 'package:finmate/shared/widgets/glass/glass_circular_progress.dart';
+import 'package:finmate/shared/widgets/glass/glass_loading_spinner.dart';
 
-/// Màn G4: Chi tiết mục tiêu tiết kiệm (Savings Goal Detail Screen)
+/// Hộp thoại nhập số tiền nạp vào mục tiêu; trả về null nếu hủy. Dùng chung cho G2 và G4.
+Future<BigInt?> showGoalContributeDialog(BuildContext context, String goalTitle) {
+  return showDialog<BigInt>(context: context, builder: (_) => _ContributeDialog(goalTitle: goalTitle));
+}
+
+class _ContributeDialog extends StatefulWidget {
+  final String goalTitle;
+  const _ContributeDialog({required this.goalTitle});
+
+  @override
+  State<_ContributeDialog> createState() => _ContributeDialogState();
+}
+
+class _ContributeDialogState extends State<_ContributeDialog> {
+  final _amount = TextEditingController();
+  String? _error;
+
+  @override
+  void dispose() {
+    _amount.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final value = parseAmountInput(_amount.text);
+    if (value == null) {
+      setState(() => _error = 'Vui lòng nhập số tiền hợp lệ');
+    } else {
+      Navigator.pop(context, value);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('Nạp tiền vào "${widget.goalTitle}"'),
+      content: TextField(
+        controller: _amount,
+        keyboardType: TextInputType.number,
+        inputFormatters: [ThousandsSeparatorInputFormatter()],
+        autofocus: true,
+        decoration: InputDecoration(labelText: 'Số tiền (VNĐ)', errorText: _error),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Hủy')),
+        ElevatedButton(onPressed: _submit, child: const Text('Nạp tiền')),
+      ],
+    );
+  }
+}
+
+/// Màn G4: Chi tiết mục tiêu tiết kiệm.
 class SavingsGoalDetailScreen extends ConsumerStatefulWidget {
   final SavingsGoalEntity goal;
 
@@ -22,211 +82,299 @@ class SavingsGoalDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _SavingsGoalDetailScreenState extends ConsumerState<SavingsGoalDetailScreen> {
-  late SavingsGoalEntity _goal = widget.goal;
+  late Future<GoalProgressEntity> _progress = _loadProgress();
 
-  Future<void> _contribute() async {
-    final amountController = TextEditingController();
-    final amount = await showDialog<BigInt>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Nạp tiền vào "${_goal.title}"'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Nhập số tiền bạn muốn trích nạp thêm:'),
-            const SizedBox(height: 12),
-            TextField(
-              controller: amountController,
-              keyboardType: TextInputType.number,
-              autofocus: true,
-              decoration: const InputDecoration(
-                hintText: '500.000',
-                suffixText: '₫',
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
-          ElevatedButton(
-            onPressed: () {
-              final raw = amountController.text.replaceAll('.', '').replaceAll(',', '').trim();
-              final parsed = int.tryParse(raw);
-              if (parsed != null && parsed > 0) {
-                Navigator.pop(ctx, BigInt.from(parsed));
-              }
-            },
-            child: const Text('Nạp tiền'),
-          ),
-        ],
-      ),
-    );
+  Future<GoalProgressEntity> _loadProgress() => ref.read(planningControllerProvider.notifier).getGoalProgress(widget.goal.id);
 
-    if (amount != null && mounted) {
-      await ref.read(planningControllerProvider.notifier).contributeToGoal(_goal.id, amount);
-      if (!mounted) return;
-      setState(() {
-        _goal = _goal.copyWith(
-          currentAmountCents: _goal.currentAmountCents + amount,
-        );
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Đã nạp ${formatVnd(amount)} vào mục tiêu thành công!'),
-          backgroundColor: AppColors.safe,
-        ),
-      );
+  void _reload() {
+    setState(() {
+      _progress = _loadProgress();
+    });
+  }
+
+  Future<void> _contribute(SavingsGoalEntity goal) async {
+    final amount = await showGoalContributeDialog(context, goal.title);
+    if (amount == null || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref.read(planningControllerProvider.notifier).contributeToGoal(goal.id, amount);
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(errorMessage(e)), backgroundColor: GlassColors.danger));
+      return;
     }
+    if (!mounted) return;
+    _reload();
+    messenger.showSnackBar(SnackBar(content: Text('Đã nạp ${formatVnd(amount)} vào mục tiêu thành công!')));
+  }
+
+  Future<void> _edit(SavingsGoalEntity goal) async {
+    await context.push('/planning/goals/form', extra: goal);
+    if (mounted) _reload();
   }
 
   @override
   Widget build(BuildContext context) {
-    final target = _goal.targetAmountCents;
-    final current = _goal.currentAmountCents;
-    final progress = target > BigInt.zero ? (current.toDouble() / target.toDouble()).clamp(0.0, 1.0) : 0.0;
-    final percent = (progress * 100).toInt();
-    final remaining = target > current ? target - current : BigInt.zero;
+    // Lấy bản mới nhất trong state (sau khi nạp/sửa); rơi về bản truyền vào nếu chưa có
+    final goals = ref.watch(planningControllerProvider).valueOrNull?.savingsGoals ?? const <SavingsGoalEntity>[];
+    final goal = goals.where((g) => g.id == widget.goal.id).firstOrNull ?? widget.goal;
+    final canContribute = !goal.isCompleted && !goal.isCancelled;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_goal.title),
-        leading: IconButton(
-          icon: const Icon(LucideIcons.arrowLeft),
-          onPressed: () => context.pop(),
+    return GlassBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: glassAppBar(
+          context,
+          title: goal.title,
+          actions: [
+            IconButton(
+              key: const ValueKey('edit-goal-detail'),
+              tooltip: 'Sửa mục tiêu',
+              icon: Icon(LucideIcons.pencil, size: 20, color: GlassColors.slateAnchor),
+              onPressed: () => _edit(goal),
+            ),
+          ],
+        ),
+        bottomNavigationBar: GlassBottomDock(
+          actions: [
+            GlassPrimaryButton(
+              key: const ValueKey('contribute-goal'),
+              label: 'Nạp tiền vào mục tiêu',
+              icon: LucideIcons.circlePlus,
+              onPressed: canContribute ? () => _contribute(goal) : null,
+            ),
+          ],
+        ),
+        body: SafeArea(
+          bottom: false,
+          child: FutureBuilder<GoalProgressEntity>(
+            future: _progress,
+            builder: (context, snap) {
+              final progress = snap.data;
+              return ListView(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                children: [
+                  _HeroCard(goal: goal, progress: progress),
+                  const SizedBox(height: 16),
+                  if (snap.connectionState != ConnectionState.done)
+                    const GlassCard(child: GlassLoadingSpinner())
+                  else if (snap.hasError)
+                    _HistoryError(message: errorMessage(snap.error!), onRetry: _reload)
+                  else if (progress != null) ...[
+                    _PaceNote(progress: progress),
+                    _HistoryCard(contributions: progress.recentContributions),
+                  ],
+                ],
+              );
+            },
+          ),
         ),
       ),
-      body: AmbientGlassBackground(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 14, 20, 32),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+    );
+  }
+}
+
+class _HeroCard extends StatelessWidget {
+  final SavingsGoalEntity goal;
+  final GoalProgressEntity? progress;
+
+  const _HeroCard({required this.goal, required this.progress});
+
+  @override
+  Widget build(BuildContext context) {
+    final percent = goal.progressPercentage.clamp(0, 100).toDouble();
+    final remaining = goal.targetAmountCents > goal.currentAmountCents ? goal.targetAmountCents - goal.currentAmountCents : BigInt.zero;
+    final days = progress?.daysRemaining;
+    final label = goal.isCancelled ? 'Đã hủy' : goal.statusLabel();
+    final badgeColor = goal.isCancelled
+        ? GlassColors.textMuted
+        : goal.isCompleted
+        ? GlassColors.success
+        : goal.isOverdue()
+        ? GlassColors.danger
+        : GlassColors.slateAnchor;
+
+    return GlassCard(
+      level: 2,
+      borderRadius: GlassRadius.roundedCardLarge,
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        children: [
+          GlassBadge(text: label, color: badgeColor),
+          const SizedBox(height: 16),
+          Semantics(
+            label: 'Đã đạt ${percent.toStringAsFixed(0)} phần trăm',
+            excludeSemantics: true,
+            child: GlassCircularProgress(
+              percent: percent,
+              size: 168,
+              strokeWidth: 12,
+              progressColor: goal.isCompleted ? GlassColors.success : GlassColors.slateAnchor,
+              center: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('ĐÃ ĐẠT', style: GlassTypography.labelCaps()),
+                  Text('${percent.toStringAsFixed(0)}%', style: GlassTypography.displayHero()),
+                  if (days != null && !goal.isCompleted && !goal.isCancelled)
+                    GlassBadge(text: days > 0 ? 'Còn $days ngày' : 'Đã đến hạn', color: GlassColors.slateAnchor),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Hero Progress Card
-              ZenvestHeroDeck(
-                peekBadgeText: '$percent%',
-                child: LiquidGlassCard(
-                  variant: LiquidGlassVariant.iridescentHero,
-                  padding: const EdgeInsets.all(22),
-                  child: Column(
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: AppColors.secondary.withValues(alpha: 0.16),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(LucideIcons.piggyBank, color: AppColors.secondary, size: 24),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: AppColors.safe.withValues(alpha: 0.14),
-                              borderRadius: AppSpacing.roundedPill,
-                            ),
-                            child: Text(
-                              percent >= 100 ? 'Đã hoàn thành' : 'Đang tích lũy ($percent%)',
-                              style: const TextStyle(
-                                color: AppColors.safe,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 18),
-                      Text(
-                        _goal.title,
-                        textAlign: TextAlign.center,
-                        style: AppTypography.h1(context).copyWith(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Đã tích lũy: ${_goal.formattedCurrent} / ${_goal.formattedTarget}',
-                        style: AppTypography.caption(context).copyWith(fontSize: 13.5),
-                      ),
-                      const SizedBox(height: 18),
-                      LiquidGlassProgressBar(
-                        value: progress,
-                        color: percent >= 100 ? AppColors.safe : AppColors.secondary,
-                        height: 8,
-                      ),
-                      const SizedBox(height: 18),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Còn thiếu', style: AppTypography.caption(context)),
-                              Text(
-                                formatVnd(remaining),
-                                style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w800),
-                              ),
-                            ],
-                          ),
-                          if (_goal.targetDate != null)
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text('Hạn mục tiêu', style: AppTypography.caption(context)),
-                                Text(
-                                  DateFormat('dd/MM/yyyy').format(_goal.targetDate!),
-                                  style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w700),
-                                ),
-                              ],
-                            ),
-                        ],
-                      ),
-                    ],
+              Expanded(child: _Amount(label: 'Hiện có', value: goal.formattedCurrent)),
+              Expanded(child: _Amount(label: 'Mục tiêu', value: goal.formattedTarget)),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(color: GlassColors.activeFill, borderRadius: GlassRadius.roundedInput),
+            child: Row(
+              children: [
+                Icon(goal.isCompleted ? LucideIcons.circleCheck : LucideIcons.flag, size: 18, color: GlassColors.activeFg),
+                const SizedBox(width: 8),
+                Expanded(
+                  // Một dòng, tự thu nhỏ chữ khi hẹp thay vì xuống hàng.
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      goal.isCompleted ? 'Đã hoàn thành mục tiêu' : 'Chỉ còn thiếu ${formatVnd(remaining)} để hoàn tất',
+                      maxLines: 1,
+                      style: GlassTypography.bodyMd(color: GlassColors.activeFg).copyWith(fontWeight: FontWeight.w600),
+                    ),
                   ),
                 ),
+              ],
+            ),
+          ),
+          if (goal.targetDate != null) ...[
+            const SizedBox(height: 10),
+            Text('Hạn chót: ${DateFormat('dd/MM/yyyy').format(goal.targetDate!)}', style: GlassTypography.bodySm()),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _Amount extends StatelessWidget {
+  final String label;
+  final String value;
+  const _Amount({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(label, style: GlassTypography.bodySm()),
+        const SizedBox(height: 2),
+        FittedBox(fit: BoxFit.scaleDown, child: Text(value, style: GlassTypography.labelNumeric())),
+      ],
+    );
+  }
+}
+
+/// Gợi ý nhịp nạp từ BE: số tiền cần nạp mỗi ngày và đang đúng/chậm tiến độ.
+class _PaceNote extends StatelessWidget {
+  final GoalProgressEntity progress;
+  const _PaceNote({required this.progress});
+
+  @override
+  Widget build(BuildContext context) {
+    final perDay = progress.requiredPerDayCents;
+    if (perDay == null || progress.status != 'active') return const SizedBox.shrink();
+    final color = progress.isOnTrack ? GlassColors.success : GlassColors.warning;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: GlassCard(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Icon(LucideIcons.lightbulb, size: 20, color: color),
+            const SizedBox(width: 12),
+            Expanded(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Cần nạp ~${formatVnd(perDay)}/ngày · ${progress.isOnTrack ? 'Đang bám đúng nhịp' : 'Đang chậm so với kế hoạch'}',
+                  maxLines: 1,
+                  style: GlassTypography.bodyMd(color: GlassColors.textPrimary),
+                ),
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
-              const SizedBox(height: 24),
+class _HistoryError extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+  const _HistoryError({required this.message, required this.onRetry});
 
-              LiquidGlassPillButton(
-                label: 'Nạp thêm tiền vào mục tiêu',
-                icon: LucideIcons.plus,
-                isFullWidth: true,
-                onPressed: _contribute,
-              ),
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      child: Column(
+        children: [
+          Text(message, textAlign: TextAlign.center, style: GlassTypography.bodyMd(color: GlassColors.danger)),
+          TextButton(onPressed: onRetry, child: const Text('Thử lại')),
+        ],
+      ),
+    );
+  }
+}
 
-              const SizedBox(height: 24),
+class _HistoryCard extends StatelessWidget {
+  final List<GoalContributionEntity> contributions;
+  const _HistoryCard({required this.contributions});
 
-              // Advice card
-              ZenvestSurfaceSheet(
-                title: 'Kế hoạch hành động',
-                child: Column(
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(LucideIcons.history, size: 20, color: GlassColors.slateAnchor),
+              const SizedBox(width: 8),
+              Expanded(child: Text('Lịch sử đóng góp', style: GlassTypography.headlineSm())),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (contributions.isEmpty)
+            Text('Chưa có lần nạp nào.', style: GlassTypography.bodyMd())
+          else
+            for (final c in contributions)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Row(
                   children: [
-                    Row(
-                      children: [
-                        const Icon(LucideIcons.sparkles, size: 20, color: AppColors.secondary),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            'Tiết kiệm khoảng 125.000 ₫ mỗi ngày sẽ giúp bạn chạm đích đúng hẹn!',
-                            style: AppTypography.body(context).copyWith(
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(DateFormat('dd/MM/yyyy').format(c.contributedAt), style: GlassTypography.bodyMd(color: GlassColors.textPrimary)),
+                          if (c.note != null && c.note!.isNotEmpty) Text(c.note!, style: GlassTypography.bodySm()),
+                        ],
+                      ),
                     ),
+                    const SizedBox(width: 8),
+                    Text('+${c.formattedAmount}', style: GlassTypography.labelNumeric(color: AppColors.incomeOn(context))),
                   ],
                 ),
               ),
-            ],
-          ),
-        ),
+        ],
       ),
     );
   }

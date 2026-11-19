@@ -401,7 +401,7 @@ class _CategoryFormScreenState extends ConsumerState<CategoryFormScreen> {
                     key: const ValueKey('category-delete'),
                     onPressed: _busy ? null : _delete,
                     icon: const Icon(LucideIcons.trash2, size: 18, color: AppColors.danger),
-                    label: const Text('Xóa danh mục này', style: TextStyle(color: AppColors.danger)),
+                    label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Xóa danh mục này', style: TextStyle(color: AppColors.danger), maxLines: 1)),
                     style: OutlinedButton.styleFrom(
                       minimumSize: const Size.fromHeight(50),
                       shape: const StadiumBorder(),

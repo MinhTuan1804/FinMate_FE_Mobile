@@ -17,7 +17,14 @@ import 'package:finmate/features/onboarding/presentation/screens/initial_setup_s
 import 'package:finmate/features/onboarding/presentation/screens/notification_permission_screen.dart';
 import 'package:finmate/features/dashboard/presentation/screens/home_screen.dart';
 import 'package:finmate/features/transactions/presentation/screens/transactions_screen.dart';
-import 'package:finmate/features/planning/presentation/screens/planning_screen.dart';
+import 'package:finmate/features/planning/presentation/screens/planning_hub_screen.dart';
+import 'package:finmate/features/planning/presentation/screens/goals_screen.dart';
+import 'package:finmate/features/planning/presentation/screens/goal_form_screen.dart';
+import 'package:finmate/features/planning/presentation/screens/budgets_screen.dart';
+import 'package:finmate/features/planning/presentation/screens/budget_form_screen.dart';
+import 'package:finmate/features/planning/domain/entities/budget_entity.dart';
+import 'package:finmate/features/recurring/domain/recurring_item.dart';
+import 'package:finmate/features/recurring/presentation/screens/recurring_form_screen.dart';
 import 'package:finmate/features/analytics/presentation/screens/analytics_screen.dart';
 import 'package:finmate/features/analytics/presentation/screens/f2_category_report_screen.dart';
 import 'package:finmate/features/analytics/presentation/screens/f4_alerts_screen.dart';
@@ -217,7 +224,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/planning',
-        builder: (context, state) => const PlanningScreen(),
+        builder: (context, state) => const PlanningHubScreen(),
       ),
       GoRoute(
         path: '/analytics',
@@ -320,8 +327,28 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => SavingsGoalDetailScreen(goal: state.extra as SavingsGoalEntity),
       ),
       GoRoute(
+        path: '/planning/goals',
+        builder: (context, state) => const GoalsScreen(),
+      ),
+      GoRoute(
+        path: '/planning/goals/form',
+        builder: (context, state) => GoalFormScreen(goal: state.extra as SavingsGoalEntity?),
+      ),
+      GoRoute(
+        path: '/planning/budgets',
+        builder: (context, state) => const BudgetsScreen(),
+      ),
+      GoRoute(
+        path: '/planning/budgets/form',
+        builder: (context, state) => BudgetFormScreen(budget: state.extra as BudgetEntity?),
+      ),
+      GoRoute(
         path: '/planning/recurring',
         builder: (context, state) => const RecurringTransactionsScreen(),
+      ),
+      GoRoute(
+        path: '/planning/recurring/form',
+        builder: (context, state) => RecurringFormScreen(item: state.extra as RecurringItemEntity?),
       ),
       GoRoute(
         path: '/planning/loans',

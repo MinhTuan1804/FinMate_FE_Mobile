@@ -86,7 +86,7 @@ class _GroupsScreenState extends ConsumerState<GroupsScreen> {
                 shape: RoundedRectangleBorder(borderRadius: GlassRadius.roundedPill),
               ),
               icon: const Icon(LucideIcons.userPlus, size: 18),
-              label: Text('Tạo nhóm mới', style: GlassTypography.buttonText()),
+              label: FittedBox(fit: BoxFit.scaleDown, child: Text('Tạo nhóm mới', style: GlassTypography.buttonText(), maxLines: 1)),
             ),
           ),
         ),

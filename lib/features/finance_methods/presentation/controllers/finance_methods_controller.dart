@@ -90,8 +90,16 @@ class RecommendationController extends StateNotifier<AsyncValue<RecommendationEn
 
   /// 422 khi chưa làm khảo sát: ném lại cho màn hình hiển thị, state giữ nguyên.
   Future<void> generate() async {
-    final created = await repository.generateRecommendation();
-    state = AsyncValue.data(created);
+    // Tạo gợi ý (AI) mất vài giây: báo "đang tạo" thay vì giữ nguyên "Chưa có gợi ý". Lỗi thì trả lại trạng thái cũ rồi ném lại.
+    final previous = state;
+    state = const AsyncValue.loading();
+    try {
+      final created = await repository.generateRecommendation();
+      state = AsyncValue.data(created);
+    } catch (_) {
+      state = previous;
+      rethrow;
+    }
   }
 
   Future<void> skip(String id) async {

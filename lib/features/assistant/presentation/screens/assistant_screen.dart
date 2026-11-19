@@ -277,9 +277,10 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
                               padding: const EdgeInsets.symmetric(vertical: 4),
                               child: AiRow(
                                 child: AssistantBubble(
-                                  text:
-                                      messages.isNotEmpty &&
-                                          messages.last is ImageNote
+                                  text: state.isAskingAgent
+                                      ? 'Đang phân tích số liệu của bạn, có thể mất vài chục giây...'
+                                      : messages.isNotEmpty &&
+                                            messages.last is ImageNote
                                       ? 'Đang đọc hóa đơn...'
                                       : 'Đang trả lời...',
                                 ),
@@ -555,6 +556,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
     DraftBatchCard m => AiRow(child: DraftBatchCardView(card: m)),
     GoalDraftCard m => AiRow(child: GoalDraftCardView(card: m)),
     PurchaseCard m => AiRow(child: PurchaseCardView(card: m)),
+    AgentCard m => AiRow(child: AgentCardView(card: m)),
     ErrorNote m => AiRow(
       child: ErrorNoteView(
         note: m,
