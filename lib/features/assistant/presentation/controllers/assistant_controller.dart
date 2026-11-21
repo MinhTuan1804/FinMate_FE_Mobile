@@ -691,6 +691,7 @@ class AssistantController extends StateNotifier<AssistantState> {
     }
     final scanPath = _failedScans.remove(errorMessageId);
     if (scanPath != null) {
+      if (!mounted) return;
       state = state.copyWith(
         messages: state.messages.where((m) => m.id != errorMessageId).toList(),
       );
@@ -1637,6 +1638,8 @@ class AssistantController extends StateNotifier<AssistantState> {
         _add(DraftCard(_nextId++, scan.draft));
       }
     } catch (e) {
+      // Màn chat đã đóng trong lúc ảnh đang quét: không ghi gì nữa
+      if (!mounted) return;
       final id = _nextId++;
       _failedScans[id] = path;
       _add(ErrorNote(id, errorMessage(e), retryText: path));
