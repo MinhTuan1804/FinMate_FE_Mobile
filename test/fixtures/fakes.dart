@@ -68,12 +68,27 @@ class FakeImageSource implements ReceiptImageSource {
   String? cameraPath;
   String? galleryPath;
   String? scanPath;
+  List<String> galleryPaths;
   Object? error;
   int cameraCalls = 0;
   int galleryCalls = 0;
+  int multiCalls = 0;
   int scanCalls = 0;
 
-  FakeImageSource({this.cameraPath, this.galleryPath, this.scanPath, this.error});
+  FakeImageSource({
+    this.cameraPath,
+    this.galleryPath,
+    this.scanPath,
+    this.galleryPaths = const [],
+    this.error,
+  });
+
+  @override
+  Future<List<String>> pickMultipleFromGallery() async {
+    multiCalls++;
+    if (error != null) throw error!;
+    return galleryPaths;
+  }
 
   @override
   Future<String?> scanBill() async {

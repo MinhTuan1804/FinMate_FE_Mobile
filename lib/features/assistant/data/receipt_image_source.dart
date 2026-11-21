@@ -28,7 +28,16 @@ abstract class ReceiptImageSource {
   /// "Chụp ảnh": chỉ mở camera thường, không cắt gì
   Future<String?> pickFromCamera();
   Future<String?> pickFromGallery();
+
+  /// Chọn nhiều ảnh từ thư viện (tối đa [receiptMaxPerPick]); rỗng nếu người dùng hủy
+  Future<List<String>> pickMultipleFromGallery();
 }
+
+/// Số ảnh tối đa mỗi lần chọn từ thư viện
+const receiptMaxPerPick = 5;
+
+/// Cắt danh sách đã chọn còn tối đa [receiptMaxPerPick] ảnh (một số máy bỏ qua `limit` của thư viện)
+List<String> clampPicked(List<String> paths) => paths.take(receiptMaxPerPick).toList();
 
 /// Bộ quét tài liệu ML Kit: tự dò viền giấy, chụp, cắt, nắn thẳng và làm sạch ảnh ngay trên máy; trả đường dẫn tệp hoặc null nếu người dùng thoát.
 Future<String?> scanWithMlKit() async {
@@ -97,9 +106,26 @@ class ImagePickerSource implements ReceiptImageSource {
   @override
   Future<String?> pickFromGallery() => _pick(
     ImageSource.gallery,
-    'Cần quyền truy cập ảnh để chọn hóa đơn. Hãy bật quyền trong Cài đặt.',
+    _galleryDenied,
   );
+
+  @override
+  Future<List<String>> pickMultipleFromGallery() async {
+    try {
+      final files = await _picker.pickMultiImage(
+        maxWidth: receiptMaxSide,
+        maxHeight: receiptMaxSide,
+        imageQuality: receiptJpegQuality,
+        limit: receiptMaxPerPick,
+      );
+      return clampPicked(files.map((f) => f.path).toList());
+    } on PlatformException {
+      throw const ImageSourceException(_galleryDenied);
+    }
+  }
 }
+
+const _galleryDenied = 'Cần quyền truy cập ảnh để chọn hóa đơn. Hãy bật quyền trong Cài đặt.';
 
 final receiptImageSourceProvider = Provider<ReceiptImageSource>(
   (ref) => ImagePickerSource(),
