@@ -291,7 +291,11 @@ class AssistantState {
   final bool isAskingAgent;
   final String? selectedAccountId;
 
+  /// Số ảnh hoá đơn đang chờ hoặc đang quét (tách khỏi [isSending] để chat văn bản không bị khoá)
+  final int pendingScans;
+
   const AssistantState({
+    this.pendingScans = 0,
     this.messages = const [],
     this.isSending = false,
     this.isAskingAgent = false,
@@ -303,9 +307,11 @@ class AssistantState {
     bool? isSending,
     bool? isAskingAgent,
     String? selectedAccountId,
+    int? pendingScans,
     bool clearAccount = false,
   }) {
     return AssistantState(
+      pendingScans: pendingScans ?? this.pendingScans,
       messages: messages ?? this.messages,
       isSending: isSending ?? this.isSending,
       isAskingAgent: isAskingAgent ?? this.isAskingAgent,
@@ -315,6 +321,9 @@ class AssistantState {
     );
   }
 }
+
+/// Số ảnh hoá đơn quét cùng lúc tối đa trên toàn controller
+const receiptScanConcurrency = 3;
 
 /// Lịch sử chỉ giữ trong phiên và bị xóa khi đổi người dùng/đăng xuất
 final assistantControllerProvider =
@@ -633,6 +642,11 @@ class AssistantController extends StateNotifier<AssistantState> {
   @override
   void dispose() {
     _retryTimer?.cancel();
+    // Ảnh còn chờ sẽ không bao giờ chạy: trả các lời hứa để người gọi không treo
+    for (final (_, c) in _scanQueue) {
+      c.complete();
+    }
+    _scanQueue.clear();
     super.dispose();
   }
 
@@ -677,11 +691,13 @@ class AssistantController extends StateNotifier<AssistantState> {
     }
     final scanPath = _failedScans.remove(errorMessageId);
     if (scanPath != null) {
-      if (state.isSending) return;
       state = state.copyWith(
         messages: state.messages.where((m) => m.id != errorMessageId).toList(),
       );
-      await _scan(scanPath);
+      // Xếp lại vào hàng đợi, không thêm ImageNote (ảnh vẫn nằm ở tin cũ)
+      final again = _enqueueScan(scanPath);
+      _pumpScans();
+      await again;
       return;
     }
     final failed = _failed.remove(errorMessageId);
@@ -1550,14 +1566,48 @@ class AssistantController extends StateNotifier<AssistantState> {
   }
 
   /// Gửi ảnh hóa đơn vào chat để quét; kết quả là thẻ nháp cần xác nhận
-  Future<void> scanReceipt(String path) async {
-    if (state.isSending) return;
-    _add(ImageNote(_nextId++, path));
-    await _scan(path);
+  Future<void> scanReceipt(String path) => scanReceipts([path]);
+
+  /// Ảnh chờ quét. ponytail: hàng đợi trong bộ nhớ, mất khi đóng màn chat
+  final List<(String, Completer<void>)> _scanQueue = [];
+  int _activeScans = 0;
+
+  /// Gửi nhiều ảnh cùng lúc: mỗi ảnh một [ImageNote] ngay, quét song song tối đa [receiptScanConcurrency] ảnh trên toàn controller
+  /// (kể cả qua nhiều lần gọi). Không đặt `isSending` nên vẫn chat văn bản được. Hoàn tất khi mọi ảnh của lần gọi này đã xong.
+  Future<void> scanReceipts(List<String> paths) {
+    if (paths.isEmpty || !mounted) return Future.value();
+    final done = <Future<void>>[];
+    for (final path in paths) {
+      _add(ImageNote(_nextId++, path));
+      done.add(_enqueueScan(path));
+    }
+    _pumpScans();
+    return Future.wait(done);
+  }
+
+  Future<void> _enqueueScan(String path) {
+    final completer = Completer<void>();
+    _scanQueue.add((path, completer));
+    state = state.copyWith(pendingScans: state.pendingScans + 1);
+    return completer.future;
+  }
+
+  void _pumpScans() {
+    while (_activeScans < receiptScanConcurrency && _scanQueue.isNotEmpty) {
+      final (path, completer) = _scanQueue.removeAt(0);
+      _activeScans++;
+      _scan(path).whenComplete(() {
+        _activeScans--;
+        if (mounted) {
+          state = state.copyWith(pendingScans: state.pendingScans - 1);
+          _pumpScans();
+        }
+        completer.complete();
+      });
+    }
   }
 
   Future<void> _scan(String path) async {
-    state = state.copyWith(isSending: true);
     try {
       final scan = await repository.scanReceipt(path);
       if (!mounted) return;
@@ -1590,8 +1640,6 @@ class AssistantController extends StateNotifier<AssistantState> {
       final id = _nextId++;
       _failedScans[id] = path;
       _add(ErrorNote(id, errorMessage(e), retryText: path));
-    } finally {
-      if (mounted) state = state.copyWith(isSending: false);
     }
   }
 

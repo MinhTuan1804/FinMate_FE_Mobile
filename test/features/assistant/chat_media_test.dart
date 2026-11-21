@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -39,6 +41,30 @@ class _ScanRepo extends AssistantRepository {
     return script[(scanned.length - 1).clamp(0, script.length - 1)]();
   }
 }
+
+/// Repository giả: mỗi lần quét mở một Completer để test tự quyết lúc nào ảnh xong, đếm số lệnh đang mở
+class _GatedRepo extends AssistantRepository {
+  final List<String> scanned = [];
+  final Map<String, Completer<ReceiptScan>> gates = {};
+  int open = 0;
+  int maxOpen = 0;
+
+  _GatedRepo() : super(apiClient: testApiClient(RouteAdapter((o) => respondJson({'success': true}))));
+
+  @override
+  Future<ReceiptScan> scanReceipt(String filePath) {
+    scanned.add(filePath);
+    open++;
+    if (open > maxOpen) maxOpen = open;
+    final gate = gates[filePath] = Completer<ReceiptScan>();
+    return gate.future.whenComplete(() => open--);
+  }
+
+  void finish(String path, [ReceiptScan Function() make = _ok]) => gates[path]!.complete(make());
+  void fail(String path) => gates[path]!.completeError(Exception('Không có kết nối mạng.'));
+}
+
+Future<void> _pump() => Future<void>.delayed(Duration.zero);
 
 class _VoiceRepo extends AssistantRepository {
   final VoiceReply Function() reply;
@@ -125,7 +151,7 @@ void main() {
       expect(c.state.messages.whereType<DraftCard>(), hasLength(1));
     });
 
-    test('đang quét thì bỏ qua yêu cầu quét thứ hai', () async {
+    test('đang quét thì yêu cầu quét thứ hai vẫn được thực hiện', () async {
       final repo = _ScanRepo([_ok]);
       final c = AssistantController(repository: repo);
 
@@ -133,7 +159,124 @@ void main() {
       await c.scanReceipt(_image);
       await first;
 
-      expect(repo.scanned, hasLength(1));
+      expect(repo.scanned, hasLength(2));
+    });
+
+    test('quét hai ảnh: hai ImageNote ngay, isSending luôn false, pendingScans 2 rồi 0', () async {
+      final repo = _GatedRepo();
+      final c = AssistantController(repository: repo);
+
+      final all = c.scanReceipts(['a', 'b']);
+      expect(c.state.messages.whereType<ImageNote>(), hasLength(2));
+      expect(c.state.isSending, isFalse);
+      expect(c.state.pendingScans, 2);
+
+      repo.finish('a');
+      await _pump();
+      expect(c.state.pendingScans, 1);
+      expect(c.state.isSending, isFalse);
+      repo.finish('b');
+      await all;
+
+      expect(c.state.pendingScans, 0);
+      expect(c.state.messages.whereType<DraftCard>(), hasLength(2));
+    });
+
+    test('không quá 3 ảnh chạy cùng lúc', () async {
+      final repo = _GatedRepo();
+      final c = AssistantController(repository: repo);
+      final paths = ['a', 'b', 'c', 'd', 'e'];
+
+      final all = c.scanReceipts(paths);
+      expect(repo.open, 3);
+      for (final p in paths) {
+        await _pump();
+        while (!repo.gates.containsKey(p)) {
+          await _pump();
+        }
+        repo.finish(p);
+        await _pump();
+      }
+      await all;
+
+      expect(repo.maxOpen, 3);
+      expect(c.state.messages.whereType<DraftCard>(), hasLength(5));
+      expect(c.state.pendingScans, 0);
+    });
+
+    test('hai lần scanReceipts liên tiếp vẫn tối đa 3 đang mở', () async {
+      final repo = _GatedRepo();
+      final c = AssistantController(repository: repo);
+
+      final first = c.scanReceipts(['a', 'b']);
+      final second = c.scanReceipts(['c', 'd']);
+      expect(repo.open, 3);
+      expect(repo.scanned, ['a', 'b', 'c']);
+
+      repo.finish('a');
+      await _pump();
+      expect(repo.open, 3);
+      expect(repo.scanned, ['a', 'b', 'c', 'd']);
+      repo.finish('b');
+      repo.finish('c');
+      await _pump();
+      repo.finish('d');
+      await Future.wait([first, second]);
+
+      expect(repo.maxOpen, 3);
+      expect(c.state.pendingScans, 0);
+    });
+
+    test('một ảnh lỗi tạo ErrorNote riêng, ảnh khác vẫn ra DraftCard; thử lại không thêm ImageNote', () async {
+      final repo = _GatedRepo();
+      final c = AssistantController(repository: repo);
+
+      final all = c.scanReceipts(['a', 'b']);
+      repo.fail('a');
+      repo.finish('b');
+      await all;
+
+      expect(c.state.messages.whereType<ErrorNote>(), hasLength(1));
+      expect(c.state.messages.whereType<DraftCard>(), hasLength(1));
+      expect(c.state.pendingScans, 0);
+
+      final retried = c.retry(c.state.messages.whereType<ErrorNote>().single.id);
+      expect(c.state.pendingScans, 1);
+      await _pump();
+      repo.finish('a');
+      await retried;
+
+      expect(c.state.messages.whereType<ImageNote>(), hasLength(2));
+      expect(c.state.messages.whereType<ErrorNote>(), isEmpty);
+      expect(c.state.messages.whereType<DraftCard>(), hasLength(2));
+    });
+
+    test('trong lúc quét vẫn gửi được chat văn bản', () async {
+      final repo = _GatedRepo();
+      final c = AssistantController(repository: repo);
+
+      final all = c.scanReceipts(['a']);
+      await c.send('xin chào');
+
+      expect(c.state.messages.whereType<UserText>().single.text, 'xin chào');
+      expect(c.state.pendingScans, 1);
+      repo.finish('a');
+      await all;
+    });
+
+    test('controller bị dispose giữa chừng không ném lỗi', () async {
+      final repo = _GatedRepo();
+      final c = AssistantController(repository: repo);
+
+      final all = c.scanReceipts(['a', 'b', 'c', 'd']);
+      c.dispose();
+      repo.finish('a');
+      repo.fail('b');
+      repo.finish('c');
+      await all;
+      await _pump();
+
+      expect(repo.scanned, ['a', 'b', 'c']); // ảnh thứ tư không chạy sau khi huỷ
     });
   });
 
