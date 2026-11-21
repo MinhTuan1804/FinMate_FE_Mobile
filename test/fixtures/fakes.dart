@@ -87,6 +87,8 @@ class FakeImageSource implements ReceiptImageSource {
   Future<List<String>> pickMultipleFromGallery() async {
     multiCalls++;
     if (error != null) throw error!;
+    // Test cũ chỉ đặt galleryPath (một ảnh): coi như chọn đúng ảnh đó
+    if (galleryPaths.isEmpty && galleryPath != null) return [galleryPath!];
     return galleryPaths;
   }
 

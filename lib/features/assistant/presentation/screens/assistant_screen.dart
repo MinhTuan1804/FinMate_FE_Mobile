@@ -212,13 +212,17 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
     }
     final source = ref.read(receiptImageSourceProvider);
     try {
-      final path = switch (choice) {
-        'scan' => await source.scanBill(),
-        'camera' => await source.pickFromCamera(),
-        _ => await source.pickFromGallery(),
-      };
+      final controller = ref.read(assistantControllerProvider.notifier);
+      if (choice == 'gallery') {
+        // Thư viện cho chọn nhiều ảnh; huỷ hoặc rỗng thì không thêm tin nhắn nào
+        final paths = await source.pickMultipleFromGallery();
+        if (paths.isEmpty || !mounted) return;
+        controller.scanReceipts(paths);
+        return;
+      }
+      final path = await source.pickFromCamera();
       if (path == null || !mounted) return;
-      ref.read(assistantControllerProvider.notifier).scanReceipt(path);
+      controller.scanReceipt(path);
     } on ImageSourceException catch (e) {
       _snack(
         '${e.message} Bạn có thể bật quyền trong Cài đặt > Ứng dụng > FinMate > Quyền.',
@@ -252,7 +256,9 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
         .firstOrNull;
 
     final messages = state.messages;
-    final sendingOffset = state.isSending ? 1 : 0;
+    // Quét ảnh chạy nền (pendingScans) không khoá ô nhập nhưng vẫn hiện bong bóng chờ
+    final waiting = state.isSending || state.pendingScans > 0;
+    final sendingOffset = waiting ? 1 : 0;
     // Thêm một mục cho nhãn ngày giờ ở đầu cuộc trò chuyện (danh sách đảo chiều nên nó nằm cuối)
     final itemCount =
         messages.length + sendingOffset + (messages.isEmpty ? 0 : 1);
@@ -266,20 +272,24 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
             children: [
               _buildHeader(context),
               Expanded(
-                child: messages.isEmpty && !state.isSending
+                child: messages.isEmpty && !waiting
                     ? _buildEmpty(context)
                     : ListView.builder(
                         reverse: true,
                         padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                         itemCount: itemCount,
                         itemBuilder: (context, i) {
-                          if (state.isSending && i == 0) {
+                          if (waiting && i == 0) {
                             return Padding(
                               padding: const EdgeInsets.symmetric(vertical: 4),
                               child: AiRow(
                                 child: AssistantBubble(
                                   text: state.isAskingAgent
                                       ? 'Đang phân tích số liệu của bạn, có thể mất vài chục giây...'
+                                      : !state.isSending && state.pendingScans > 0
+                                      ? (state.pendingScans == 1
+                                            ? 'Đang đọc hóa đơn...'
+                                            : 'Đang đọc ${state.pendingScans} hóa đơn...')
                                       : messages.isNotEmpty &&
                                             messages.last is ImageNote
                                       ? 'Đang đọc hóa đơn...'

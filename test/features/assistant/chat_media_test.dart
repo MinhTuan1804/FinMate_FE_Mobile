@@ -102,6 +102,9 @@ class _Recording extends AssistantController {
   Future<void> scanReceipt(String path) async => scanned.add(path);
 
   @override
+  Future<void> scanReceipts(List<String> paths) async => scanned.addAll(paths);
+
+  @override
   Future<void> sendVoice(String path) async => voiced.add(path);
 }
 
@@ -489,7 +492,7 @@ void main() {
       await tester.tap(find.text('Chọn ảnh từ thư viện'));
       await tester.pumpAndSettle();
 
-      expect(images.galleryCalls, 1);
+      expect(images.multiCalls, 1);
       expect(assistant.scanned, [_image]);
     });
 
