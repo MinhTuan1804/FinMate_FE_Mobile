@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:finmate/core/network/api_client.dart';
 import 'package:finmate/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:finmate/features/groups/domain/group_fund.dart';
+import 'package:finmate/core/widgets/cursor_pager.dart';
 
 /// Quỹ chung ảo của nhóm (Phase 85) — `/api/v1/groups/{groupId}/funds...`. Đọc (danh sách/tổng kết/sổ
 /// quỹ), ghi dòng quỹ (Nạp quỹ/Ghi khoản chi ở I3) và tạo quỹ (I7, ManageFunds). Lưu trữ quỹ vẫn
@@ -55,7 +56,7 @@ class GroupFundsRepository {
   }
 
   /// Sổ quỹ, mới nhất trước; [kind] lọc theo loại dòng ('Contribution'/'Expense'/'Withdrawal'/'Adjustment').
-  Future<List<GroupFundEntryEntity>> getFundEntries({
+  Future<CursorPageResult<GroupFundEntryEntity>> getFundEntries({
     required String groupId,
     required String fundId,
     String? cursor,
@@ -73,13 +74,16 @@ class GroupFundsRepository {
       },
       fromJsonT: (json) => (json as List).map((e) => GroupFundEntryEntity.fromJson(e as Map<String, dynamic>)).toList(),
     );
-    return res.data ?? const [];
+    return (items: res.data ?? const <GroupFundEntryEntity>[], nextCursor: res.meta?.nextCursor);
   }
 
   /// Ghi một dòng quỹ mới (`kind` = Contribution/Expense/Withdrawal/Adjustment). `Expense` bắt buộc
   /// [categoryId] hoặc [groupCategoryId]. Không gửi `financialAccountId`/`fromTransactionId` — đợt
   /// I1-I7 chưa có chọn ví, chỉ ghi sổ quỹ thuần.
-  Future<GroupFundEntryEntity> createEntry({
+  ///
+  /// Trả về null khi server trả HTTP 202: khoản chi/rút từ ngưỡng do người không phải chủ nhóm tạo chỉ là YÊU CẦU
+  /// chờ chủ nhóm duyệt (chưa trừ quỹ). App phải báo "đã gửi, chờ duyệt" thay vì "đã ghi".
+  Future<GroupFundEntryEntity?> createEntry({
     required String groupId,
     required String fundId,
     required GroupFundEntryKind kind,
@@ -89,7 +93,7 @@ class GroupFundsRepository {
     String? note,
     String? merchantName,
   }) async {
-    final res = await apiClient.post<GroupFundEntryEntity>(
+    final res = await apiClient.post<GroupFundEntryEntity?>(
       '/api/v1/groups/$groupId/funds/$fundId/entries',
       data: {
         'kind': kind.apiValue,
@@ -99,8 +103,12 @@ class GroupFundsRepository {
         if (note != null && note.isNotEmpty) 'note': note,
         if (merchantName != null && merchantName.isNotEmpty) 'merchantName': merchantName,
       },
-      fromJsonT: (json) => GroupFundEntryEntity.fromJson((json as Map<String, dynamic>)['entry'] as Map<String, dynamic>),
+      fromJsonT: (json) {
+        final map = json as Map<String, dynamic>;
+        // 202: thân là yêu cầu chờ duyệt (không có khóa `entry`)
+        return map['entry'] == null ? null : GroupFundEntryEntity.fromJson(map['entry'] as Map<String, dynamic>);
+      },
     );
-    return res.data as GroupFundEntryEntity;
+    return res.statusCode == 202 ? null : res.data;
   }
 }

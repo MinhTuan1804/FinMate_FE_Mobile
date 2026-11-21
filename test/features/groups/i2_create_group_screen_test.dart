@@ -14,6 +14,10 @@ void main() {
       groupsRepositoryProvider.overrideWithValue(GroupsRepository(apiClient: testApiClient(adapter))),
     ]);
     addTearDown(container.dispose);
+    // Màn tạo nhóm dài (biểu tượng, tên, loại, kiểu quỹ): cần khung cao để mọi nút nằm trong tầm nhìn.
+    tester.view.physicalSize = const Size(800, 3200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
     await tester.pumpWidget(UncontrolledProviderScope(
       container: container,
       child:
@@ -49,13 +53,45 @@ void main() {
     await pumpScreen(tester, adapter, router: router);
 
     await tester.enterText(find.byKey(const ValueKey('group-name-field')), 'Nhóm mới');
+    await tester.ensureVisible(find.byKey(const ValueKey('group-type-Other')));
     await tester.tap(find.byKey(const ValueKey('group-type-Other')));
     await tester.tap(find.byKey(const ValueKey('submit-create-group')));
     await tester.pumpAndSettle();
 
     final req = adapter.requests.firstWhere((r) => r.method == 'POST');
-    expect(req.data, {'name': 'Nhóm mới', 'type': 'Other'});
+    expect(req.data, {'name': 'Nhóm mới', 'type': 'Other', 'settlementModel': 'SharedFund'});
     final created = (fixtureData('groups') as List)[0] as Map<String, dynamic>;
     expect(find.text('GROUP_DETAIL ${created['id']}'), findsOneWidget);
+  });
+
+  testWidgets('chọn biểu tượng, mô tả và kiểu Split bill thì gửi đủ các trường mới', (tester) async {
+    final adapter = RouteAdapter((o) {
+      if (o.method == 'POST') return respondJson({'success': true, 'data': (fixtureData('groups') as List)[0]});
+      return respondFixture('groups');
+    });
+    final router = GoRouter(routes: [
+      GoRoute(path: '/', builder: (_, __) => const I2CreateGroupScreen()),
+      GoRoute(path: '/group-detail', builder: (_, state) => const Text('GROUP_DETAIL')),
+    ]);
+    await pumpScreen(tester, adapter, router: router);
+
+    await tester.enterText(find.byKey(const ValueKey('group-name-field')), 'Phòng trọ 302');
+    await tester.enterText(find.byKey(const ValueKey('group-description-field')), 'Điện nước + internet');
+    await tester.tap(find.byKey(const ValueKey('group-icon-plane')));
+    await tester.ensureVisible(find.byKey(const ValueKey('group-type-Roommates')));
+    await tester.tap(find.byKey(const ValueKey('group-type-Roommates')));
+    await tester.tap(find.byKey(const ValueKey('settlement-SplitBill')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('submit-create-group')));
+    await tester.pumpAndSettle();
+
+    final req = adapter.requests.firstWhere((r) => r.method == 'POST');
+    expect(req.data, {
+      'name': 'Phòng trọ 302',
+      'type': 'Roommates',
+      'icon': 'plane',
+      'description': 'Điện nước + internet',
+      'settlementModel': 'SplitBill',
+    });
   });
 }

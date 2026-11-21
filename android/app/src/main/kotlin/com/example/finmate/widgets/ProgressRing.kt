@@ -20,6 +20,7 @@ object ProgressRing {
         progressColor: Int,
         percentText: String? = null,
         subLabel: String? = null,
+        subLabelColor: Int = SafeSpendColors.TEXT_SECONDARY,
     ): Bitmap {
         val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
@@ -58,7 +59,7 @@ object ProgressRing {
 
             if (subLabel != null) {
                 val subPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                    color = SafeSpendColors.TEXT_SECONDARY
+                    color = subLabelColor
                     textAlign = Paint.Align.CENTER
                     textSize = sizePx * 0.11f
                 }
@@ -84,4 +85,23 @@ object SafeSpendColors {
 
     /** Nền nút outline (vd "Ghi chép" trên W2) khi không dùng nền tối TEXT_PRIMARY. */
     val NEUTRAL_LIGHT_BG = Color.parseColor("#E2E8F0") // slate-200
+
+    // Bản sáng/tối theo giao diện hệ thống (Glance tự chọn theo uiMode). Giữ đồng bộ values*/colors.xml.
+    private fun pair(day: Long, night: Long) = androidx.glance.color.ColorProvider(
+        day = androidx.compose.ui.graphics.Color(day),
+        night = androidx.compose.ui.graphics.Color(night),
+    )
+    val cardBg = pair(0xFFF8FAFC, 0xFF1E293B)
+    val textPrimary = pair(0xFF0F172A, 0xFFF1F5F9)
+    val textSecondary = pair(0xFF64748B, 0xFF94A3B8)
+    val chipBg = pair(0xFFE2E8F0, 0xFF334155)
+    /** Chữ trên nền [textPrimary] (nút "đầy"): đảo màu theo chế độ. */
+    val onPrimary = pair(0xFFFFFFFF, 0xFF0F172A)
+
+    /** Màu chữ phụ cho bitmap vẽ tay (ProgressRing), nơi không dùng được ColorProvider. */
+    fun secondaryInt(context: android.content.Context): Int {
+        val night = context.resources.configuration.uiMode and
+            android.content.res.Configuration.UI_MODE_NIGHT_MASK == android.content.res.Configuration.UI_MODE_NIGHT_YES
+        return if (night) Color.parseColor("#94A3B8") else TEXT_SECONDARY
+    }
 }

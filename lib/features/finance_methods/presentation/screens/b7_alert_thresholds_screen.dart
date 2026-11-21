@@ -17,6 +17,7 @@ import 'package:finmate/shared/widgets/glass/glass_badge.dart';
 import 'package:finmate/shared/widgets/glass/glass_bottom_dock.dart';
 import 'package:finmate/shared/widgets/glass/glass_buttons.dart';
 import 'package:finmate/shared/widgets/glass/glass_card.dart';
+import 'package:finmate/core/widgets/async_action_builder.dart';
 
 /// H4 / B7 — Ngưỡng cảnh báo chi tiêu (theo Figma). Hai mức T1 (nhắc sớm) và T2 (báo động) chỉnh bằng thanh trượt, lưu hoặc xóa về mặc định;
 /// ví dụ bằng tiền tính từ ngân sách tổng của người dùng (không có ngân sách thì ẩn). Phần "Phương thức gửi" là tùy chọn thông báo thật của hồ sơ.
@@ -93,9 +94,12 @@ class _AlertThresholdsScreenState extends ConsumerState<AlertThresholdsScreen> {
           context,
           title: 'Ngưỡng cảnh báo',
           actions: [
-            TextButton(
+            AsyncActionBuilder(
               onPressed: _clear,
-              child: Text('Mặc định', style: GlassTypography.bodyMd(color: GlassColors.slateAnchor).copyWith(fontWeight: FontWeight.w600)),
+              builder: (_, onTap, running) => TextButton(
+                onPressed: onTap,
+                child: running ? const ButtonLoadingIndicator() : Text('Mặc định', style: GlassTypography.bodyMd(color: GlassColors.slateAnchor).copyWith(fontWeight: FontWeight.w600)),
+              ),
             ),
           ],
         ),

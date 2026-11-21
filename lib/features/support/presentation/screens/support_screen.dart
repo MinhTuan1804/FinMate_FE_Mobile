@@ -238,6 +238,7 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
         child: Stack(
           children: [
             LiquidGlassCard(
+              variant: LiquidGlassVariant.subtle, // dòng trong list: không blur từng item
               key: ValueKey('support-ticket-${t.id}'),
               padding: const EdgeInsets.fromLTRB(20, 14, 14, 14),
               onTap: () => context.push('/support-ticket', extra: t.id),

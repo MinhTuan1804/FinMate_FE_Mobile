@@ -10,17 +10,17 @@ import 'package:finmate/features/groups/data/group_funds_repository.dart';
 import 'package:finmate/features/groups/data/groups_repository.dart';
 import 'package:finmate/features/groups/domain/group.dart';
 import 'package:finmate/features/groups/presentation/controllers/groups_controller.dart';
+import 'package:finmate/features/groups/presentation/screens/i7_settings_section.dart';
 import 'package:finmate/shared/widgets/glass/glass_background.dart';
 import 'package:finmate/shared/widgets/glass/glass_buttons.dart';
 import 'package:finmate/shared/widgets/glass/glass_card.dart';
 import 'package:finmate/shared/widgets/glass/glass_dialog.dart';
+import 'package:finmate/core/widgets/async_action_builder.dart';
 
-/// I7 — Cài đặt nhóm (Stitch `i7_group_settings`). Hệ thống thật là 1 sổ quỹ chung (Phase 85), không
-/// có công nợ/cấn trừ giữa thành viên — BỎ hẳn: mô tả nhóm, "Danh mục hoạt động" (không có endpoint
-/// đổi `GroupType`), "Ngày chốt sổ & kết chuyển quỹ", "Phương thức cấn trừ nợ: AI", "Yêu cầu Trưởng
-/// nhóm duyệt giao dịch"/"Báo cáo tuần" (không có API), "Xuất sao kê Excel/PDF" (xem
-/// PENDING_ITEMS.md #1), "Giải tán nhóm & Chia số dư còn lại" tự động (không có settle-up — chỉ gọi
-/// `DELETE /groups/{id}` thật, lỗi `GROUP_FUND_NOT_SETTLED` nếu quỹ chưa tất toán).
+/// I7 — Cài đặt nhóm (Figma). Thông tin cơ bản (tên, mô tả, danh mục hoạt động, hiển thị giao dịch), cài đặt
+/// quỹ/ngân sách và thông báo/phê duyệt qua `GET/PUT /groups/{id}/settings` (xem [GroupSettingsSection]).
+/// Chưa làm: "Xuất sao kê Excel/PDF" (backend chưa có), ảnh nhóm (chưa có upload), "Giải tán nhóm & Chia số
+/// dư" tự động (chỉ gọi `DELETE /groups/{id}`, lỗi `GROUP_FUND_NOT_SETTLED` nếu quỹ chưa tất toán).
 ///
 /// Đây cũng là nơi duy nhất tạo quỹ chung (`POST /groups/{id}/funds`) — I3's hero card chỉ báo
 /// "cần tạo quỹ trước (I7)" khi nhóm chưa có quỹ, nên hành động đó phải có thật ở đây, không thể để
@@ -71,6 +71,33 @@ class I7GroupSettingsScreen extends ConsumerWidget {
       await ref.read(groupsRepositoryProvider).updateGroup(id: groupId, name: name);
       _refreshDetail(ref);
     }, 'Đã đổi tên nhóm');
+  }
+
+  Future<void> _editDescription(BuildContext context, WidgetRef ref, GroupEntity group) async {
+    final controller = TextEditingController(text: group.description ?? '');
+    final text = await GlassDialog.custom<String>(
+      context,
+      title: 'Mô tả nhóm',
+      contentBuilder: (ctx, setState) => TextField(
+        key: const ValueKey('description-field'),
+        controller: controller,
+        maxLength: 200,
+        maxLines: 3,
+        decoration: const InputDecoration(labelText: 'Mô tả (tối đa 200 ký tự)'),
+      ),
+      actionsBuilder: (ctx, setState) => Row(
+        children: [
+          Expanded(child: GlassGhostButton(onPressed: () => Navigator.pop(ctx), label: 'Hủy')),
+          const SizedBox(width: 12),
+          Expanded(child: GlassPrimaryButton(label: 'Lưu', onPressed: () => Navigator.pop(ctx, controller.text.trim()))),
+        ],
+      ),
+    );
+    if (text == null || !context.mounted) return;
+    await _runAction(context, ref, () async {
+      await ref.read(groupsRepositoryProvider).updateGroup(id: groupId, description: text);
+      _refreshDetail(ref);
+    }, 'Đã cập nhật mô tả');
   }
 
   Future<void> _changeVisibility(BuildContext context, WidgetRef ref, GroupTransactionVisibility current) async {
@@ -138,6 +165,7 @@ class I7GroupSettingsScreen extends ConsumerWidget {
           );
       ref.invalidate(groupFundsProvider(groupId));
       ref.invalidate(groupPrimaryFundProvider(groupId));
+      ref.read(groupsControllerProvider.notifier).load(silent: true);
       messenger.showSnackBar(const SnackBar(content: Text('Đã tạo quỹ chung')));
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text(errorMessage(e)), backgroundColor: GlassColors.danger));
@@ -238,6 +266,22 @@ class I7GroupSettingsScreen extends ConsumerWidget {
                           ),
                           const Divider(height: 1),
                           ListTile(
+                            key: const ValueKey('group-description'),
+                            leading: const Icon(LucideIcons.fileText, size: 20),
+                            title: const Text('Mô tả nhóm'),
+                            subtitle: Text(group.description == null || group.description!.isEmpty ? 'Chưa có mô tả' : group.description!),
+                            trailing: group.isOwner ? const Icon(LucideIcons.pencil, size: 18) : null,
+                            onTap: group.isOwner ? () => _editDescription(context, ref, group) : null,
+                          ),
+                          const Divider(height: 1),
+                          ListTile(
+                            key: const ValueKey('group-type-row'),
+                            leading: const Icon(LucideIcons.layoutGrid, size: 20),
+                            title: const Text('Danh mục hoạt động'),
+                            subtitle: Text(group.type.label),
+                          ),
+                          const Divider(height: 1),
+                          ListTile(
                             key: const ValueKey('change-visibility'),
                             leading: const Icon(LucideIcons.eye, size: 20),
                             title: const Text('Hiển thị giao dịch'),
@@ -283,21 +327,25 @@ class I7GroupSettingsScreen extends ConsumerWidget {
                                 ),
                                 const SizedBox(height: 12),
                                 if (canManageFunds)
-                                  OutlinedButton.icon(
-                                    key: const ValueKey('create-fund'),
+                                  AsyncActionBuilder(
                                     onPressed: () => _createFund(context, ref),
-                                    icon: const Icon(LucideIcons.plusCircle, size: 16),
-                                    label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Tạo quỹ chung', maxLines: 1)),
+                                    builder: (_, onTap, running) => OutlinedButton.icon(
+                                      key: const ValueKey('create-fund'),
+                                      onPressed: onTap,
+                                      icon: running ? const ButtonLoadingIndicator(size: 16) : const Icon(LucideIcons.plusCircle, size: 16),
+                                      label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Tạo quỹ chung', maxLines: 1)),
+                                    ),
                                   ),
                               ],
                             ),
                     ),
                   ),
+                  GroupSettingsSection(groupId: groupId, canEdit: group.isOwner),
                   const SizedBox(height: 20),
                   Text('CẢNH BÁO', style: GlassTypography.labelCaps(color: GlassColors.textMuted)),
                   const SizedBox(height: 8),
                   GlassCard(
-                    child: _AlertToggle(onChange: (enabled) => _toggleAlerts(context, ref, enabled)),
+                    child: _AlertToggle(initial: ref.watch(groupSettingsProvider(groupId)).valueOrNull?.alertsEnabled, onChange: (enabled) => _toggleAlerts(context, ref, enabled)),
                   ),
                   const SizedBox(height: 20),
                   Text('VÙNG QUẢN TRỊ NÂNG CAO', style: GlassTypography.labelCaps(color: GlassColors.danger)),
@@ -320,32 +368,38 @@ class I7GroupSettingsScreen extends ConsumerWidget {
                     SizedBox(
                       width: double.infinity,
                       height: 48,
-                      child: OutlinedButton.icon(
-                        key: const ValueKey('dissolve-group'),
+                      child: AsyncActionBuilder(
                         onPressed: () => _dissolve(context, ref, group.name),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: GlassColors.danger,
-                          side: BorderSide(color: GlassColors.danger),
-                          shape: RoundedRectangleBorder(borderRadius: GlassRadius.roundedPill),
+                        builder: (_, onTap, running) => OutlinedButton.icon(
+                          key: const ValueKey('dissolve-group'),
+                          onPressed: onTap,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: GlassColors.danger,
+                            side: BorderSide(color: GlassColors.danger),
+                            shape: RoundedRectangleBorder(borderRadius: GlassRadius.roundedPill),
+                          ),
+                          icon: running ? const ButtonLoadingIndicator(size: 16) : const Icon(LucideIcons.trash2, size: 16),
+                          label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Giải tán nhóm', maxLines: 1)),
                         ),
-                        icon: const Icon(LucideIcons.trash2, size: 16),
-                        label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Giải tán nhóm', maxLines: 1)),
                       ),
                     ),
                   ] else
                     SizedBox(
                       width: double.infinity,
                       height: 48,
-                      child: OutlinedButton.icon(
-                        key: const ValueKey('leave-group'),
+                      child: AsyncActionBuilder(
                         onPressed: () => _leave(context, ref, group.name),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: GlassColors.danger,
-                          side: BorderSide(color: GlassColors.danger),
-                          shape: RoundedRectangleBorder(borderRadius: GlassRadius.roundedPill),
+                        builder: (_, onTap, running) => OutlinedButton.icon(
+                          key: const ValueKey('leave-group'),
+                          onPressed: onTap,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: GlassColors.danger,
+                            side: BorderSide(color: GlassColors.danger),
+                            shape: RoundedRectangleBorder(borderRadius: GlassRadius.roundedPill),
+                          ),
+                          icon: running ? const ButtonLoadingIndicator(size: 16) : const Icon(LucideIcons.logOut, size: 16),
+                          label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Rời khỏi nhóm', maxLines: 1)),
                         ),
-                        icon: const Icon(LucideIcons.logOut, size: 16),
-                        label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Rời khỏi nhóm', maxLines: 1)),
                       ),
                     ),
                 ],
@@ -362,7 +416,8 @@ class I7GroupSettingsScreen extends ConsumerWidget {
 /// thái hiện tại, nên chưa bấm lần nào thì chưa nút nào sáng — không đoán trạng thái.
 class _AlertToggle extends StatefulWidget {
   final Future<bool> Function(bool enabled) onChange;
-  const _AlertToggle({required this.onChange});
+  final bool? initial;
+  const _AlertToggle({required this.onChange, this.initial});
 
   @override
   State<_AlertToggle> createState() => _AlertToggleState();
@@ -373,7 +428,7 @@ class _AlertToggleState extends State<_AlertToggle> {
   bool _busy = false;
 
   Future<void> _set(bool enabled) async {
-    if (_busy || _on == enabled) return;
+    if (_busy || (_on ?? widget.initial) == enabled) return;
     setState(() => _busy = true);
     final ok = await widget.onChange(enabled);
     if (!mounted) return;
@@ -384,22 +439,25 @@ class _AlertToggleState extends State<_AlertToggle> {
   }
 
   Widget _button({required Key key, required bool enabled, required IconData icon, required String label}) {
-    final active = _on == enabled;
+    final active = (_on ?? widget.initial) == enabled;
     return Expanded(
       child: Semantics(
         selected: active,
-        child: OutlinedButton.icon(
-          key: key,
+        child: AsyncActionBuilder(
           onPressed: _busy ? null : () => _set(enabled),
-          style: OutlinedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            backgroundColor: active ? GlassColors.ink : null,
-            foregroundColor: active ? GlassColors.onInk : null,
-            side: active ? BorderSide(color: GlassColors.ink) : null,
+          builder: (_, onTap, running) => OutlinedButton.icon(
+            key: key,
+            onPressed: onTap,
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              backgroundColor: active ? GlassColors.ink : null,
+              foregroundColor: active ? GlassColors.onInk : null,
+              side: active ? BorderSide(color: GlassColors.ink) : null,
+            ),
+            icon: running ? const ButtonLoadingIndicator(size: 16) : Icon(icon, size: 16),
+            // Một dòng, tự thu nhỏ chữ khi hẹp thay vì xuống hàng.
+            label: FittedBox(fit: BoxFit.scaleDown, child: Text(label, maxLines: 1)),
           ),
-          icon: Icon(icon, size: 16),
-          // Một dòng, tự thu nhỏ chữ khi hẹp thay vì xuống hàng.
-          label: FittedBox(fit: BoxFit.scaleDown, child: Text(label, maxLines: 1)),
         ),
       ),
     );

@@ -59,7 +59,7 @@ class DetailWidget : GlanceAppWidget() {
                     modifier = GlanceModifier
                         .fillMaxSize()
                         .cornerRadius(20.dp)
-                        .background(Color(SafeSpendColors.CARD_BG))
+                        .background(SafeSpendColors.cardBg)
                         .clickable(actionRunCallback<OpenOverviewAppCallback>())
                         .padding(16.dp),
                 ) {
@@ -85,9 +85,9 @@ private fun SyncingContent() {
     ) {
         Text(
             text = "FinMate",
-            style = TextStyle(color = ColorProvider(Color(SafeSpendColors.TEXT_PRIMARY)), fontWeight = FontWeight.Bold),
+            style = TextStyle(color = SafeSpendColors.textPrimary, fontWeight = FontWeight.Bold),
         )
-        Text(text = "Đang đồng bộ…", style = TextStyle(color = ColorProvider(Color(SafeSpendColors.TEXT_SECONDARY))))
+        Text(text = "Đang đồng bộ…", style = TextStyle(color = SafeSpendColors.textSecondary))
     }
 }
 
@@ -105,7 +105,7 @@ private fun DetailContent(data: DetailPrefs.Data) {
         Spacer(modifier = GlanceModifier.defaultWeight())
         Text(
             text = "Cập nhật ${formatTime(data.lastSyncAtMillis)}",
-            style = TextStyle(fontSize = 10.sp, color = ColorProvider(Color(SafeSpendColors.TEXT_SECONDARY))),
+            style = TextStyle(fontSize = 10.sp, color = SafeSpendColors.textSecondary),
         )
     }
 }
@@ -122,12 +122,12 @@ private fun BalanceSection(data: DetailPrefs.Data) {
                 provider = ImageProvider(R.drawable.ic_sparkles),
                 contentDescription = null,
                 modifier = GlanceModifier.size(14.dp),
-                colorFilter = androidx.glance.ColorFilter.tint(ColorProvider(Color(SafeSpendColors.TEXT_SECONDARY))),
+                colorFilter = androidx.glance.ColorFilter.tint(SafeSpendColors.textSecondary),
             )
             Spacer(modifier = GlanceModifier.width(6.dp))
             Text(
                 text = "FinMate • ${data.accountLabel}",
-                style = TextStyle(fontSize = 12.sp, color = ColorProvider(Color(SafeSpendColors.TEXT_SECONDARY))),
+                style = TextStyle(fontSize = 12.sp, color = SafeSpendColors.textSecondary),
                 maxLines = 1,
             )
         }
@@ -140,12 +140,12 @@ private fun BalanceSection(data: DetailPrefs.Data) {
             Column(modifier = GlanceModifier.defaultWeight()) {
                 Text(
                     text = "SỐ DƯ KHẢ DỤNG",
-                    style = TextStyle(fontSize = 10.sp, color = ColorProvider(Color(SafeSpendColors.TEXT_SECONDARY))),
+                    style = TextStyle(fontSize = 10.sp, color = SafeSpendColors.textSecondary),
                     maxLines = 1,
                 )
                 Text(
                     text = formatVnd(data.balanceCents),
-                    style = TextStyle(fontSize = 19.sp, fontWeight = FontWeight.Bold, color = ColorProvider(Color(SafeSpendColors.TEXT_PRIMARY))),
+                    style = TextStyle(fontSize = 19.sp, fontWeight = FontWeight.Bold, color = SafeSpendColors.textPrimary),
                     maxLines = 1,
                 )
             }
@@ -153,12 +153,12 @@ private fun BalanceSection(data: DetailPrefs.Data) {
             Column(modifier = GlanceModifier.defaultWeight()) {
                 Text(
                     text = "DỰ BÁO CUỐI THÁNG",
-                    style = TextStyle(fontSize = 10.sp, color = ColorProvider(Color(SafeSpendColors.TEXT_SECONDARY))),
+                    style = TextStyle(fontSize = 10.sp, color = SafeSpendColors.textSecondary),
                     maxLines = 1,
                 )
                 Text(
                     text = formatVnd(data.forecastEndBalanceCents),
-                    style = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Bold, color = ColorProvider(Color(SafeSpendColors.TEXT_PRIMARY))),
+                    style = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Bold, color = SafeSpendColors.textPrimary),
                     maxLines = 1,
                 )
             }
@@ -181,6 +181,7 @@ private fun BalanceSection(data: DetailPrefs.Data) {
                             progressColor = ringColor,
                             percentText = "${data.percentUsed.toInt()}%",
                             subLabel = "hạn mức",
+                            subLabelColor = SafeSpendColors.secondaryInt(androidx.glance.LocalContext.current),
                         ),
                     ),
                     contentDescription = "${data.percentUsed.toInt()}% ngân sách tháng đã dùng",
@@ -191,7 +192,7 @@ private fun BalanceSection(data: DetailPrefs.Data) {
         if (data.hasBudget) {
             Text(
                 text = "Đã chi: ${formatVnd(data.spentCents)} / Ngân sách: ${formatVnd(data.incomeCents)}",
-                style = TextStyle(fontSize = 12.sp, color = ColorProvider(Color(SafeSpendColors.TEXT_SECONDARY))),
+                style = TextStyle(fontSize = 12.sp, color = SafeSpendColors.textSecondary),
                 maxLines = 1,
             )
         }
@@ -213,7 +214,7 @@ private fun ActionsSection(data: DetailPrefs.Data) {
         Spacer(modifier = GlanceModifier.height(8.dp))
         Text(
             text = "Đã ghi ${data.transactionsTodayCount} giao dịch hôm nay",
-            style = TextStyle(fontSize = 12.sp, color = ColorProvider(Color(SafeSpendColors.TEXT_SECONDARY))),
+            style = TextStyle(fontSize = 12.sp, color = SafeSpendColors.textSecondary),
             maxLines = 1,
         )
         if (data.syncError) {
@@ -234,7 +235,7 @@ private fun RecentTransactionsSection(recentTransactions: List<DetailPrefs.Recen
         Spacer(modifier = GlanceModifier.height(4.dp))
         Text(
             text = "GIAO DỊCH VỪA GHI NHẬN",
-            style = TextStyle(fontSize = 9.sp, color = ColorProvider(Color(SafeSpendColors.TEXT_SECONDARY))),
+            style = TextStyle(fontSize = 9.sp, color = SafeSpendColors.textSecondary),
         )
         recentTransactions.forEach { txn -> RecentTxnRow(txn) }
     }
@@ -263,12 +264,12 @@ private fun RecentTxnRow(txn: DetailPrefs.RecentTxn) {
         Column(modifier = GlanceModifier.defaultWeight()) {
             Text(
                 text = txn.description,
-                style = TextStyle(fontSize = 11.sp, color = ColorProvider(Color(SafeSpendColors.TEXT_PRIMARY))),
+                style = TextStyle(fontSize = 11.sp, color = SafeSpendColors.textPrimary),
                 maxLines = 1,
             )
             Text(
                 text = "${txn.categoryLabel} • ${formatTime(txn.timeMillis)}",
-                style = TextStyle(fontSize = 9.sp, color = ColorProvider(Color(SafeSpendColors.TEXT_SECONDARY))),
+                style = TextStyle(fontSize = 9.sp, color = SafeSpendColors.textSecondary),
                 maxLines = 1,
             )
         }
@@ -285,14 +286,14 @@ private fun ActionButton(label: String, modifier: GlanceModifier) {
     Box(
         modifier = modifier
             .cornerRadius(10.dp)
-            .background(Color(SafeSpendColors.NEUTRAL_LIGHT_BG))
+            .background(SafeSpendColors.chipBg)
             .clickable(actionRunCallback<OpenQuickCreateCallback>())
             .padding(vertical = 10.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             text = label,
-            style = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.Medium, color = ColorProvider(Color(SafeSpendColors.TEXT_PRIMARY))),
+            style = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.Medium, color = SafeSpendColors.textPrimary),
         )
     }
 }
@@ -302,14 +303,14 @@ private fun ActionButtonQr(modifier: GlanceModifier) {
     Box(
         modifier = modifier
             .cornerRadius(10.dp)
-            .background(Color(SafeSpendColors.TEXT_PRIMARY))
+            .background(SafeSpendColors.textPrimary)
             .clickable(actionRunCallback<OpenQrScanCallback>())
             .padding(vertical = 10.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             text = "Quét QR",
-            style = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.Medium, color = ColorProvider(Color(0xFFFFFFFF.toInt()))),
+            style = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.Medium, color = SafeSpendColors.onPrimary),
         )
     }
 }

@@ -635,6 +635,14 @@ class ChatItemDraft {
   final String? direction;
   final String? counterparty;
 
+  /// create | update (đổi số tiền việc vừa làm) | add (cộng thêm vào số tiền việc vừa làm) | delete (hủy việc vừa làm). Ba thao tác sau áp lên việc gần nhất của phiên này ([amountCents] là số mới / số cộng thêm / 0).
+  final String operation;
+
+  /// repay: khoản vay có sẵn khớp tên người (backend đã tìm), số còn lại của nó trước lần trả này, và ví ghi giao dịch của lần trả (null = chỉ giảm nợ)
+  final String? loanId;
+  final BigInt? remainingCents;
+  final String? accountId;
+
   const ChatItemDraft({
     required this.kind,
     required this.amountCents,
@@ -644,7 +652,33 @@ class ChatItemDraft {
     this.nextDue,
     this.direction,
     this.counterparty,
+    this.operation = 'create',
+    this.loanId,
+    this.remainingCents,
+    this.accountId,
   });
+
+  ChatItemDraft withAmount(BigInt cents) => ChatItemDraft(
+    kind: kind,
+    amountCents: cents,
+    name: name,
+    categorySlug: categorySlug,
+    cadence: cadence,
+    nextDue: nextDue,
+    direction: direction,
+    counterparty: counterparty,
+  );
+
+  /// Việc vừa làm gửi kèm mỗi tin chat để server hiểu câu nối tiếp ("đổi thành 3 triệu", "xóa cái đó"). Chỉ số liệu có cấu trúc, không có chữ người dùng gõ.
+  Map<String, dynamic> toContextJson() => {
+    'kind': kind,
+    'amountCents': amountCents.toInt(),
+    if (name != null) 'name': name,
+    if (categorySlug != null) 'categorySlug': categorySlug,
+    if (cadence != null) 'cadence': cadence,
+    if (direction != null) 'direction': direction,
+    if (counterparty != null) 'counterparty': counterparty,
+  };
 
   factory ChatItemDraft.fromJson(Map<String, dynamic> json) => ChatItemDraft(
     kind: json['kind'] as String? ?? '',
@@ -655,6 +689,10 @@ class ChatItemDraft {
     nextDue: _parseDate(json['nextDue']),
     direction: json['direction'] as String?,
     counterparty: json['counterparty'] as String?,
+    operation: json['operation'] as String? ?? 'create',
+    loanId: json['loanId'] as String?,
+    remainingCents: json['remainingCents'] == null ? null : parseCents(json['remainingCents']),
+    accountId: json['financialAccountId'] as String?,
   );
 }
 
@@ -764,7 +802,7 @@ class ChatReply {
           final item = json['item'];
           if (item is! Map<String, dynamic>) return generic();
           final draft = ChatItemDraft.fromJson(item);
-          if (draft.amountCents <= BigInt.zero || draft.kind.isEmpty) return generic();
+          if (draft.kind.isEmpty || (draft.amountCents <= BigInt.zero && draft.operation != 'delete')) return generic();
           return ChatReply(
             action: ChatAction.item,
             intent: intent,

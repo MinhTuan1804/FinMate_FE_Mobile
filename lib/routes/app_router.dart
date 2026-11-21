@@ -45,6 +45,8 @@ import 'package:finmate/features/community/presentation/screens/community_place_
 import 'package:finmate/features/community/presentation/screens/community_profile_screen.dart';
 import 'package:finmate/features/categories/presentation/screens/categories_screen.dart';
 import 'package:finmate/features/recurring/presentation/screens/recurring_items_screen.dart';
+import 'package:finmate/features/groups/presentation/screens/create_bill_screen.dart';
+import 'package:finmate/features/groups/presentation/screens/group_approvals_screen.dart';
 import 'package:finmate/features/groups/presentation/screens/groups_screen.dart';
 import 'package:finmate/features/groups/presentation/screens/i2_create_group_screen.dart';
 import 'package:finmate/features/groups/presentation/screens/group_detail_screen.dart';
@@ -146,6 +148,10 @@ String? authRedirect(AsyncValue<UserProfile?> auth, String location) {
   return null;
 }
 
+/// Route mở đầu tiên. Cửa sổ bong bóng FinMate AI (assistant_bubble_main.dart) ghi đè thành '/assistant';
+/// đang kiểm tra đăng nhập thì redirect giữ nguyên vị trí, chưa đăng nhập thì vẫn bị đưa về /login.
+final initialLocationProvider = Provider<String>((ref) => _splashPath);
+
 final routerProvider = Provider<GoRouter>((ref) {
   final refresh = ValueNotifier<int>(0);
   ref.onDispose(refresh.dispose);
@@ -157,7 +163,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   });
 
   return GoRouter(
-    initialLocation: _splashPath,
+    initialLocation: ref.watch(initialLocationProvider),
     refreshListenable: refresh,
     redirect: (context, state) => authRedirect(ref.read(authControllerProvider), state.matchedLocation),
     onException: (context, state, router) => router.go('/home'),
@@ -293,6 +299,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/group-detail',
         builder: (context, state) => GroupDetailScreen(groupId: state.extra as String),
+      ),
+      GoRoute(
+        path: '/group-bill-new',
+        builder: (context, state) => CreateBillScreen(groupId: state.extra as String),
+      ),
+      GoRoute(
+        path: '/group-approvals',
+        builder: (context, state) => GroupApprovalsScreen(groupId: state.extra as String),
       ),
       GoRoute(
         path: '/group-members',
@@ -519,7 +533,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/accept-invitation',
-        builder: (context, state) => const AcceptInvitationScreen(),
+        builder: (context, state) => AcceptInvitationScreen(initialToken: state.extra is String ? state.extra as String : null),
       ),
       GoRoute(
         path: '/group-finance',

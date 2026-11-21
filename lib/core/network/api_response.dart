@@ -4,10 +4,14 @@ class ApiResponse<T> {
   final ApiMeta? meta;
   final List<ApiError> errors;
 
+  /// Mã HTTP của phản hồi (vd. 202 = đã nhận nhưng chờ duyệt); có khi đi qua ApiClient.
+  final int? statusCode;
+
   ApiResponse({
     this.data,
     this.meta,
     this.errors = const [],
+    this.statusCode,
   });
 
   bool get isSuccess => errors.isEmpty && data != null;

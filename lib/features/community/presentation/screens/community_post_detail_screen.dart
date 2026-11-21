@@ -5,6 +5,7 @@ import 'package:finmate/core/network/api_exceptions.dart';
 import 'package:finmate/core/theme/app_colors.dart';
 import 'package:finmate/core/theme/app_spacing.dart';
 import 'package:finmate/features/community/presentation/controllers/community_controller.dart';
+import 'package:finmate/core/widgets/async_action_builder.dart';
 
 const _reportReasons = ['scam', 'personal_info', 'harassment', 'sexual', 'spam', 'self_harm', 'other'];
 
@@ -189,11 +190,14 @@ class CommunityPostDetailScreen extends ConsumerWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text('Bình luận (${d.comments.length})', style: Theme.of(context).textTheme.titleMedium),
-                  TextButton.icon(
-                    key: const ValueKey('community-add-comment'),
+                  AsyncActionBuilder(
                     onPressed: () => _addComment(context, ref),
-                    icon: const Icon(Icons.add_comment_outlined),
-                    label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Bình luận', maxLines: 1)),
+                    builder: (_, onTap, running) => TextButton.icon(
+                      key: const ValueKey('community-add-comment'),
+                      onPressed: onTap,
+                      icon: running ? const ButtonLoadingIndicator(size: 16) : const Icon(Icons.add_comment_outlined),
+                      label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Bình luận', maxLines: 1)),
+                    ),
                   ),
                 ],
               ),
@@ -220,6 +224,23 @@ class CommunityPostDetailScreen extends ConsumerWidget {
                           onPressed: () => _report(context, ref, commentId: c.id),
                         ),
                     ],
+                  ),
+                ),
+              if (d.hasMoreComments)
+                Center(
+                  child: AsyncActionBuilder(
+                    onPressed: () async {
+                      try {
+                        await ref.read(communityPostDetailControllerProvider(postId).notifier).loadMoreComments();
+                      } catch (e) {
+                        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errorMessage(e))));
+                      }
+                    },
+                    builder: (_, onTap, running) => TextButton(
+                      key: const ValueKey('community-more-comments'),
+                      onPressed: onTap,
+                      child: running ? const ButtonLoadingIndicator() : const Text('Xem thêm bình luận'),
+                    ),
                   ),
                 ),
             ],

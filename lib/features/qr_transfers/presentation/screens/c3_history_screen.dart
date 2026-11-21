@@ -107,141 +107,153 @@ class _C3HistoryScreenState extends ConsumerState<C3HistoryScreen> {
       grouped.putIfAbsent(_groupLabel(t.scannedAt), () => []).add(t);
     }
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-      children: [
-        GlassCard(
-          level: 2,
-          borderRadius: GlassRadius.roundedCardLarge,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    final showList = _pill != _HistoryPill.billPayment && transfers.isNotEmpty;
+    // Dàn phẳng (tiêu đề ngày | lượt quét) để SliverList.builder chỉ dựng dòng đang hiện.
+    final rows = <Object>[for (final e in grouped.entries) ...[e.key, ...e.value]];
+
+    return CustomScrollView(
+      slivers: [
+        SliverPadding(
+          padding: EdgeInsets.fromLTRB(20, 8, 20, showList ? 0 : 20),
+          sliver: SliverList.list(
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(DateFormat('MMMM yyyy', 'vi_VN').format(now), style: GlassTypography.bodyMd()),
-                  GlassBadge(text: '${monthTransfers.length} lần quét', color: GlassColors.success),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text('Tổng giao dịch QR tháng ${now.month}', style: GlassTypography.bodySm()),
-              const SizedBox(height: 2),
-              Text('${NumberFormat('#,###', 'vi_VN').format(monthTotal.toInt())} ₫', style: GlassTypography.displayHero()),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        SizedBox(
-          height: 44,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            children: [
-              GlassFilterChip(
-                key: const ValueKey('c3-pill-all'),
-                label: 'Tất cả',
-                count: transfers.length,
-                selected: _pill == _HistoryPill.all,
-                onTap: () => setState(() => _pill = _HistoryPill.all),
-              ),
-              const SizedBox(width: 8),
-              GlassFilterChip(
-                key: const ValueKey('c3-pill-transfer'),
-                label: 'Chuyển tiền',
-                count: transfers.length,
-                selected: _pill == _HistoryPill.transfer,
-                onTap: () => setState(() => _pill = _HistoryPill.transfer),
-              ),
-              const SizedBox(width: 8),
-              GlassFilterChip(
-                key: const ValueKey('c3-pill-bill'),
-                label: 'Thanh toán hóa đơn',
-                count: 0,
-                selected: _pill == _HistoryPill.billPayment,
-                onTap: () => setState(() => _pill = _HistoryPill.billPayment),
-              ),
-              const SizedBox(width: 8),
-              GestureDetector(
-                key: const ValueKey('c3-pill-saved-beneficiaries'),
-                onTap: () => context.push('/qr-transfers/beneficiaries'),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: GlassColors.glassFill,
-                    borderRadius: GlassRadius.roundedPill,
-                    border: Border.all(color: GlassColors.glassBorder),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(LucideIcons.bookmark, size: 14, color: GlassColors.slateAnchor),
-                      const SizedBox(width: 6),
-                      Text('Đã lưu người nhận', style: GlassTypography.bodyMd(color: GlassColors.textSecondary).copyWith(fontWeight: FontWeight.w600)),
-                    ],
-                  ),
+              GlassCard(
+                level: 2,
+                borderRadius: GlassRadius.roundedCardLarge,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(DateFormat('MMMM yyyy', 'vi_VN').format(now), style: GlassTypography.bodyMd()),
+                        GlassBadge(text: '${monthTransfers.length} lần quét', color: GlassColors.success),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text('Tổng giao dịch QR tháng ${now.month}', style: GlassTypography.bodySm()),
+                    const SizedBox(height: 2),
+                    Text('${NumberFormat('#,###', 'vi_VN').format(monthTotal.toInt())} ₫', style: GlassTypography.displayHero()),
+                  ],
                 ),
               ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        if (_pill == _HistoryPill.billPayment)
-          GlassCard(child: Text('Chưa có giao dịch thanh toán hóa đơn qua QR.', style: GlassTypography.bodyMd()))
-        else if (transfers.isEmpty)
-          GlassCard(child: Text('Chưa có lần quét QR nào.', style: GlassTypography.bodyMd()))
-        else
-          for (final entry in grouped.entries)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8, left: 4),
-                    child: Text(entry.key.toUpperCase(), style: GlassTypography.labelCaps()),
-                  ),
-                  for (final t in entry.value)
-                    Padding(
-                      key: ValueKey('c3-transfer-${t.id}'),
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: GestureDetector(
-                        // Chỉ ý định ĐÃ khớp mới có giao dịch thật để dẫn tới — chưa khớp thì
-                        // không có gì ở D1 để trỏ vào, không bịa đường dẫn (§16.9).
-                        onTap: t.isMatched ? () => context.push('/transactions') : null,
-                        child: GlassCard(
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      t.receiverName ?? t.receiverAccountNumber,
-                                      style: GlassTypography.bodyLg(color: GlassColors.textPrimary).copyWith(fontWeight: FontWeight.w600),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      '${t.receiverBankName} · ${DateFormat('HH:mm').format(t.scannedAt)}',
-                                      style: GlassTypography.bodySm(),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Text('-${t.formattedAmount}', style: GlassTypography.labelNumeric(color: GlassColors.danger)),
-                                  const SizedBox(height: 2),
-                                  GlassBadge(text: _statusLabel(t.status), color: _statusColor(t.status)),
-                                ],
-                              ),
-                            ],
-                          ),
+              const SizedBox(height: 16),
+              SizedBox(
+                height: 44,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  children: [
+                    GlassFilterChip(
+                      key: const ValueKey('c3-pill-all'),
+                      label: 'Tất cả',
+                      count: transfers.length,
+                      selected: _pill == _HistoryPill.all,
+                      onTap: () => setState(() => _pill = _HistoryPill.all),
+                    ),
+                    const SizedBox(width: 8),
+                    GlassFilterChip(
+                      key: const ValueKey('c3-pill-transfer'),
+                      label: 'Chuyển tiền',
+                      count: transfers.length,
+                      selected: _pill == _HistoryPill.transfer,
+                      onTap: () => setState(() => _pill = _HistoryPill.transfer),
+                    ),
+                    const SizedBox(width: 8),
+                    GlassFilterChip(
+                      key: const ValueKey('c3-pill-bill'),
+                      label: 'Thanh toán hóa đơn',
+                      count: 0,
+                      selected: _pill == _HistoryPill.billPayment,
+                      onTap: () => setState(() => _pill = _HistoryPill.billPayment),
+                    ),
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      key: const ValueKey('c3-pill-saved-beneficiaries'),
+                      onTap: () => context.push('/qr-transfers/beneficiaries'),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: GlassColors.glassFill,
+                          borderRadius: GlassRadius.roundedPill,
+                          border: Border.all(color: GlassColors.glassBorder),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(LucideIcons.bookmark, size: 14, color: GlassColors.slateAnchor),
+                            const SizedBox(width: 6),
+                            Text('Đã lưu người nhận', style: GlassTypography.bodyMd(color: GlassColors.textSecondary).copyWith(fontWeight: FontWeight.w600)),
+                          ],
                         ),
                       ),
                     ),
-                ],
+                  ],
+                ),
               ),
+              const SizedBox(height: 16),
+              if (_pill == _HistoryPill.billPayment)
+                GlassCard(child: Text('Chưa có giao dịch thanh toán hóa đơn qua QR.', style: GlassTypography.bodyMd()))
+              else if (transfers.isEmpty)
+                GlassCard(child: Text('Chưa có lần quét QR nào.', style: GlassTypography.bodyMd()))
+            ],
+          ),
+        ),
+        if (showList)
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+            sliver: SliverList.builder(
+              itemCount: rows.length,
+              itemBuilder: (context, i) {
+                final row = rows[i];
+                if (row is String) {
+                  return Padding(
+                    padding: EdgeInsets.only(bottom: 8, left: 4, top: i == 0 ? 0 : 6),
+                    child: Text(row.toUpperCase(), style: GlassTypography.labelCaps()),
+                  );
+                }
+                final t = row as QrTransferEntity;
+                return Padding(
+                  key: ValueKey('c3-transfer-${t.id}'),
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: GestureDetector(
+                    // Chỉ ý định ĐÃ khớp mới có giao dịch thật để dẫn tới — chưa khớp thì
+                    // không có gì ở D1 để trỏ vào, không bịa đường dẫn (§16.9).
+                    onTap: t.isMatched ? () => context.push('/transactions') : null,
+                    child: GlassCard(
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  t.receiverName ?? t.receiverAccountNumber,
+                                  style: GlassTypography.bodyLg(color: GlassColors.textPrimary).copyWith(fontWeight: FontWeight.w600),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '${t.receiverBankName} · ${DateFormat('HH:mm').format(t.scannedAt)}',
+                                  style: GlassTypography.bodySm(),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text('-${t.formattedAmount}', style: GlassTypography.labelNumeric(color: GlassColors.danger)),
+                              const SizedBox(height: 2),
+                              GlassBadge(text: _statusLabel(t.status), color: _statusColor(t.status)),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
+          ),
       ],
     );
   }

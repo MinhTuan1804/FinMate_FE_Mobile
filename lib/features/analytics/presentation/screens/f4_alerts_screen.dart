@@ -19,6 +19,7 @@ import 'package:finmate/features/recurring/presentation/controllers/recurring_it
 import 'package:finmate/shared/widgets/glass/glass_background.dart';
 import 'package:finmate/shared/widgets/glass/glass_badge.dart';
 import 'package:finmate/shared/widgets/glass/glass_card.dart';
+import 'package:finmate/core/widgets/async_action_builder.dart';
 
 enum _Tab { all, open, confirmed }
 
@@ -118,15 +119,18 @@ class _F4AlertsScreenState extends ConsumerState<F4AlertsScreen> {
                 child: Text(AlertActionRunner.doneLabel(alert.actions[i].kind), style: GlassTypography.bodySm(color: GlassColors.success)),
               )
             else
-              FilledButton.tonal(
-                key: ValueKey('alert-action-${alert.id}-$i'),
+              AsyncActionBuilder(
                 onPressed: _running != null ? null : () => _runAction(alert, i),
-                style: FilledButton.styleFrom(
-                  shape: RoundedRectangleBorder(borderRadius: GlassRadius.roundedPill),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  minimumSize: const Size(0, 36),
+                builder: (_, onTap, running) => FilledButton.tonal(
+                  key: ValueKey('alert-action-${alert.id}-$i'),
+                  onPressed: onTap,
+                  style: FilledButton.styleFrom(
+                    shape: RoundedRectangleBorder(borderRadius: GlassRadius.roundedPill),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    minimumSize: const Size(0, 36),
+                  ),
+                  child: running ? const ButtonLoadingIndicator() : Text(_running == '${alert.id}:$i' ? 'Đang xử lý...' : alert.actions[i].title),
                 ),
-                child: Text(_running == '${alert.id}:$i' ? 'Đang xử lý...' : alert.actions[i].title),
               ),
         ],
       ),

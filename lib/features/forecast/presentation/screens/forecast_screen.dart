@@ -13,6 +13,7 @@ import 'package:finmate/features/forecast/domain/forecast.dart';
 import 'package:finmate/features/forecast/presentation/controllers/forecast_controller.dart';
 import 'package:finmate/features/planning/presentation/controllers/planning_controller.dart';
 import 'package:finmate/features/recurring/domain/recurring_item.dart';
+import 'package:finmate/core/widgets/async_action_builder.dart';
 
 final _dayFormat = DateFormat('dd/MM');
 
@@ -332,11 +333,14 @@ class _ForecastScreenState extends ConsumerState<ForecastScreen> {
               const SizedBox(height: AppSpacing.sm),
               Row(
                 children: [
-                  TextButton.icon(
-                    key: const ValueKey('forecast-scenario-button'),
+                  AsyncActionBuilder(
                     onPressed: _scenarioBusy ? null : _openScenario,
-                    icon: const Icon(LucideIcons.plusCircle, size: 16),
-                    label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Thử kịch bản', maxLines: 1)),
+                    builder: (_, onTap, running) => TextButton.icon(
+                      key: const ValueKey('forecast-scenario-button'),
+                      onPressed: onTap,
+                      icon: running ? const ButtonLoadingIndicator(size: 16) : const Icon(LucideIcons.plusCircle, size: 16),
+                      label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Thử kịch bản', maxLines: 1)),
+                    ),
                   ),
                   if (isScenario)
                     TextButton(
@@ -655,11 +659,14 @@ class _ForecastScreenState extends ConsumerState<ForecastScreen> {
                               spacing: 6,
                               children: [
                                 for (final r in const ['normal', 'one_off', 'wrong_entry', 'suspicious'])
-                                  OutlinedButton(
-                                    key: ValueKey('anomaly-feedback-$r-${a.id}'),
-                                    style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4)),
+                                  AsyncActionBuilder(
                                     onPressed: () => _sendAnomalyFeedback(a.id, r),
-                                    child: Text(_anomalyResolutionLabel(r), style: const TextStyle(fontSize: 11)),
+                                    builder: (_, onTap, running) => OutlinedButton(
+                                      key: ValueKey('anomaly-feedback-$r-${a.id}'),
+                                      style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4)),
+                                      onPressed: onTap,
+                                      child: running ? const ButtonLoadingIndicator() : Text(_anomalyResolutionLabel(r), style: const TextStyle(fontSize: 11)),
+                                    ),
                                   ),
                               ],
                             ),
@@ -742,10 +749,13 @@ class _ForecastScreenState extends ConsumerState<ForecastScreen> {
                         if (item.suggestedLimitCents != null)
                           Padding(
                             padding: const EdgeInsets.only(top: 4),
-                            child: OutlinedButton(
-                              key: ValueKey('apply-category-budget-${item.categoryId}'),
+                            child: AsyncActionBuilder(
                               onPressed: _categoryApplyBusyId == item.categoryId ? null : () => _applySuggestedBudget(item),
-                              child: Text('Dùng ${formatVnd(item.suggestedLimitCents!)} làm ngân sách'),
+                              builder: (_, onTap, running) => OutlinedButton(
+                                key: ValueKey('apply-category-budget-${item.categoryId}'),
+                                onPressed: onTap,
+                                child: running ? const ButtonLoadingIndicator() : Text('Dùng ${formatVnd(item.suggestedLimitCents!)} làm ngân sách'),
+                              ),
                             ),
                           ),
                       ],
@@ -840,11 +850,14 @@ class _ForecastScreenState extends ConsumerState<ForecastScreen> {
             const SizedBox(height: AppSpacing.sm),
             Row(
               children: [
-                TextButton.icon(
-                  key: const ValueKey('goal-scenario-button'),
+                AsyncActionBuilder(
                   onPressed: _goalScenarioBusy ? null : () => _openGoalScenario(goalId),
-                  icon: const Icon(LucideIcons.plusCircle, size: 16),
-                  label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Thử mức góp khác', maxLines: 1)),
+                  builder: (_, onTap, running) => TextButton.icon(
+                    key: const ValueKey('goal-scenario-button'),
+                    onPressed: onTap,
+                    icon: running ? const ButtonLoadingIndicator(size: 16) : const Icon(LucideIcons.plusCircle, size: 16),
+                    label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Thử mức góp khác', maxLines: 1)),
+                  ),
                 ),
                 if (isScenario)
                   TextButton(

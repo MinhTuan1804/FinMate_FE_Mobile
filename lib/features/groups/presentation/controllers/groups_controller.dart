@@ -3,8 +3,12 @@ import 'package:finmate/features/auth/presentation/controllers/auth_controller.d
 import 'package:finmate/features/groups/data/group_funds_repository.dart';
 import 'package:finmate/features/groups/data/groups_repository.dart';
 import 'package:finmate/features/groups/domain/group.dart';
+import 'package:finmate/features/groups/data/group_debts_repository.dart';
+import 'package:finmate/features/groups/domain/group_debts.dart';
+import 'package:finmate/features/groups/domain/group_extras.dart';
 import 'package:finmate/features/groups/domain/group_fund.dart';
 import 'package:finmate/features/planning/domain/entities/savings_goal_entity.dart';
+import 'package:finmate/core/widgets/cursor_pager.dart';
 
 /// Danh sách nhóm của người dùng hiện tại. Tự tạo lại (và tải lại) khi đổi người dùng;
 /// chưa đăng nhập thì rỗng và không gọi API.
@@ -26,6 +30,11 @@ final groupMembersProvider = FutureProvider.autoDispose.family<List<GroupMemberE
 /// Nhật ký hoạt động của một nhóm.
 final groupActivitiesProvider = FutureProvider.autoDispose.family<List<GroupActivityEntity>, String>(
   (ref, groupId) => ref.watch(groupsRepositoryProvider).getActivities(groupId),
+);
+
+/// Mã/link tham gia chung của nhóm (người có quyền mời xem được).
+final groupJoinLinkProvider = FutureProvider.autoDispose.family<GroupJoinLinkEntity, String>(
+  (ref, groupId) => ref.watch(groupsRepositoryProvider).getJoinLink(groupId),
 );
 
 /// Lời mời đang chờ của một nhóm (chủ nhóm/quản lý xem được).
@@ -96,11 +105,45 @@ final groupFundSummaryProvider =
 );
 
 /// Sổ quỹ (entries) của một quỹ; khóa là (groupId, fundId).
-final groupFundEntriesProvider = FutureProvider.autoDispose.family<List<GroupFundEntryEntity>, (String groupId, String fundId)>(
-  (ref, key) => ref.watch(groupFundsRepositoryProvider).getFundEntries(groupId: key.$1, fundId: key.$2, limit: 50),
+final groupFundEntriesProvider = StateNotifierProvider.autoDispose
+    .family<CursorPager<GroupFundEntryEntity>, AsyncValue<List<GroupFundEntryEntity>>, (String groupId, String fundId)>((ref, key) {
+  final repo = ref.watch(groupFundsRepositoryProvider);
+  return CursorPager((cursor) => repo.getFundEntries(groupId: key.$1, fundId: key.$2, limit: 50, cursor: cursor));
+});
+
+/// Hóa đơn chia của nhóm (mới nhất trước, tải thêm theo cursor).
+final groupBillsProvider =
+    StateNotifierProvider.autoDispose.family<CursorPager<GroupBillEntity>, AsyncValue<List<GroupBillEntity>>, String>((ref, groupId) {
+  final repo = ref.watch(groupDebtsRepositoryProvider);
+  return CursorPager((cursor) => repo.getBills(groupId, cursor: cursor));
+});
+
+/// Số nợ ròng từng thành viên và gợi ý cấn trừ.
+final groupBalancesProvider = FutureProvider.autoDispose.family<GroupBalancesEntity, String>(
+  (ref, groupId) => ref.watch(groupDebtsRepositoryProvider).getBalances(groupId),
 );
 
-/// Tổng chi tháng này cộng dồn trên MỌI nhóm đang tham gia — dùng cho hero card I1.
+/// Yêu cầu chờ duyệt (chủ nhóm thấy của mọi người, người khác chỉ thấy của mình).
+final groupApprovalsProvider = FutureProvider.autoDispose.family<List<GroupApprovalEntity>, String>(
+  (ref, groupId) => ref.watch(groupDebtsRepositoryProvider).getApprovals(groupId),
+);
+
+/// Gợi ý "Gần đây" khi mời: người cùng nhóm khác, chưa ở nhóm này.
+final inviteSuggestionsProvider = FutureProvider.autoDispose.family<List<InviteSuggestion>, String>(
+  (ref, groupId) => ref.watch(groupsRepositoryProvider).getInviteSuggestions(groupId),
+);
+
+/// Cài đặt của một nhóm (ngày chốt sổ, duyệt khoản lớn, thông báo...). Mọi thành viên đọc được, chỉ chủ nhóm sửa.
+final groupSettingsProvider = FutureProvider.autoDispose.family<GroupSettingsEntity, String>(
+  (ref, groupId) => ref.watch(groupsRepositoryProvider).getSettings(groupId),
+);
+
+/// Tổng quan của tôi cho hero card I1: tổng chi tháng này, phần cần đóng, số cần thanh toán, hạn chốt sổ gần nhất.
+final groupsSummaryProvider = FutureProvider.autoDispose<GroupsSummaryEntity>(
+  (ref) => ref.watch(groupsRepositoryProvider).getMySummary(),
+);
+
+/// Tổng chi tháng này cộng dồn trên MỌI nhóm đang tham gia (cách cũ, tự cộng từng nhóm; I1 giờ dùng [groupsSummaryProvider]).
 /// Gọi report từng nhóm song song; nhóm nào lỗi (API tắt, quyền thiếu) bị bỏ qua, không chặn cả màn.
 final allGroupsMonthlySpendProvider = FutureProvider.autoDispose<BigInt>((ref) async {
   final repo = ref.watch(groupsRepositoryProvider);
@@ -129,8 +172,9 @@ class GroupsController extends StateNotifier<AsyncValue<List<GroupEntity>>> {
     if (enabled) load();
   }
 
-  Future<void> load() async {
-    state = const AsyncValue.loading();
+  /// [silent] true: giữ danh sách đang hiện trong lúc tải lại (dùng khi số liệu thẻ, như quỹ chung, đổi từ màn khác).
+  Future<void> load({bool silent = false}) async {
+    if (!silent) state = const AsyncValue.loading();
     try {
       final list = await repository.getGroups();
       if (mounted) state = AsyncValue.data(list);
@@ -140,8 +184,14 @@ class GroupsController extends StateNotifier<AsyncValue<List<GroupEntity>>> {
   }
 
   /// Lỗi được ném lại cho màn hình; thành công thì tải lại danh sách.
-  Future<GroupEntity> create({required String name, GroupType type = GroupType.family}) async {
-    final created = await repository.createGroup(name: name, type: type);
+  Future<GroupEntity> create({
+    required String name,
+    GroupType type = GroupType.family,
+    String? icon,
+    String? description,
+    String? settlementModel,
+  }) async {
+    final created = await repository.createGroup(name: name, type: type, icon: icon, description: description, settlementModel: settlementModel);
     await load();
     return created;
   }

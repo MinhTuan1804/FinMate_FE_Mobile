@@ -70,7 +70,12 @@ class _SurveyScreenState extends ConsumerState<SurveyScreen> {
       _showMessage('Đã gửi khảo sát.');
       // Nối tiếp luồng: làm xong khảo sát thì đi thẳng sang màn gợi ý phương pháp (B4),
       // thay vì để người dùng tự tìm nút quay lại Hồ sơ.
-      context.push('/finance-methods');
+      // Còn màn bên dưới thì thay màn khảo sát (đã nộp xong, quay lại không về form cũ); vào thẳng từ onboarding thì giữ nguyên để quay lại không thoát app.
+      if (context.canPop()) {
+        context.pushReplacement('/finance-methods');
+      } else {
+        context.push('/finance-methods');
+      }
     } catch (e) {
       _showMessage(surveyErrorMessage(e));
     } finally {

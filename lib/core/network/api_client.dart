@@ -108,6 +108,19 @@ class ApiClient {
     }
   }
 
+  /// DELETE mà server trả dữ liệu (vd. `{revoked: n}`); [delete] bỏ qua thân phản hồi.
+  Future<ApiResponse<T>> deleteWithResult<T>(
+    String path, {
+    required T Function(dynamic json) fromJsonT,
+  }) async {
+    try {
+      final response = await dio.delete(path);
+      return _parse(response, fromJsonT);
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
   Future<ApiResponse<T>> uploadFile<T>(
     String path, {
     required FormData formData,
@@ -140,7 +153,8 @@ class ApiClient {
       );
     }
     try {
-      return ApiResponse.fromJson(body, fromJsonT);
+      final parsed = ApiResponse.fromJson(body, fromJsonT);
+      return ApiResponse<T>(data: parsed.data, meta: parsed.meta, errors: parsed.errors, statusCode: response.statusCode);
     } on Object {
       throw ApiException(
         message: 'Không đọc được dữ liệu từ máy chủ. Vui lòng thử lại sau.',

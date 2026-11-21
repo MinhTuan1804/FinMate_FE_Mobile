@@ -10,6 +10,7 @@ import 'package:finmate/core/theme/app_typography.dart';
 import 'package:finmate/core/widgets/glass/liquid_glass.dart';
 import 'package:finmate/features/assistant/data/agent_memory_repository.dart';
 import 'package:finmate/features/assistant/domain/agent_memory.dart';
+import 'package:finmate/core/widgets/async_action_builder.dart';
 
 /// Màu nhãn của từng sở thích theo Figma E3 (nền nhãn, chữ nhãn, chấm). Không có token tương đương trong AppColors.
 typedef _PillStyle = ({Color bg, Color fg, Color dot});
@@ -197,16 +198,19 @@ class _AiMemoryScreenState extends ConsumerState<AiMemoryScreen> {
           if (hasAny)
             Tooltip(
               message: 'Xóa toàn bộ',
-              child: TextButton.icon(
+              child: AsyncActionBuilder(
                 onPressed: () => _clearAll(context, ref),
-                icon: const Icon(
-                  LucideIcons.trash2,
-                  size: 14,
-                  color: AppColors.danger,
-                ),
-                label: const Text(
-                  'Xóa tất cả',
-                  style: TextStyle(color: AppColors.danger, fontSize: 12),
+                builder: (_, onTap, running) => TextButton.icon(
+                  onPressed: onTap,
+                  icon: running ? const ButtonLoadingIndicator(size: 16) : const Icon(
+                    LucideIcons.trash2,
+                    size: 14,
+                    color: AppColors.danger,
+                  ),
+                  label: const Text(
+                    'Xóa tất cả',
+                    style: TextStyle(color: AppColors.danger, fontSize: 12),
+                  ),
                 ),
               ),
             ),
@@ -434,6 +438,7 @@ class _AiMemoryScreenState extends ConsumerState<AiMemoryScreen> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: LiquidGlassCard(
+        variant: LiquidGlassVariant.subtle, // dòng trong list: không blur từng item
         padding: const EdgeInsets.fromLTRB(16, 14, 8, 6),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

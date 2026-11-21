@@ -2,9 +2,9 @@
 <resources>
     <!-- Luồng 9 — nhãn/mô tả hiện trong trình chọn "Tiện ích/Widgets" của Android -->
     <string name="widget_w1_label">FinMate — Chi an toàn</string>
-    <string name="widget_w1_description">Số tiền còn có thể tiêu an toàn hôm nay, kèm vòng tròn % ngân sách đã dùng.</string>
+    <string name="widget_w1_description">Ví dụ: số tiền còn có thể tiêu an toàn hôm nay, kèm vòng tròn % ngân sách đã dùng.</string>
     <string name="widget_w2_label">FinMate — Tổng quan</string>
-    <string name="widget_w2_description">Số dư khả dụng, % ngân sách tháng đã dùng và nút ghi chép nhanh.</string>
+    <string name="widget_w2_description">Ví dụ: số dư khả dụng, % ngân sách tháng đã dùng và nút ghi chép nhanh.</string>
     <string name="widget_w4x4_label">FinMate — Chi tiết</string>
-    <string name="widget_w4x4_description">Số dư, dự báo cuối tháng và số giao dịch đã ghi hôm nay.</string>
+    <string name="widget_w4x4_description">Ví dụ: số dư, dự báo cuối tháng và số giao dịch đã ghi hôm nay.</string>
 </resources>

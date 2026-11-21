@@ -1,0 +1,180 @@
+KẾ HOẠCH API NHÓM CHI TIÊU (I1–I7) — BÀN GIAO CHO BACKEND
+============================================================
+Nguồn: so sánh Figma I1–I7 với app FE hiện tại (2026-11-20).
+Quy ước chung: base /api/v1, bọc {success, data, error, meta} như các API hiện có.
+Tiền là số nguyên đồng (BigInt), thời gian ISO-8601 có múi giờ.
+Chú ý: FE chưa kiểm tra swagger của BE, hãy đối chiếu với API đã có trước khi làm
+(đã có: groups, members, invitations, group-invitations/preview|accept, budgets, goals,
+reports/monthly, funds + summary + entries, share-rules, alerts, transfer-ownership, leave).
+
+MỨC ƯU TIÊN
+  P1 = chặn nhiều màn, nên làm trước
+  P2 = làm sau P1
+  P3 = có thể để sau
+
+------------------------------------------------------------
+P1-A. TỪ CHỐI LỜI MỜI  (màn I6)
+------------------------------------------------------------
+Hiện tại: nút "Từ chối lời mời" chỉ đóng màn, server không biết.
+Cần: POST /group-invitations/decline
+  body: { "token": "<mã lời mời>" }
+  kết quả: 204/200. Lời mời chuyển trạng thái Declined, không dùng lại được.
+  Lỗi: 404 token sai, 410/422 đã hết hạn hoặc đã xử lý.
+Ghi chú: người gửi nên thấy lời mời biến khỏi danh sách "đang chờ" (GET /groups/{id}/invitations).
+
+------------------------------------------------------------
+P1-B. MỞ RỘNG XEM TRƯỚC LỜI MỜI  (I6)
+------------------------------------------------------------
+API có sẵn: POST /group-invitations/preview
+Hiện trả: groupName, groupType, role, invitedBy, expiresAt.
+Cần thêm vào response:
+  - groupIcon (xem P2-A), memberCount (số thành viên hiện tại)
+  - fundBalanceCents (số dư quỹ chung chính, null nếu nhóm chưa có quỹ)
+  - invitedByRole (vd "Owner") để hiện "(Trưởng nhóm)"
+  - message (lời nhắn tùy chọn của người mời, ≤200 ký tự)
+Khi tạo lời mời (POST /groups/{id}/invitations) cho nhận thêm "message" (tùy chọn).
+
+------------------------------------------------------------
+P1-C. NGUỒN TIỀN MẶC ĐỊNH KHI THAM GIA  (I6)
+------------------------------------------------------------
+API có sẵn: POST /group-invitations/accept  (body hiện: token)
+Cần: nhận thêm "defaultFinancialAccountId" (tùy chọn). Dùng làm nguồn tiền mặc định
+khi người này góp quỹ/ghi chi trong nhóm. Phải thuộc về chính người dùng, nếu không 403/422.
+
+------------------------------------------------------------
+P1-D. TỔNG HỢP NỢ CÁ NHÂN TRÊN DANH SÁCH NHÓM  (I1)
+------------------------------------------------------------
+Cần: GET /groups/me/summary?year=&month=
+  trả: {
+    totalSpentCents,            // tổng đã chi trong tất cả nhóm tháng đó
+    activeGroupCount,
+    myShareDueCents,            // phần tôi cần đóng
+    myPayableCents,             // số tôi cần thanh toán (nợ người khác)
+    closingDate                 // hạn chốt gần nhất (ngày), null nếu không có
+  }
+Hiện FE tự cộng reports/monthly của từng nhóm (nhiều request). Endpoint này vừa thay
+việc đó vừa thêm phần nợ. Nếu chưa làm nợ (P1-E) thì trả myShareDueCents/myPayableCents = null.
+
+------------------------------------------------------------
+P1-E. SỔ NỢ GIỮA THÀNH VIÊN VÀ CẤN TRỪ  (I3, I4)
+------------------------------------------------------------
+Figma có: "Bạn đang ứng trước +1.250.000", "Lan Anh nợ bạn 225.000", "Cấn trừ nợ", "Nhắc nợ".
+Cần (mô hình nợ theo từng khoản chi chia cho nhiều người, xem P1-F):
+  1) GET  /groups/{id}/balances
+       trả: [{ userId, displayName, netCents }]   // >0 được nhận, <0 đang nợ
+       + "transfers": [{ fromUserId, toUserId, amountCents }]  // gợi ý cấn trừ tối giản
+  2) POST /groups/{id}/settlements
+       body: { fromUserId, toUserId, amountCents, note? }  // ghi nhận đã trả nợ
+       quyền: chính người trả hoặc người nhận hoặc Owner
+  3) POST /groups/{id}/members/{userId}/remind-debt
+       gửi push + thông báo trong app cho người nợ. Giới hạn: 1 lần/người/24 giờ (429).
+  4) POST /groups/{id}/remind-all
+       nhắc mọi người còn nợ ("Nhắc thanh toán một chạm"). Cùng giới hạn tần suất.
+Quy tắc: tính tổng bằng số nguyên; chia lẻ không đều thì dồn phần dư cho người trả trước.
+
+------------------------------------------------------------
+P1-F. CHIA HÓA ĐƠN (SPLIT BILL)  (I3)
+------------------------------------------------------------
+Cần: POST /groups/{id}/bills
+  body: {
+    title, amountCents, paidByUserId, occurredAt,
+    splitMode: "Equal" | "Custom",
+    splits: [{ userId, shareCents }]    // Equal thì có thể bỏ, server tự chia
+    categoryId?, note?
+  }
+  Ràng buộc: tổng shareCents = amountCents. Người chia phải là thành viên đang hoạt động.
+  Kết quả: tạo giao dịch nhóm + ghi nợ cho từng người (đầu vào của P1-E).
+  GET /groups/{id}/bills (phân trang) và GET /groups/{id}/bills/{billId} để xem chi tiết.
+  Giao dịch trong GET /groups/{id}/transactions nên có thêm: splitCount, isSplit, paidFromFund.
+
+------------------------------------------------------------
+P1-G. DUYỆT GIAO DỊCH LỚN  (I2, I7)
+------------------------------------------------------------
+Cần:
+  - Cài đặt nhóm: requireApprovalAboveCents (null = tắt).
+      PUT /groups/{id}/settings  (xem P2-C)
+  - Khi một giao dịch/hóa đơn/chi quỹ >= ngưỡng và người tạo không phải Owner:
+      trạng thái "PendingApproval", chưa trừ quỹ.
+  - GET  /groups/{id}/approvals?status=Pending
+  - POST /groups/{id}/approvals/{id}/approve
+  - POST /groups/{id}/approvals/{id}/reject   body: { reason? }
+  - Thông báo cho Owner khi có yêu cầu mới và cho người tạo khi có kết quả.
+  Quyền duyệt: Owner (và Manager nếu bạn muốn, hãy chốt lại với FE).
+
+------------------------------------------------------------
+P2-A. THÊM TRƯỜNG VÀO NHÓM  (I1, I2, I7)
+------------------------------------------------------------
+Hiện nhóm chỉ có: id, name, type (Family|Other), transactionVisibility, myRole,
+myPermissions, memberCount, createdAt.
+Cần thêm vào GroupEntity và vào POST/PATCH /groups:
+  - icon: chuỗi khóa biểu tượng chọn sẵn (vd "home","plane","food","heart","car"), mặc định theo type
+  - avatarUrl: ảnh đại diện (xem upload bên dưới), null nếu chưa có
+  - description: ≤200 ký tự
+  - currency: mặc định "VND", hiện chỉ VND, cho phép trường để mở rộng
+  - settlementModel: "SharedFund" | "SplitBill"  (kiểu quỹ chung hay chia đều từng khoản)
+  - closingDay: 1–28, ngày chốt sổ hàng tháng (null = cuối tháng)
+  - debtSettlementMethod: "AiOptimized" | "Manual"
+  - fundBalanceCents, monthlySpentCents, monthlyBudgetCents (cho thẻ trong danh sách I1,
+    để FE khỏi gọi nhiều API cho mỗi nhóm), memberPreview: [{userId, displayName, avatarUrl}] tối đa 3
+  Upload ảnh: POST /groups/{id}/avatar (multipart, jpg/png ≤2MB, trả avatarUrl);
+              DELETE /groups/{id}/avatar.
+  Mở rộng GroupType: Family, Friends/Travel, Colleagues, Roommates, Other
+  (Figma có Gia đình / Bạn bè-Du lịch / Đồng nghiệp). Hãy chốt danh sách chính thức với FE.
+
+------------------------------------------------------------
+P2-B. TÌM NGƯỜI ĐỂ MỜI  (I5)
+------------------------------------------------------------
+Cần: GET /users/search?q=<email | FinMate ID | số điện thoại>&limit=10
+  trả: [{ userId, displayName, handle, maskedPhone, avatarUrl }]
+  Quy tắc riêng tư: chỉ khớp chính xác (không trả danh sách đoán), che số điện thoại
+  (0912 *** 448), giới hạn tần suất để chống dò. Không trả người đã ở trong nhóm.
+  GET /groups/{id}/invite-suggestions: gợi ý "Gần đây" (người từng ở chung nhóm khác).
+  POST /groups/{id}/invitations hiện nhận email; cho nhận thêm "userId" hoặc "handle".
+  DELETE /groups/{id}/invitations (không id): thu hồi tất cả lời mời đang chờ trong 1 lần.
+    (FE tạm gọi lần lượt từng lời mời; có API này thì chuyển sang gọi 1 lần.)
+  Link mời công khai: cấp URL dạng https://finmate.app/join/<token> (cần deep-link/universal link
+  phía mobile; hiện FE chỉ dùng mã dán tay).
+
+------------------------------------------------------------
+P2-C. CÀI ĐẶT NHÓM  (I7)
+------------------------------------------------------------
+Hiện: PATCH /groups/{id} (tên, transactionVisibility), PUT /groups/{id}/alerts (bật/tắt),
+share-rules, transfer-ownership, leave, DELETE.
+Cần: GET + PUT /groups/{id}/settings
+  { closingDay, debtSettlementMethod, requireApprovalAboveCents,
+    notifyOnNewTransaction: bool, weeklySummary: bool, weeklySummaryDay: "Sunday", weeklySummaryTime: "20:00" }
+  và GET trả đúng trạng thái hiện tại. LƯU Ý: PUT /alerts hiện không có GET trả
+  trạng thái, nên FE không biết đang bật hay tắt. Hãy trả trạng thái trong GET /settings.
+  Báo cáo tuần: job gửi tóm tắt chi tiêu nhóm vào giờ cấu hình.
+  Xuất sao kê: GET /groups/{id}/export?format=xlsx|pdf&from=&to= (stream tệp, ≤10MB).
+  Phân quyền: chỉ Owner đổi settings.
+
+------------------------------------------------------------
+P2-D. VAI TRÒ THỦ QUỸ  (I4, I5)
+------------------------------------------------------------
+Figma dùng Trưởng nhóm / Thủ quỹ / Thành viên; BE là Owner / Manager / Member / Viewer.
+Đề xuất (chốt với FE): giữ 4 vai trò, đặt tên hiển thị Manager = "Thủ quỹ" (FE đổi nhãn),
+hoặc thêm vai trò Treasurer có quyền ManageFunds + duyệt chi. Cần quyết định, ảnh hưởng enum GroupRole.
+
+------------------------------------------------------------
+P3. KHÁC
+------------------------------------------------------------
+  - Lưu nháp khi tạo nhóm (I2 "Lưu nháp"): có thể giữ phía app, không cần API.
+  - Thẻ "Còn N giao dịch cần chia" ở I1: dùng số liệu từ P1-F (giao dịch chưa gán người chia):
+      thêm vào GET /groups: unsplitTransactionCount.
+  - Sắp xếp danh sách nhóm: FE tự làm, không cần API.
+
+------------------------------------------------------------
+THỨ TỰ ĐỀ XUẤT TRIỂN KHAI
+------------------------------------------------------------
+  1. P1-A, P1-B, P1-C (nhỏ, mở khóa I6 hoàn chỉnh)
+  2. P2-A (trường nhóm) + P2-C (settings) vì I1, I2, I7 dùng chung
+  3. P1-F -> P1-E -> P1-D (chuỗi: chia bill -> sổ nợ -> tổng hợp nợ; mở khóa I1, I3, I4)
+  4. P1-G (duyệt giao dịch lớn)
+  5. P2-B (tìm người mời), P2-D (vai trò)
+
+TIÊU CHÍ HOÀN THÀNH CHO MỖI API
+  - Có trong swagger kèm ví dụ request/response và mã lỗi (code ổn định, vd GROUP_NOT_MEMBER).
+  - Phân quyền đúng vai trò; lỗi nghiệp vụ trả 422 với "code" để FE hiện thông báo tiếng Việt.
+  - Có phân trang cho danh sách dài, thời gian phản hồi < 500ms.
+  - Gửi FE fixture JSON mẫu để FE viết test.

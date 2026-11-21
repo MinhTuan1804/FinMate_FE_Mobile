@@ -9,6 +9,7 @@ import 'package:finmate/features/support/domain/support.dart';
 import 'package:finmate/core/theme/app_colors.dart';
 import 'package:finmate/core/theme/app_spacing.dart';
 import 'package:finmate/features/support/presentation/controllers/support_controller.dart';
+import 'package:finmate/core/widgets/async_action_builder.dart';
 
 String _statusLabel(String s) => switch (s) {
   'New' => 'Mới',
@@ -228,17 +229,20 @@ class _SupportTicketDetailScreenState
                             style: AppTypography.caption(context),
                           ),
                         const SizedBox(height: AppSpacing.md),
-                        OutlinedButton(
-                          key: const ValueKey('support-close'),
+                        AsyncActionBuilder(
                           onPressed: ticket.isClosed || _busy ? null : _close,
-                          style: OutlinedButton.styleFrom(
-                            minimumSize: const Size(0, 44),
-                            shape: const StadiumBorder(),
-                            side: BorderSide(
-                              color: AppColors.glassBorder(context),
+                          builder: (_, onTap, running) => OutlinedButton(
+                            key: const ValueKey('support-close'),
+                            onPressed: onTap,
+                            style: OutlinedButton.styleFrom(
+                              minimumSize: const Size(0, 44),
+                              shape: const StadiumBorder(),
+                              side: BorderSide(
+                                color: AppColors.glassBorder(context),
+                              ),
                             ),
+                            child: running ? const ButtonLoadingIndicator() : const Text('Đóng yêu cầu'),
                           ),
-                          child: const Text('Đóng yêu cầu'),
                         ),
                         if (ticket.canRate && ticket.rating == null) ...[
                           const SizedBox(height: AppSpacing.sm),
@@ -481,10 +485,13 @@ class _AccessRequestsSection extends ConsumerWidget {
                             spacing: AppSpacing.sm,
                             runSpacing: AppSpacing.xs,
                             children: [
-                              ElevatedButton(
-                                key: ValueKey('support-access-approve-${r.id}'),
+                              AsyncActionBuilder(
                                 onPressed: () => _approve(context, ref, r),
-                                child: const Text('Đồng ý'),
+                                builder: (_, onTap, running) => ElevatedButton(
+                                  key: ValueKey('support-access-approve-${r.id}'),
+                                  onPressed: onTap,
+                                  child: running ? const ButtonLoadingIndicator() : const Text('Đồng ý'),
+                                ),
                               ),
                               OutlinedButton(
                                 key: ValueKey('support-access-deny-${r.id}'),

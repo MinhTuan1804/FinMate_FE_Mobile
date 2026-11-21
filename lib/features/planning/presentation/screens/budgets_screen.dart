@@ -18,6 +18,7 @@ import 'package:finmate/shared/widgets/glass/glass_bottom_dock.dart';
 import 'package:finmate/shared/widgets/glass/glass_buttons.dart';
 import 'package:finmate/shared/widgets/glass/glass_card.dart';
 import 'package:finmate/shared/widgets/glass/glass_progress_bar.dart';
+import 'package:finmate/core/widgets/async_action_builder.dart';
 
 const _invalidAmount = 'Vui lòng nhập số tiền hợp lệ';
 
@@ -164,12 +165,15 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
               child: Semantics(header: true, child: Text('Theo dõi theo danh mục', style: GlassTypography.headlineSm())),
             ),
             if (budgets.length >= 2)
-              TextButton.icon(
-                key: const ValueKey('budget-transfer'),
+              AsyncActionBuilder(
                 onPressed: () => _transfer(planning),
-                icon: const Icon(LucideIcons.arrowLeftRight, size: 16),
-                label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Chuyển', maxLines: 1)),
-                style: TextButton.styleFrom(foregroundColor: GlassColors.slateAnchor, minimumSize: const Size(48, 48)),
+                builder: (_, onTap, running) => TextButton.icon(
+                  key: const ValueKey('budget-transfer'),
+                  onPressed: onTap,
+                  icon: running ? const ButtonLoadingIndicator(size: 16) : const Icon(LucideIcons.arrowLeftRight, size: 16),
+                  label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Chuyển', maxLines: 1)),
+                  style: TextButton.styleFrom(foregroundColor: GlassColors.slateAnchor, minimumSize: const Size(48, 48)),
+                ),
               ),
           ],
         ),

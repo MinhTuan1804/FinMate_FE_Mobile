@@ -270,6 +270,7 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 12),
                   child: LiquidGlassCard(
+                    variant: LiquidGlassVariant.subtle, // dòng trong list: không blur từng item
                     padding: const EdgeInsets.all(16),
                     onTap: () =>
                         context.push('/profile/support/ticket', extra: ticket),

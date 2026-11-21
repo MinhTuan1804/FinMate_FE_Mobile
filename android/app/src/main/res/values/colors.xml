@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Màu widget (sáng); bản tối ở values-night/colors.xml. Giữ đồng bộ với SafeSpendColors (ProgressRing.kt) -->
+    <color name="widget_card_bg">#F8FAFC</color>
+    <color name="widget_text_primary">#0F172A</color>
+    <color name="widget_text_secondary">#64748B</color>
+    <color name="widget_chip_bg">#E2E8F0</color>
+    <color name="widget_on_primary">#FFFFFF</color>
+    <color name="widget_safe">#15803D</color>
+</resources>

@@ -19,7 +19,7 @@ class _Repo extends AssistantRepository {
   _Repo() : super(apiClient: testApiClient(RouteAdapter((o) => respondJson({'success': true}))));
 
   @override
-  Future<ChatReply> chat(String text, {String? accountId, String? clientRequestId}) async {
+  Future<ChatReply> chat(String text, {String? accountId, String? clientRequestId, Map<String, dynamic>? itemContext}) async {
     if (down) throw NetworkException();
     chatted.add(text);
     requestIds.add(clientRequestId);
@@ -39,7 +39,7 @@ class _ThrowingRepo extends AssistantRepository {
   _ThrowingRepo() : super(apiClient: testApiClient(RouteAdapter((o) => respondJson({'success': true}))));
 
   @override
-  Future<ChatReply> chat(String text, {String? accountId, String? clientRequestId}) async => throw ApiException(code: 'VALIDATION_ERROR', message: 'sai');
+  Future<ChatReply> chat(String text, {String? accountId, String? clientRequestId, Map<String, dynamic>? itemContext}) async => throw ApiException(code: 'VALIDATION_ERROR', message: 'sai');
 }
 
 void main() {

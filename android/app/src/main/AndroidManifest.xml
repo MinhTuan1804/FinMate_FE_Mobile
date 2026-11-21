@@ -3,6 +3,10 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.CAMERA"/>
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <!-- Bong bóng FinMate AI (Bubbles API) là một thông báo hội thoại: Android 13+ cần quyền thông báo. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!-- Bong bóng FinMate AI tự vẽ đè trên máy không hiển thị Bubbles API (MIUI/HyperOS, Android < 11). -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
     <application
         android:label="finmate"
         android:name="${applicationName}"
@@ -42,6 +46,40 @@
                 <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE"/>
             </intent-filter>
         </activity>
+
+        <!-- Cửa sổ nổi của bong bóng FinMate AI: allowEmbedded + resizeable + documentLaunchMode=always
+             là 3 điều kiện Android bắt buộc để Activity hiển thị được bên trong bubble. -->
+        <activity
+            android:name=".bubble.AssistantBubbleActivity"
+            android:exported="false"
+            android:allowEmbedded="true"
+            android:resizeableActivity="true"
+            android:documentLaunchMode="always"
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+            <meta-data
+              android:name="io.flutter.embedding.android.NormalTheme"
+              android:resource="@style/NormalTheme"
+              />
+        </activity>
+
+        <!-- Khung chat mini mở từ bong bóng vẽ đè (AssistantOverlayService): dialog dính đáy, task riêng để
+             không kéo app chính lên khi người dùng đang ở ứng dụng khác. -->
+        <activity
+            android:name=".bubble.AssistantOverlayActivity"
+            android:exported="false"
+            android:theme="@style/AssistantOverlayTheme"
+            android:taskAffinity="com.example.finmate.assistant_overlay"
+            android:launchMode="singleTask"
+            android:excludeFromRecents="true"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize"/>
+        <service
+            android:name=".bubble.AssistantOverlayService"
+            android:exported="false"/>
 
         <receiver
             android:name=".widgets.SafeSpendWidgetReceiver"

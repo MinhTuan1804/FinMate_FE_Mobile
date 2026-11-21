@@ -69,7 +69,7 @@ class SafeSpendWidget : GlanceAppWidget() {
                     modifier = GlanceModifier
                         .fillMaxSize()
                         .cornerRadius(20.dp)
-                        .background(Color(SafeSpendColors.CARD_BG))
+                        .background(SafeSpendColors.cardBg)
                         .clickable(openAppAction)
                         .padding(14.dp),
                 ) {
@@ -118,9 +118,9 @@ private fun SyncingContent() {
     ) {
         Text(
             text = "FinMate",
-            style = TextStyle(color = ColorProvider(Color(SafeSpendColors.TEXT_PRIMARY)), fontWeight = FontWeight.Bold),
+            style = TextStyle(color = SafeSpendColors.textPrimary, fontWeight = FontWeight.Bold),
         )
-        Text(text = "Đang đồng bộ…", style = TextStyle(color = ColorProvider(Color(SafeSpendColors.TEXT_SECONDARY))))
+        Text(text = "Đang đồng bộ…", style = TextStyle(color = SafeSpendColors.textSecondary))
     }
 }
 
@@ -134,12 +134,12 @@ private fun CardHeader(iconRes: Int, label: String) {
             provider = ImageProvider(iconRes),
             contentDescription = null,
             modifier = GlanceModifier.size(14.dp),
-            colorFilter = androidx.glance.ColorFilter.tint(ColorProvider(Color(SafeSpendColors.TEXT_SECONDARY))),
+            colorFilter = androidx.glance.ColorFilter.tint(SafeSpendColors.textSecondary),
         )
         Spacer(modifier = GlanceModifier.width(6.dp))
         Text(
             text = "FinMate • $label",
-            style = TextStyle(fontSize = 11.sp, color = ColorProvider(Color(SafeSpendColors.TEXT_SECONDARY))),
+            style = TextStyle(fontSize = 11.sp, color = SafeSpendColors.textSecondary),
         )
     }
 }
@@ -152,12 +152,12 @@ private fun CardFooter(updatedAtMillis: Long, actionLabel: String) {
     ) {
         Text(
             text = "Cập nhật ${formatTime(updatedAtMillis)}",
-            style = TextStyle(fontSize = 10.sp, color = ColorProvider(Color(SafeSpendColors.TEXT_SECONDARY))),
+            style = TextStyle(fontSize = 10.sp, color = SafeSpendColors.textSecondary),
             modifier = GlanceModifier.defaultWeight(),
         )
         Text(
             text = actionLabel,
-            style = TextStyle(fontSize = 10.sp, color = ColorProvider(Color(SafeSpendColors.TEXT_PRIMARY)), fontWeight = FontWeight.Medium),
+            style = TextStyle(fontSize = 10.sp, color = SafeSpendColors.textPrimary, fontWeight = FontWeight.Medium),
         )
     }
 }
@@ -184,13 +184,13 @@ private fun SpendableContent(data: SafeSpendPrefs.Data) {
                     style = TextStyle(
                         fontSize = if (over) 14.sp else 18.sp,
                         fontWeight = FontWeight.Bold,
-                        color = ColorProvider(Color(if (over) SafeSpendColors.OVER else SafeSpendColors.TEXT_PRIMARY)),
+                        color = if (over) ColorProvider(Color(SafeSpendColors.OVER)) else SafeSpendColors.textPrimary,
                     ),
                     maxLines = 1,
                 )
                 Text(
                     text = if (over) "Nên tạm hoãn các khoản phát sinh" else "Hôm nay có thể chi tiêu an toàn",
-                    style = TextStyle(fontSize = 10.sp, color = ColorProvider(Color(SafeSpendColors.TEXT_SECONDARY))),
+                    style = TextStyle(fontSize = 10.sp, color = SafeSpendColors.textSecondary),
                     maxLines = 2,
                 )
             }
@@ -205,6 +205,7 @@ private fun SpendableContent(data: SafeSpendPrefs.Data) {
                         progressColor = ringColor,
                         percentText = "${data.percentUsed.toInt()}%",
                         subLabel = "tháng",
+                        subLabelColor = SafeSpendColors.secondaryInt(androidx.glance.LocalContext.current),
                     ),
                 ),
                 contentDescription = "${data.percentUsed.toInt()}% ngân sách tháng đã dùng",
@@ -234,23 +235,23 @@ private fun NoBudgetContent() {
         Column(modifier = GlanceModifier.fillMaxWidth().defaultWeight()) {
             Text(
                 text = "Chưa đặt ngân sách",
-                style = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.Bold, color = ColorProvider(Color(SafeSpendColors.TEXT_PRIMARY))),
+                style = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.Bold, color = SafeSpendColors.textPrimary),
             )
             Text(
                 text = "Đặt ngân sách tháng để kích hoạt hạn mức an toàn mỗi ngày.",
-                style = TextStyle(fontSize = 10.sp, color = ColorProvider(Color(SafeSpendColors.TEXT_SECONDARY))),
+                style = TextStyle(fontSize = 10.sp, color = SafeSpendColors.textSecondary),
                 maxLines = 3,
             )
         }
         Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = "Chỉ mất 30 giây thiết lập",
-                style = TextStyle(fontSize = 10.sp, color = ColorProvider(Color(SafeSpendColors.TEXT_SECONDARY))),
+                style = TextStyle(fontSize = 10.sp, color = SafeSpendColors.textSecondary),
                 modifier = GlanceModifier.defaultWeight(),
             )
             Text(
                 text = "Đặt ngay +",
-                style = TextStyle(fontSize = 10.sp, color = ColorProvider(Color(SafeSpendColors.TEXT_PRIMARY)), fontWeight = FontWeight.Bold),
+                style = TextStyle(fontSize = 10.sp, color = SafeSpendColors.textPrimary, fontWeight = FontWeight.Bold),
             )
         }
     }

@@ -21,7 +21,8 @@ Map<String, dynamic> _loan({String id = 'l1', String direction = 'borrow', int p
       'createdAt': '2026-11-01T00:00:00Z',
     };
 
-RouteAdapter _adapter(List<Map<String, dynamic>> loans) => RouteAdapter((o) {
+RouteAdapter _adapter(List<Map<String, dynamic>> loans, {List<Map<String, dynamic>> accounts = const []}) => RouteAdapter((o) {
+      if (o.path.contains('financial-accounts')) return respondJson({'success': true, 'data': accounts});
       if (o.path.endsWith('/repayments')) return respondJson({'success': true, 'data': _loan(paid: 20000000)});
       if (o.method == 'PUT') return respondJson({'success': true, 'data': _loan(title: 'Đã sửa')});
       if (o.path.endsWith('/loans') && o.method == 'POST') return respondJson({'success': true, 'data': _loan()});
@@ -29,8 +30,8 @@ RouteAdapter _adapter(List<Map<String, dynamic>> loans) => RouteAdapter((o) {
       return respondJson({'success': true, 'data': <dynamic>[]}); // ví
     });
 
-Future<void> _pump(WidgetTester tester, RouteAdapter adapter) async {
-  tester.view.physicalSize = const Size(800, 2400);
+Future<void> _pump(WidgetTester tester, RouteAdapter adapter, {Size size = const Size(800, 2400)}) async {
+  tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(ProviderScope(
@@ -117,5 +118,40 @@ void main() {
     expect(put.path, endsWith('/loans/l1'));
     expect(put.data['counterparty'], 'Ngân hàng B');
     expect(put.data['principalCents'], 30000000);
+  });
+
+  testWidgets('sheet trả nợ: chip gợi ý điền số, chọn ví gửi accountId, chỉ ghi sổ hiện giải thích; không tràn ở 360dp', (tester) async {
+    final adapter = _adapter([_loan()], accounts: [
+      {'id': 'a1', 'accountType': 'Bank', 'accountName': 'Vietcombank', 'balanceCents': 24500000},
+      {'id': 'a2', 'accountType': 'Cash', 'accountName': 'Tiền mặt', 'balanceCents': 1000000},
+    ]);
+    await _pump(tester, adapter, size: const Size(360, 800));
+
+    await tester.tap(find.byKey(const ValueKey('repay-loan-l1')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Số dư 24.500.000'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('repay-chip-all')));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(TextField, '12.000.000'), findsOneWidget);
+    expect(find.textContaining('Xác nhận 12.000.000'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('repay-chip-half')));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(TextField, '6.000.000'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('repay-account')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('không đổi số dư ví'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('repay-account-a2')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('không đổi số dư ví'), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('repay-save')));
+    await tester.pumpAndSettle();
+    final req = adapter.requests.firstWhere((r) => r.path.endsWith('/loans/l1/repayments'));
+    expect(req.data['amountCents'], 6000000);
+    expect(req.data['financialAccountId'], 'a2');
+    expect(tester.takeException(), isNull);
   });
 }

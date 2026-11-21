@@ -148,7 +148,8 @@ class _RecommendationSection extends ConsumerWidget {
         await controller.loadLatest();
         if (!context.mounted) return;
         messenger.showSnackBar(const SnackBar(content: Text('Đã áp dụng gợi ý.')));
-        context.push('/finance-methods/my-methods');
+        // Thay màn gợi ý: đã áp dụng xong, quay lại không được về màn còn nút "Áp dụng" như thể chưa chọn.
+        context.pushReplacement('/finance-methods/my-methods');
       } catch (e) {
         ref.invalidate(myMethodsControllerProvider);
         await controller.loadLatest();
@@ -461,7 +462,7 @@ class _CatalogSection extends ConsumerWidget {
       ref.invalidate(myMethodsControllerProvider);
       if (!context.mounted) return;
       messenger.showSnackBar(const SnackBar(content: Text('Đã chọn cách quản lý.')));
-      context.push('/finance-methods/my-methods');
+      context.pushReplacement('/finance-methods/my-methods');
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text(errorMessage(e)), backgroundColor: GlassColors.danger));
     }

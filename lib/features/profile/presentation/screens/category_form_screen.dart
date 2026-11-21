@@ -13,6 +13,7 @@ import 'package:finmate/features/categories/domain/category.dart';
 import 'package:finmate/features/categories/presentation/categories_provider.dart';
 import 'package:finmate/features/categories/presentation/category_colors.dart';
 import 'package:finmate/features/categories/presentation/category_icons.dart';
+import 'package:finmate/core/widgets/async_action_builder.dart';
 
 /// Màn H13: Thêm / sửa danh mục (theo Figma): xem trước biểu tượng, tên, loại chi/thu, biểu tượng, màu nhận diện (bảng màu do admin đặt),
 /// nhóm cha (danh mục hệ thống), hạn mức ngân sách gợi ý mỗi tháng (chỉ để hiển thị) và "yêu thích". Tất cả lưu ở backend.
@@ -397,16 +398,19 @@ class _CategoryFormScreenState extends ConsumerState<CategoryFormScreen> {
                 ),
                 if (editing != null) ...[
                   const SizedBox(height: 10),
-                  OutlinedButton.icon(
-                    key: const ValueKey('category-delete'),
+                  AsyncActionBuilder(
                     onPressed: _busy ? null : _delete,
-                    icon: const Icon(LucideIcons.trash2, size: 18, color: AppColors.danger),
-                    label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Xóa danh mục này', style: TextStyle(color: AppColors.danger), maxLines: 1)),
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(50),
-                      shape: const StadiumBorder(),
-                      side: BorderSide(color: AppColors.danger.withValues(alpha: 0.4)),
-                      backgroundColor: AppColors.danger.withValues(alpha: 0.06),
+                    builder: (_, onTap, running) => OutlinedButton.icon(
+                      key: const ValueKey('category-delete'),
+                      onPressed: onTap,
+                      icon: running ? const ButtonLoadingIndicator(size: 16) : const Icon(LucideIcons.trash2, size: 18, color: AppColors.danger),
+                      label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Xóa danh mục này', style: TextStyle(color: AppColors.danger), maxLines: 1)),
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(50),
+                        shape: const StadiumBorder(),
+                        side: BorderSide(color: AppColors.danger.withValues(alpha: 0.4)),
+                        backgroundColor: AppColors.danger.withValues(alpha: 0.06),
+                      ),
                     ),
                   ),
                 ],

@@ -13,6 +13,7 @@ import 'package:finmate/features/analytics/presentation/reports_providers.dart';
 import 'package:finmate/shared/widgets/glass/glass_background.dart';
 import 'package:finmate/shared/widgets/glass/glass_badge.dart';
 import 'package:finmate/shared/widgets/glass/glass_card.dart';
+import 'package:finmate/core/widgets/async_action_builder.dart';
 
 const _insightTypeLabel = {
   'vs_last_month': 'So với tháng trước',
@@ -194,13 +195,16 @@ class F6AiSummaryScreen extends ConsumerWidget {
               if (!insight.isRead)
                 Align(
                   alignment: Alignment.centerRight,
-                  child: TextButton.icon(
+                  child: AsyncActionBuilder(
                     onPressed: () async {
                       await ref.read(reportsRepositoryProvider).markInsightRead(insight.id);
                       ref.invalidate(spendingInsightsProvider);
                     },
-                    icon: Icon(LucideIcons.check, size: 16, color: GlassColors.slateAnchor),
-                    label: FittedBox(fit: BoxFit.scaleDown, child: Text('Đánh dấu đã xem', style: GlassTypography.bodyMd(color: GlassColors.slateAnchor), maxLines: 1)),
+                    builder: (_, onTap, running) => TextButton.icon(
+                      onPressed: onTap,
+                      icon: running ? const ButtonLoadingIndicator(size: 16) : Icon(LucideIcons.check, size: 16, color: GlassColors.slateAnchor),
+                      label: FittedBox(fit: BoxFit.scaleDown, child: Text('Đánh dấu đã xem', style: GlassTypography.bodyMd(color: GlassColors.slateAnchor), maxLines: 1)),
+                    ),
                   ),
                 ),
             ],

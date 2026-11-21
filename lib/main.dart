@@ -5,10 +5,14 @@ import 'package:finmate/core/config/app_config_gate.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:finmate/core/theme/app_theme.dart';
 import 'package:finmate/core/theme/glass/glass_theme_sync.dart';
+import 'package:finmate/features/assistant/data/assistant_bubble_bridge.dart';
+import 'package:finmate/features/assistant/presentation/widgets/assistant_overlay_frame.dart';
 import 'package:finmate/features/notifications/presentation/notification_capture_scope.dart';
 import 'package:finmate/routes/app_router.dart';
 // ignore: unused_import
 import 'widget_config_main.dart' as widget_config_entrypoint;
+// ignore: unused_import
+import 'assistant_bubble_main.dart' as assistant_bubble_entrypoint;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -52,15 +56,17 @@ class FinMateApp extends ConsumerWidget {
           data: media.copyWith(
             textScaler: TextScaler.linear(media.textScaler.scale(1) * themeConfig.textScale * userTextScale),
           ),
-          child: GlassThemeSync(
-            child: AppConfigGate(
-              child: NotificationCaptureScope(
-                child: child ?? const SizedBox.shrink(),
-              ),
-            ),
-          ),
+          child: ref.watch(isAssistantOverlayProvider) ? AssistantOverlayFrame(child: _app(child)) : _app(child),
         );
       },
     );
   }
+
+  Widget _app(Widget? child) => GlassThemeSync(
+        child: AppConfigGate(
+          child: NotificationCaptureScope(
+            child: child ?? const SizedBox.shrink(),
+          ),
+        ),
+      );
 }

@@ -8,6 +8,7 @@ import 'package:finmate/core/theme/app_typography.dart';
 import 'package:finmate/features/forecast/data/forecast_repository.dart';
 import 'package:finmate/features/forecast/domain/forecast.dart';
 import 'package:finmate/features/forecast/presentation/controllers/forecast_controller.dart';
+import 'package:finmate/core/widgets/async_action_builder.dart';
 
 String _exclusionReasonLabel(String value) => switch (value) {
       'one_off' => 'Chi một lần',
@@ -299,16 +300,22 @@ class _ForecastSettingsScreenState extends ConsumerState<ForecastSettingsScreen>
           const SizedBox(height: AppSpacing.sm),
           Row(
             children: [
-              OutlinedButton(
-                key: const ValueKey('exclude-transaction-button'),
+              AsyncActionBuilder(
                 onPressed: _exclusionBusy ? null : () => _submitExclusion(true),
-                child: const Text('Loại khỏi dự báo'),
+                builder: (_, onTap, running) => OutlinedButton(
+                  key: const ValueKey('exclude-transaction-button'),
+                  onPressed: onTap,
+                  child: running ? const ButtonLoadingIndicator() : const Text('Loại khỏi dự báo'),
+                ),
               ),
               const SizedBox(width: AppSpacing.sm),
-              OutlinedButton(
-                key: const ValueKey('include-transaction-button'),
+              AsyncActionBuilder(
                 onPressed: _exclusionBusy ? null : () => _submitExclusion(false),
-                child: const Text('Đưa lại vào dự báo'),
+                builder: (_, onTap, running) => OutlinedButton(
+                  key: const ValueKey('include-transaction-button'),
+                  onPressed: onTap,
+                  child: running ? const ButtonLoadingIndicator() : const Text('Đưa lại vào dự báo'),
+                ),
               ),
             ],
           ),
@@ -360,10 +367,13 @@ class _ForecastSettingsScreenState extends ConsumerState<ForecastSettingsScreen>
               const SizedBox(height: AppSpacing.lg),
               _buildAlertsCard(context),
               const SizedBox(height: AppSpacing.lg),
-              ElevatedButton(
-                key: const ValueKey('forecast-settings-save'),
+              AsyncActionBuilder(
                 onPressed: _saving ? null : _save,
-                child: const Text('Lưu cài đặt'),
+                builder: (_, onTap, running) => ElevatedButton(
+                  key: const ValueKey('forecast-settings-save'),
+                  onPressed: onTap,
+                  child: running ? const ButtonLoadingIndicator() : const Text('Lưu cài đặt'),
+                ),
               ),
               const SizedBox(height: AppSpacing.lg),
               _buildAccountsCard(context, settings),

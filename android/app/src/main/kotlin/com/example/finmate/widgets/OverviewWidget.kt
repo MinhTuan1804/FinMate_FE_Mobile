@@ -57,7 +57,7 @@ class OverviewWidget : GlanceAppWidget() {
                     modifier = GlanceModifier
                         .fillMaxSize()
                         .cornerRadius(20.dp)
-                        .background(Color(SafeSpendColors.CARD_BG))
+                        .background(SafeSpendColors.cardBg)
                         .clickable(actionRunCallback<OpenOverviewAppCallback>())
                         .padding(14.dp),
                 ) {
@@ -113,9 +113,9 @@ private fun SyncingContent() {
     ) {
         Text(
             text = "FinMate",
-            style = TextStyle(color = ColorProvider(Color(SafeSpendColors.TEXT_PRIMARY)), fontWeight = FontWeight.Bold),
+            style = TextStyle(color = SafeSpendColors.textPrimary, fontWeight = FontWeight.Bold),
         )
-        Text(text = "Đang đồng bộ…", style = TextStyle(color = ColorProvider(Color(SafeSpendColors.TEXT_SECONDARY))))
+        Text(text = "Đang đồng bộ…", style = TextStyle(color = SafeSpendColors.textSecondary))
     }
 }
 
@@ -132,12 +132,12 @@ private fun OverviewContent(data: OverviewPrefs.Data, aiSuggestionsEnabled: Bool
                 provider = ImageProvider(R.drawable.ic_sparkles),
                 contentDescription = null,
                 modifier = GlanceModifier.size(14.dp),
-                colorFilter = androidx.glance.ColorFilter.tint(ColorProvider(Color(SafeSpendColors.TEXT_SECONDARY))),
+                colorFilter = androidx.glance.ColorFilter.tint(SafeSpendColors.textSecondary),
             )
             Spacer(modifier = GlanceModifier.width(6.dp))
             Text(
                 text = "FinMate • ${data.accountLabel}",
-                style = TextStyle(fontSize = 11.sp, color = ColorProvider(Color(SafeSpendColors.TEXT_SECONDARY))),
+                style = TextStyle(fontSize = 11.sp, color = SafeSpendColors.textSecondary),
                 maxLines = 1,
             )
         }
@@ -146,22 +146,22 @@ private fun OverviewContent(data: OverviewPrefs.Data, aiSuggestionsEnabled: Bool
             Column(modifier = GlanceModifier.defaultWeight()) {
                 Text(
                     text = "SỐ DƯ KHẢ DỤNG",
-                    style = TextStyle(fontSize = 10.sp, color = ColorProvider(Color(SafeSpendColors.TEXT_SECONDARY))),
+                    style = TextStyle(fontSize = 10.sp, color = SafeSpendColors.textSecondary),
                 )
                 Text(
                     text = formatVnd(data.balanceCents),
-                    style = TextStyle(fontSize = 22.sp, fontWeight = FontWeight.Bold, color = ColorProvider(Color(SafeSpendColors.TEXT_PRIMARY))),
+                    style = TextStyle(fontSize = 22.sp, fontWeight = FontWeight.Bold, color = SafeSpendColors.textPrimary),
                     maxLines = 1,
                 )
                 if (data.hasBudget) {
                     Text(
                         text = "Đã chi tháng này: ${formatVnd(data.spentCents)}",
-                        style = TextStyle(fontSize = 10.sp, color = ColorProvider(Color(SafeSpendColors.TEXT_SECONDARY))),
+                        style = TextStyle(fontSize = 10.sp, color = SafeSpendColors.textSecondary),
                         maxLines = 1,
                     )
                     Text(
                         text = "Chi an toàn: ${formatVnd(data.perDayCents)}/ngày",
-                        style = TextStyle(fontSize = 10.sp, color = ColorProvider(Color(SafeSpendColors.TEXT_SECONDARY))),
+                        style = TextStyle(fontSize = 10.sp, color = SafeSpendColors.textSecondary),
                         maxLines = 1,
                     )
                 }
@@ -183,6 +183,7 @@ private fun OverviewContent(data: OverviewPrefs.Data, aiSuggestionsEnabled: Bool
                             progressColor = ringColor,
                             percentText = "${data.percentUsed.toInt()}%",
                             subLabel = "ngân sách",
+                            subLabelColor = SafeSpendColors.secondaryInt(androidx.glance.LocalContext.current),
                         ),
                     ),
                     contentDescription = "${data.percentUsed.toInt()}% ngân sách tháng đã dùng",
@@ -194,7 +195,7 @@ private fun OverviewContent(data: OverviewPrefs.Data, aiSuggestionsEnabled: Bool
         if (aiSuggestionsEnabled && !data.hasBudget) {
             Text(
                 text = "Chưa đặt ngân sách tháng",
-                style = TextStyle(fontSize = 11.sp, color = ColorProvider(Color(SafeSpendColors.TEXT_SECONDARY))),
+                style = TextStyle(fontSize = 11.sp, color = SafeSpendColors.textSecondary),
                 maxLines = 1,
             )
         }
@@ -214,7 +215,7 @@ private fun OverviewContent(data: OverviewPrefs.Data, aiSuggestionsEnabled: Bool
         Spacer(modifier = GlanceModifier.height(4.dp))
         Text(
             text = "Cập nhật ${formatTime(data.lastSyncAtMillis)}",
-            style = TextStyle(fontSize = 9.sp, color = ColorProvider(Color(SafeSpendColors.TEXT_SECONDARY))),
+            style = TextStyle(fontSize = 9.sp, color = SafeSpendColors.textSecondary),
         )
     }
 }
@@ -224,7 +225,7 @@ private fun ActionButton(label: String, filled: Boolean, modifier: GlanceModifie
     Box(
         modifier = modifier
             .cornerRadius(10.dp)
-            .background(Color(if (filled) SafeSpendColors.TEXT_PRIMARY else SafeSpendColors.NEUTRAL_LIGHT_BG))
+            .background(if (filled) SafeSpendColors.textPrimary else SafeSpendColors.chipBg)
             .clickable(actionRunCallback<OpenQuickCreateCallback>())
             .padding(vertical = 8.dp),
         contentAlignment = Alignment.Center,
@@ -234,7 +235,7 @@ private fun ActionButton(label: String, filled: Boolean, modifier: GlanceModifie
             style = TextStyle(
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Medium,
-                color = ColorProvider(Color(if (filled) 0xFFFFFFFF.toInt() else SafeSpendColors.TEXT_PRIMARY)),
+                color = if (filled) SafeSpendColors.onPrimary else SafeSpendColors.textPrimary,
             ),
         )
     }
@@ -245,14 +246,14 @@ private fun ActionButtonQr(modifier: GlanceModifier) {
     Box(
         modifier = modifier
             .cornerRadius(10.dp)
-            .background(Color(SafeSpendColors.TEXT_PRIMARY))
+            .background(SafeSpendColors.textPrimary)
             .clickable(actionRunCallback<OpenQrScanCallback>())
             .padding(vertical = 8.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             text = "Quét QR",
-            style = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Medium, color = ColorProvider(Color(0xFFFFFFFF.toInt()))),
+            style = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Medium, color = SafeSpendColors.onPrimary),
         )
     }
 }

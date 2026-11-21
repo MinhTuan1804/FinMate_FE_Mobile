@@ -230,8 +230,14 @@ class _ReceiptScannerScreenState extends ConsumerState<ReceiptScannerScreen> {
                           ),
                         ),
                       )
-                    : Image.file(
-                        File(_imagePath!),
+                    : Image(
+                        // Khung xem trước rộng ~bề ngang màn hình: không giải mã nguyên ảnh 3000px.
+                        image: ResizeImage(
+                          FileImage(File(_imagePath!)),
+                          width: (MediaQuery.sizeOf(context).width * 1.5 * MediaQuery.devicePixelRatioOf(context)).round(),
+                          height: (MediaQuery.sizeOf(context).width * 1.5 * MediaQuery.devicePixelRatioOf(context)).round(),
+                          policy: ResizeImagePolicy.fit,
+                        ),
                         fit: BoxFit.cover,
                         errorBuilder: (_, __, ___) => const Center(
                           child: Icon(

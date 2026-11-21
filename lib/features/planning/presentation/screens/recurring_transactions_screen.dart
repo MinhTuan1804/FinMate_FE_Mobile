@@ -17,6 +17,7 @@ import 'package:finmate/shared/widgets/glass/glass_bottom_dock.dart';
 import 'package:finmate/shared/widgets/glass/glass_buttons.dart';
 import 'package:finmate/shared/widgets/glass/glass_card.dart';
 import 'package:finmate/shared/widgets/glass/glass_filter_chip.dart';
+import 'package:finmate/core/widgets/async_action_builder.dart';
 
 /// Quy đổi một khoản chi định kỳ về đồng/tháng (số nguyên, làm tròn xuống). Tuần = 52/12 tháng.
 BigInt monthlyEquivalent(RecurringItemEntity item) => switch (item.cadence) {
@@ -357,15 +358,21 @@ class _RecurringTransactionsScreenState extends ConsumerState<RecurringTransacti
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        TextButton(
-                          key: ValueKey('reject-${item.id}'),
+                        AsyncActionBuilder(
                           onPressed: () => _run(() => controller.reject(item.id), 'Đã từ chối.'),
-                          child: Text('Từ chối', style: TextStyle(color: GlassColors.danger)),
+                          builder: (_, onTap, running) => TextButton(
+                            key: ValueKey('reject-${item.id}'),
+                            onPressed: onTap,
+                            child: running ? const ButtonLoadingIndicator() : Text('Từ chối', style: TextStyle(color: GlassColors.danger)),
+                          ),
                         ),
-                        TextButton(
-                          key: ValueKey('confirm-${item.id}'),
+                        AsyncActionBuilder(
                           onPressed: () => _run(() => controller.confirm(item.id), 'Đã xác nhận.'),
-                          child: const Text('Xác nhận'),
+                          builder: (_, onTap, running) => TextButton(
+                            key: ValueKey('confirm-${item.id}'),
+                            onPressed: onTap,
+                            child: running ? const ButtonLoadingIndicator() : const Text('Xác nhận'),
+                          ),
                         ),
                       ],
                     )

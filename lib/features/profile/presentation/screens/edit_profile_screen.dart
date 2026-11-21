@@ -10,6 +10,7 @@ import 'package:finmate/core/theme/app_spacing.dart';
 import 'package:finmate/core/theme/app_typography.dart';
 import 'package:finmate/core/widgets/glass/liquid_glass.dart';
 import 'package:finmate/features/auth/presentation/controllers/auth_controller.dart';
+import 'package:finmate/core/widgets/async_action_builder.dart';
 
 /// Màn H2: Chỉnh sửa hồ sơ (theo Figma). Hồ sơ chỉ có tên hiển thị và thu nhập hàng tháng để sửa; email chỉ đọc.
 /// Ảnh đại diện, số điện thoại, đổi email và ngày nhận thu nhập trong Figma chưa có ở BE nên không hiển thị.
@@ -79,11 +80,14 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 12),
-            child: FilledButton(
-              key: const ValueKey('save-top'),
+            child: AsyncActionBuilder(
               onPressed: _isLoading ? null : _handleSave,
-              style: FilledButton.styleFrom(shape: const StadiumBorder(), visualDensity: VisualDensity.compact),
-              child: const Text('Lưu'),
+              builder: (_, onTap, running) => FilledButton(
+                key: const ValueKey('save-top'),
+                onPressed: onTap,
+                style: FilledButton.styleFrom(shape: const StadiumBorder(), visualDensity: VisualDensity.compact),
+                child: running ? const ButtonLoadingIndicator() : const Text('Lưu'),
+              ),
             ),
           ),
         ],

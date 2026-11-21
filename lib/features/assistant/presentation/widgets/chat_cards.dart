@@ -18,6 +18,7 @@ import 'package:finmate/features/categories/domain/category.dart';
 import 'package:finmate/features/categories/presentation/categories_provider.dart';
 import 'package:finmate/features/categories/presentation/category_icons.dart';
 import 'package:finmate/features/transactions/domain/entities/transaction_entity.dart';
+import 'package:finmate/core/widgets/async_action_builder.dart';
 
 /// Nền kính của bong bóng/thẻ trợ lý (Figma E1: nền sáng mờ, viền trắng, bóng xanh nhạt)
 BoxDecoration _glassDecoration(BuildContext context, {BorderRadius? radius}) {
@@ -191,8 +192,14 @@ class ImageBubble extends StatelessWidget {
         constraints: const BoxConstraints(maxHeight: 260),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(22),
-          child: Image.file(
-            File(path),
+          child: Image(
+            // Ảnh chụp tới 3000px: chỉ giải mã đủ cho bong bóng 200x260 (×2 dư cho cover với ảnh ngang/dọc).
+            image: ResizeImage(
+              FileImage(File(path)),
+              width: (260 * 2 * MediaQuery.devicePixelRatioOf(context)).round(),
+              height: (260 * 2 * MediaQuery.devicePixelRatioOf(context)).round(),
+              policy: ResizeImagePolicy.fit,
+            ),
             fit: BoxFit.cover,
             errorBuilder: (_, __, ___) => const SizedBox(
               height: 80,
@@ -1029,10 +1036,73 @@ class ItemCardView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final controller = ref.read(assistantControllerProvider.notifier);
+    if (card.status == ItemCardStatus.needsConfirm) {
+      return Container(
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.all(14),
+        decoration: _cardDecoration(context),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('${card.question ?? ''}${card.error == null ? '' : '\n${card.error}'}', style: AppTypography.body(context)),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  key: const ValueKey('repay-decline'),
+                  onPressed: () => controller.declineRepayment(card.id),
+                  child: const Text('Không'),
+                ),
+                FilledButton(
+                  key: const ValueKey('repay-confirm'),
+                  onPressed: () => controller.confirmRepayment(card.id),
+                  child: const Text('Ghi lần trả'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
+    if (card.status == ItemCardStatus.needsCategory) {
+      return Container(
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.all(14),
+        decoration: _cardDecoration(context),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Bạn chưa có danh mục "${card.missingCategory}". Bạn muốn tạo danh mục này luôn và đặt ngân sách ${formatVnd(card.item.amountCents)}/tháng không?${card.error == null ? '' : '\n${card.error}'}',
+              style: AppTypography.body(context),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  key: const ValueKey('item-decline'),
+                  onPressed: () => controller.declineNewCategory(card.id),
+                  child: const Text('Không'),
+                ),
+                FilledButton(
+                  key: const ValueKey('item-create-category'),
+                  onPressed: () => controller.confirmNewCategory(card.id),
+                  child: const Text('Tạo và đặt ngân sách'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
     final (icon, color, text) = switch (card.status) {
       ItemCardStatus.saving => (LucideIcons.loader, null, 'Đang lưu...'),
+      ItemCardStatus.declined => (LucideIcons.circleX, null, card.summary ?? 'Mình không tạo danh mục và không đặt ngân sách.'),
+      ItemCardStatus.needsCategory || ItemCardStatus.needsConfirm => (LucideIcons.circleHelp, null, ''),
       ItemCardStatus.created => (LucideIcons.circleCheck, AppColors.safe, '${card.summary ?? 'Đã lưu.'}${card.error == null ? '' : '\n${card.error}'}'),
-      ItemCardStatus.undone => (LucideIcons.circleX, null, 'Đã hoàn tác, mình không lưu mục này.'),
+      ItemCardStatus.undone => card.summary != null ? (LucideIcons.circleCheck, AppColors.safe, card.summary!) : (LucideIcons.circleX, null, 'Đã hoàn tác, mình không lưu mục này.'),
       ItemCardStatus.failed => (LucideIcons.circleAlert, AppColors.danger, 'Chưa lưu được: ${card.error ?? 'có lỗi xảy ra'}'),
     };
     return Container(
@@ -1225,10 +1295,13 @@ class GoalDraftCardView extends ConsumerWidget {
                 onPressed: saving ? null : () => controller.cancelGoal(card.id),
                 child: const Text('Hủy'),
               ),
-              TextButton(
-                key: const ValueKey('goal-edit'),
+              AsyncActionBuilder(
                 onPressed: saving ? null : () => _edit(context, controller),
-                child: const Text('Sửa'),
+                builder: (_, onTap, running) => TextButton(
+                  key: const ValueKey('goal-edit'),
+                  onPressed: onTap,
+                  child: running ? const ButtonLoadingIndicator() : const Text('Sửa'),
+                ),
               ),
               ElevatedButton(
                 key: const ValueKey('goal-create'),

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Xem trước W1 trong bộ chọn widget (Android 12+). Số liệu là VÍ DỤ tĩnh. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_preview_bg"
+    android:orientation="vertical"
+    android:padding="14dp">
+    <TextView
+        android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:maxLines="1" android:text="FinMate • Chi an toàn"
+        android:textColor="@color/widget_text_secondary" android:textSize="11sp" />
+    <TextView
+        android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:layout_marginTop="8dp" android:maxLines="1"
+        android:text="120.000 đ" android:textStyle="bold"
+        android:textColor="@color/widget_text_primary" android:textSize="22sp" />
+    <TextView
+        android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:text="mỗi ngày" android:textColor="@color/widget_text_secondary" android:textSize="11sp" />
+    <TextView
+        android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:text="Ví dụ" android:textColor="@color/widget_safe" android:textSize="11sp" />
+</LinearLayout>

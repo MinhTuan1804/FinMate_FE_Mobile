@@ -5,9 +5,11 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:finmate/features/groups/domain/join_link.dart';
 import 'package:finmate/features/qr_transfers/domain/vietqr_payload.dart';
 
 /// C1 — Quét QR. Camera thật (mobile_scanner), đèn pin (nút ở góc trên) và chọn ảnh từ thư viện để giải mã.
+/// Cũng nhận QR mời vào nhóm (`https://finmate.app/join/<mã>`): mở thẳng màn xem trước lời mời.
 /// Quét hoá đơn là luồng riêng (D4) nên không nằm ở màn này.
 class C1ScanQrScreen extends StatefulWidget {
   const C1ScanQrScreen({super.key});
@@ -36,6 +38,11 @@ class _C1ScanQrScreenState extends State<C1ScanQrScreen> {
   void _handleRawValue(String? raw) {
     if (raw == null || raw.isEmpty || _handled) return;
     _handled = true;
+    final joinCode = parseGroupJoinLink(raw);
+    if (joinCode != null) {
+      context.push('/accept-invitation', extra: joinCode).then((_) => _resumeScanning());
+      return;
+    }
     final payload = parseVietQrPayload(raw);
     context.push(
       '/qr-transfers/confirm',
@@ -46,7 +53,20 @@ class _C1ScanQrScreenState extends State<C1ScanQrScreen> {
         'amountCents': payload.amountCents,
         'message': payload.message,
       },
-    ).then((_) => _handled = false);
+    ).then((_) => _resumeScanning());
+  }
+
+  /// Quay lại từ màn khác: cho quét tiếp. Chế độ noDuplicates không báo lại cùng một mã đang nằm trong khung hình,
+  /// nên phải khởi động lại camera thì lần quét sau mới được nhận.
+  Future<void> _resumeScanning() async {
+    _handled = false;
+    if (!mounted) return;
+    try {
+      await _controller.stop();
+      await _controller.start();
+    } catch (_) {
+      // Camera không khởi động lại được thì thôi: người dùng vẫn thoát và mở lại màn quét được.
+    }
   }
 
   void _onDetect(BarcodeCapture capture) {

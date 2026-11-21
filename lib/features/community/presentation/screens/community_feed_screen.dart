@@ -198,6 +198,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 14),
                   child: LiquidGlassCard(
+                    variant: LiquidGlassVariant.subtle, // dòng trong list: không blur từng item
                     padding: const EdgeInsets.all(18),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,

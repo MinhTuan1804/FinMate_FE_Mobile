@@ -22,11 +22,13 @@ class AssistantRepository {
     String text, {
     String? accountId,
     String? clientRequestId,
+    Map<String, dynamic>? itemContext,
   }) async {
     final response = await apiClient.post(
       '/api/v1/transactions/chat',
       data: {
         'text': text,
+        if (itemContext != null) 'itemContext': itemContext,
         if (accountId != null) 'financialAccountId': accountId,
         if (clientRequestId != null) 'clientRequestId': clientRequestId,
       },

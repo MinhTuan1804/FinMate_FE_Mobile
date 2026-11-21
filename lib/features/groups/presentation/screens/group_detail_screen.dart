@@ -14,13 +14,15 @@ import 'package:finmate/features/groups/data/group_funds_repository.dart';
 import 'package:finmate/features/groups/domain/group.dart';
 import 'package:finmate/features/groups/domain/group_fund.dart';
 import 'package:finmate/features/groups/presentation/controllers/groups_controller.dart';
+import 'package:finmate/features/groups/presentation/screens/split_bill_widgets.dart';
 import 'package:finmate/features/transactions/domain/entities/transaction_entity.dart';
 import 'package:finmate/shared/widgets/glass/glass_background.dart';
 import 'package:finmate/shared/widgets/glass/glass_badge.dart';
 import 'package:finmate/shared/widgets/glass/glass_card.dart';
 import 'package:finmate/shared/widgets/glass/glass_progress_bar.dart';
+import 'package:finmate/core/widgets/cursor_pager.dart';
 
-enum _DetailTab { transactions, budgets, goals, fund }
+enum _DetailTab { transactions, budgets, goals, fund, bills }
 
 /// I3 — Chi tiết nhóm (Stitch `i3_group_detail`). Hero card là quỹ chung thật (Phase 85), KHÔNG
 /// phải banner "nợ"/cấn trừ (xem quyết định phạm vi Luồng 8a — hệ thống thật là 1 sổ quỹ chung, không
@@ -55,6 +57,18 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
     return GlassBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
+        floatingActionButton: switch (groupAsync.valueOrNull) {
+          final g? when g.isSplitBill && (g.isOwner || g.myPermissions.contains(GroupPermission.shareTransactions)) =>
+            FloatingActionButton.extended(
+              key: const ValueKey('fab-new-bill'),
+              onPressed: () => context.push('/group-bill-new', extra: widget.groupId),
+              backgroundColor: GlassColors.ink,
+              foregroundColor: GlassColors.onInk,
+              icon: const Icon(LucideIcons.receiptText, size: 18),
+              label: const Text('Chia tiền bill mới'),
+            ),
+          _ => null,
+        },
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
@@ -125,7 +139,9 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
                 children: [
                   _HeroFundCard(groupId: widget.groupId),
                   const SizedBox(height: 20),
-                  _buildTabs(),
+                  if (group.isSplitBill) GroupDebtSuggestionsCard(groupId: widget.groupId, isOwner: group.isOwner),
+                  GroupApprovalsBanner(groupId: widget.groupId),
+                  _buildTabs(group.isSplitBill),
                   const SizedBox(height: 16),
                   switch (_tab) {
                     _DetailTab.transactions => _TransactionsTab(
@@ -134,7 +150,16 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
                     _DetailTab.budgets => _BudgetsTab(groupId: widget.groupId),
                     _DetailTab.goals => _GoalsTab(groupId: widget.groupId),
                     _DetailTab.fund => _FundTab(groupId: widget.groupId),
+                    _DetailTab.bills => GroupBillsTab(
+                      groupId: widget.groupId,
+                      // Nút tạo bill đã có dạng nút nổi ở cuối màn, trong tab chỉ còn danh sách.
+                      canShare: false,
+                    ),
                   },
+                  // Tab Quỹ chung đã liệt kê phần đã góp, không lặp lại.
+                  if (_tab != _DetailTab.fund) GroupContributionsStrip(groupId: widget.groupId),
+                  // Chừa chỗ cho nút nổi để không che hàng cuối.
+                  if (group.isSplitBill) const SizedBox(height: 72),
                 ],
               ),
             ),
@@ -144,7 +169,7 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
     );
   }
 
-  Widget _buildTabs() {
+  Widget _buildTabs(bool splitBill) {
     Widget chip(String label, _DetailTab tab) {
       final selected = _tab == tab;
       return Padding(
@@ -155,16 +180,16 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
-              color: selected ? GlassColors.ink : GlassColors.glassFill,
+              color: selected ? GlassColors.activeFill : GlassColors.glassFill,
               borderRadius: GlassRadius.roundedPill,
               border: Border.all(
-                color: selected ? GlassColors.ink : GlassColors.glassBorder,
+                color: selected ? GlassColors.activeBorder : GlassColors.glassBorder,
               ),
             ),
             child: Text(
               label,
               style: GlassTypography.bodyMd(
-                color: selected ? Colors.white : GlassColors.textSecondary,
+                color: selected ? GlassColors.activeFg : GlassColors.textSecondary,
               ).copyWith(fontWeight: FontWeight.w600),
             ),
           ),
@@ -177,6 +202,7 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
       child: ListView(
         scrollDirection: Axis.horizontal,
         children: [
+          if (splitBill) chip('Chia tiền', _DetailTab.bills),
           chip('Giao dịch', _DetailTab.transactions),
           chip('Ngân sách', _DetailTab.budgets),
           chip('Mục tiêu', _DetailTab.goals),
@@ -209,6 +235,7 @@ class _HeroFundCard extends ConsumerWidget {
     ref.invalidate(groupFundsProvider(groupId));
     ref.invalidate(groupFundSummaryProvider((groupId, fundId)));
     ref.invalidate(groupFundEntriesProvider((groupId, fundId)));
+    ref.read(groupsControllerProvider.notifier).load(silent: true);   // thẻ nhóm ở danh sách cũng hiện số dư quỹ
   }
 
   Future<void> _contribute(
@@ -279,7 +306,7 @@ class _HeroFundCard extends ConsumerWidget {
     if (input == null || !context.mounted) return;
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await ref
+      final entry = await ref
           .read(groupFundsRepositoryProvider)
           .createEntry(
             groupId: groupId,
@@ -292,8 +319,15 @@ class _HeroFundCard extends ConsumerWidget {
             note: input.note,
           );
       _refreshFund(ref, fundId);
+      ref.invalidate(groupApprovalsProvider(groupId));
       messenger.showSnackBar(
-        const SnackBar(content: Text('Đã ghi khoản chi từ quỹ')),
+        SnackBar(
+          content: Text(
+            entry == null
+                ? 'Khoản chi đã gửi, chờ chủ nhóm duyệt (chưa trừ quỹ)'
+                : 'Đã ghi khoản chi từ quỹ',
+          ),
+        ),
       );
     } catch (e) {
       messenger.showSnackBar(
@@ -408,12 +442,16 @@ class _HeroFundCard extends ConsumerWidget {
           Row(
             children: [
               Expanded(
-                child: OutlinedButton.icon(
+                child: FilledButton.icon(
                   key: const ValueKey('fund-contribute'),
                   onPressed: () => fundId == null
                       ? _needFundFirst(context)
                       : _contribute(context, ref, fundId),
-                  style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 10)),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: GlassColors.ink,
+                    foregroundColor: GlassColors.onInk,
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                  ),
                   icon: const Icon(LucideIcons.plusCircle, size: 16),
                   // Một dòng, tự thu nhỏ chữ khi hẹp thay vì xuống hàng.
                   label: FittedBox(fit: BoxFit.scaleDown, child: Text('Nạp quỹ nhóm', maxLines: 1)),
@@ -578,7 +616,7 @@ class _ContributeFundSheetState extends State<_ContributeFundSheet> {
             onPressed: _submit,
             style: ElevatedButton.styleFrom(
               backgroundColor: GlassColors.ink,
-              foregroundColor: Colors.white,
+              foregroundColor: GlassColors.onInk,
               shape: RoundedRectangleBorder(
                 borderRadius: GlassRadius.roundedPill,
               ),
@@ -765,7 +803,7 @@ class _RecordExpenseSheetState extends State<_RecordExpenseSheet> {
             onPressed: _submit,
             style: ElevatedButton.styleFrom(
               backgroundColor: GlassColors.ink,
-              foregroundColor: Colors.white,
+              foregroundColor: GlassColors.onInk,
               shape: RoundedRectangleBorder(
                 borderRadius: GlassRadius.roundedPill,
               ),
@@ -1090,7 +1128,8 @@ class _FundEntriesAndSummary extends ConsumerWidget {
                 style: GlassTypography.bodyMd(),
               );
             return Column(
-              children: entries
+              children: [
+                ...entries
                   .map(
                     (entry) => Padding(
                       padding: const EdgeInsets.only(bottom: 10),
@@ -1110,7 +1149,7 @@ class _FundEntriesAndSummary extends ConsumerWidget {
                                     ),
                                   ),
                                   Text(
-                                    '${entry.memberName} · ${DateFormat('dd/MM').format(entry.transactedAt)}',
+                                    '${entry.memberName} · ${DateFormat('dd/MM HH:mm').format(entry.transactedAt.toLocal())}',
                                     style: GlassTypography.bodySm(),
                                   ),
                                 ],
@@ -1128,8 +1167,9 @@ class _FundEntriesAndSummary extends ConsumerWidget {
                         ),
                       ),
                     ),
-                  )
-                  .toList(),
+                  ),
+                CursorPagerFooter(pager: ref.read(groupFundEntriesProvider((groupId, fundId)).notifier), auto: false),
+              ],
             );
           },
         ),

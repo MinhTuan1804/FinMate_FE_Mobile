@@ -12,6 +12,7 @@ import 'package:finmate/features/qr_transfers/presentation/controllers/qr_transf
 import 'package:finmate/shared/widgets/glass/glass_background.dart';
 import 'package:finmate/shared/widgets/glass/glass_buttons.dart';
 import 'package:finmate/shared/widgets/glass/glass_card.dart';
+import 'package:finmate/core/widgets/async_action_builder.dart';
 
 String _maskAccount(String account) => account.length <= 4 ? account : '•${account.substring(account.length - 4)}';
 
@@ -172,17 +173,20 @@ class _C5EditBeneficiaryScreenState extends ConsumerState<C5EditBeneficiaryScree
               const SizedBox(height: 12),
               SizedBox(
                 height: 48,
-                child: OutlinedButton.icon(
-                  key: const ValueKey('c5-delete'),
+                child: AsyncActionBuilder(
                   onPressed: _deleting ? null : _delete,
-                  icon: Icon(LucideIcons.trash2, size: 18, color: GlassColors.danger),
-                  label: Text(
-                    _deleting ? 'Đang xóa...' : 'Xóa người nhận khỏi danh bạ',
-                    style: TextStyle(color: GlassColors.danger, fontWeight: FontWeight.w600),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: GlassColors.danger.withValues(alpha: 0.4)),
-                    shape: const RoundedRectangleBorder(borderRadius: GlassRadius.roundedPill),
+                  builder: (_, onTap, running) => OutlinedButton.icon(
+                    key: const ValueKey('c5-delete'),
+                    onPressed: onTap,
+                    icon: running ? const ButtonLoadingIndicator(size: 16) : Icon(LucideIcons.trash2, size: 18, color: GlassColors.danger),
+                    label: Text(
+                      _deleting ? 'Đang xóa...' : 'Xóa người nhận khỏi danh bạ',
+                      style: TextStyle(color: GlassColors.danger, fontWeight: FontWeight.w600),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: GlassColors.danger.withValues(alpha: 0.4)),
+                      shape: const RoundedRectangleBorder(borderRadius: GlassRadius.roundedPill),
+                    ),
                   ),
                 ),
               ),

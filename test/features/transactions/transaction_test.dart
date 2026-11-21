@@ -208,6 +208,20 @@ void main() {
       expect(find.text('01/01/$y – 31/12/$y'), findsOneWidget);
     });
 
+    testWidgets('nút lọc mở sheet Bộ lọc giao dịch; Áp dụng gọi setFilter', (tester) async {
+      final tx = FakeTxController(const AsyncValue.data([]));
+      await _pump(tester, const TransactionsScreen(), tx: tx);
+
+      await tester.tap(find.byKey(const ValueKey('open-filter')));
+      await tester.pumpAndSettle();
+      expect(find.text('Bộ lọc giao dịch'), findsWidgets);
+      await tester.tap(find.byKey(const ValueKey('filter-type-income')));
+      await tester.pump();
+      await tester.tap(find.text('Áp dụng'));
+      await tester.pumpAndSettle();
+      expect(tx.lastFilter, TransactionType.income);
+    });
+
     testWidgets('bấm bộ lọc gọi setFilter; lỗi tải hiện thông điệp thân thiện và nút Thử lại', (tester) async {
       final tx = FakeTxController(const AsyncValue.data([]));
       await _pump(tester, const TransactionsScreen(), tx: tx);
@@ -265,7 +279,7 @@ void main() {
       await tester.tap(find.text('Thủ công'));
       await tester.pumpAndSettle();
 
-      await tester.enterText(find.widgetWithText(TextField, 'Số tiền (VNĐ)'), '0');
+      await tester.enterText(find.byKey(const ValueKey('tx-amount-field')), '0');
       await tester.tap(find.text('Lưu giao dịch'));
       await tester.pumpAndSettle();
 
@@ -279,7 +293,7 @@ void main() {
       await tester.tap(find.text('Thủ công'));
       await tester.pumpAndSettle();
 
-      await tester.enterText(find.widgetWithText(TextField, 'Số tiền (VNĐ)'), '1.500.000');
+      await tester.enterText(find.byKey(const ValueKey('tx-amount-field')), '1.500.000');
       await tester.tap(find.text('Lưu giao dịch'));
       await tester.pumpAndSettle();
 

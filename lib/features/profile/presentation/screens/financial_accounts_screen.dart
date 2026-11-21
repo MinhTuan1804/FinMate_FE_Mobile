@@ -257,6 +257,7 @@ class _FinancialAccountsScreenState extends ConsumerState<FinancialAccountsScree
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: LiquidGlassCard(
+        variant: LiquidGlassVariant.subtle, // dòng trong list: không blur từng item
         key: ValueKey('account-${a.id}'),
         padding: const EdgeInsets.fromLTRB(14, 12, 4, 12),
         child: Row(

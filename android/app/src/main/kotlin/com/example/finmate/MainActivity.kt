@@ -5,6 +5,7 @@ import android.content.ComponentName
 import android.util.Log
 import androidx.glance.appwidget.updateAll
 import androidx.lifecycle.lifecycleScope
+import com.example.finmate.bubble.AssistantBubbleChannel
 import com.example.finmate.notifications.NotificationChannelHandler
 import com.example.finmate.widgets.DetailPrefs
 import com.example.finmate.widgets.DetailSync
@@ -26,9 +27,19 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 class MainActivity : FlutterActivity() {
+    private lateinit var bubbleChannel: AssistantBubbleChannel
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        if (!bubbleChannel.onRequestPermissionsResult(requestCode, grantResults)) {
+            super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        }
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         NotificationChannelHandler(applicationContext).register(flutterEngine.dartExecutor.binaryMessenger)
+        // Công tắc "Bong bóng trợ lý" trong màn Cá nhân.
+        bubbleChannel = AssistantBubbleChannel(this).also { it.register(flutterEngine.dartExecutor.binaryMessenger) }
 
         // Cùng tên kênh với WidgetConfigBridge (widget_config_bridge.dart) nhưng chỉ phục vụ lối vào
         // "Widget trên màn hình chính" từ Cài đặt (K1WidgetConfigScreen mở trong app, không qua

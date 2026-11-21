@@ -21,12 +21,14 @@ Map<String, dynamic> askReply(String text) => {'action': 'reply', 'intent': 'cre
 class _Repo extends AssistantRepository {
   final List<Map<String, dynamic>> replies;
   final List<String> sent = [];
+  final List<Map<String, dynamic>?> contexts = [];
 
   _Repo(this.replies) : super(apiClient: testApiClient(RouteAdapter((o) => respondJson({'success': true}))));
 
   @override
-  Future<ChatReply> chat(String text, {String? accountId, String? clientRequestId}) async {
+  Future<ChatReply> chat(String text, {String? accountId, String? clientRequestId, Map<String, dynamic>? itemContext}) async {
     sent.add(text);
+    contexts.add(itemContext);
     return ChatReply.fromJson(replies[sent.length - 1]);
   }
 }
@@ -34,15 +36,26 @@ class _Repo extends AssistantRepository {
 void main() {
   late List<ChatItemDraft> created;
   late List<ChatItemDraft> undone;
+  late List<BigInt> updated;
+  late List<ChatItemDraft> repaid;
 
-  AssistantController controller(_Repo repo, {bool withCreate = true, bool fails = false}) => AssistantController(
+  AssistantController controller(_Repo repo, {bool withCreate = true, bool fails = false, bool missing = false, bool repayFails = false}) => AssistantController(
         repository: repo,
         retryEvery: null,
+        repayLoan: (item) async {
+          if (repayFails) throw StateError('Khoản này đã trả hết');
+          repaid.add(item);
+          return 'Đã ghi: ${item.counterparty} trả bạn ${item.amountCents}.';
+        },
         createItem: withCreate
-            ? (item) async {
+            ? (item, {createCategory = false}) async {
+                if (missing && !createCategory) throw const MissingCategory('Thú cưng');
                 if (fails) throw StateError('Bạn chưa có nhóm này');
                 created.add(item);
-                return ItemOutcome('Đã lưu ${item.kind}.', () async => undone.add(item));
+                return ItemOutcome('Đã lưu ${item.kind}.', () async => undone.add(item), update: (cents) async {
+                  updated.add(cents);
+                  return 'Đã sửa thành $cents.';
+                });
               }
             : null,
       );
@@ -50,6 +63,8 @@ void main() {
   setUp(() {
     created = [];
     undone = [];
+    updated = [];
+    repaid = [];
   });
 
   test('đọc phản hồi item: đủ trường; thiếu số tiền hoặc thiếu item thì chỉ là câu trả lời văn bản', () {
@@ -87,6 +102,122 @@ void main() {
     expect(card.error, contains('chưa có nhóm'));
     await c.undoItem(card.id);
     expect(undone, isEmpty);
+  });
+
+  test('nhóm chưa có trong tài khoản: thẻ hỏi có tạo nhóm không; đồng ý thì tạo rồi đặt ngân sách, không thì không tạo gì', () async {
+    final c = controller(_Repo([itemReply(kind: 'budget'), itemReply(kind: 'budget')]), missing: true);
+
+    await c.send('đặt ngân sách thú cưng 1 triệu');
+    var card = c.state.messages.whereType<ItemCard>().single;
+    expect((card.status, card.missingCategory), (ItemCardStatus.needsCategory, 'Thú cưng'));
+    expect(created, isEmpty);
+
+    await c.confirmNewCategory(card.id);
+    expect(created, hasLength(1));
+    expect(c.state.messages.whereType<ItemCard>().single.status, ItemCardStatus.created);
+
+    await c.send('đặt ngân sách thú cưng 1 triệu');
+    card = c.state.messages.whereType<ItemCard>().last;
+    c.declineNewCategory(card.id);
+    expect(c.state.messages.whereType<ItemCard>().last.status, ItemCardStatus.declined);
+    expect(created, hasLength(1));
+  });
+
+  Map<String, dynamic> opReply(String operation, {int cents = 0, String kind = 'budget'}) => {
+        'action': 'item',
+        'intent': 'create_item',
+        'item': {'kind': kind, 'amountCents': cents, 'categorySlug': 'food', 'operation': operation},
+      };
+
+  test('việc vừa tạo được gửi kèm làm ngữ cảnh ở các tin sau; chưa tạo gì thì không gửi', () async {
+    final repo = _Repo([itemReply(kind: 'budget'), {'action': 'reply', 'intent': 'greet', 'replyText': 'ok'}]);
+    final c = controller(repo);
+
+    await c.send('đặt ngân sách ăn uống 2 triệu');
+    await c.send('đổi thành 3 triệu');
+
+    expect(repo.contexts.first, isNull);
+    expect(repo.contexts.last, {'kind': 'budget', 'amountCents': 2000000, 'categorySlug': 'food'});
+  });
+
+  test('câu nối tiếp: đổi số tiền, cộng thêm, rồi xóa đúng việc vừa tạo; sau khi xóa thì không còn ngữ cảnh', () async {
+    final repo = _Repo([itemReply(kind: 'budget'), opReply('update', cents: 3000000), opReply('add', cents: 500000), opReply('delete'), opReply('update', cents: 1000000)]);
+    final c = controller(repo);
+
+    await c.send('đặt ngân sách ăn uống 2 triệu');
+    await c.send('đổi thành 3 triệu');
+    await c.send('thêm 500k nữa');
+    expect(updated, [BigInt.from(3000000), BigInt.from(3500000)]); // cộng thêm tính trên số đã sửa
+
+    await c.send('xóa cái đó');
+    expect(undone, hasLength(1));
+    expect(c.state.messages.whereType<ItemCard>().single.status, ItemCardStatus.undone);
+
+    await c.send('đổi thành 1 triệu');
+    expect(updated, hasLength(2)); // không còn gì để sửa
+    expect(repo.contexts.last, isNull);
+    expect(c.state.messages.whereType<AssistantText>().last.text, contains('chưa rõ'));
+  });
+
+  test('thao tác khác loại với việc vừa tạo thì hỏi lại, không đoán', () async {
+    final repo = _Repo([itemReply(kind: 'loan'), opReply('update', cents: 3000000)]);
+    final c = controller(repo);
+
+    await c.send('bạn An nợ tôi 700k');
+    await c.send('đổi thành 3 triệu');
+
+    expect(updated, isEmpty);
+    expect(c.state.messages.whereType<AssistantText>().last.text, contains('chưa rõ'));
+  });
+
+  Map<String, dynamic> repayReply() => {
+        'action': 'item',
+        'intent': 'add_income',
+        'item': {
+          'kind': 'loan',
+          'amountCents': 500000,
+          'name': 'Cho Bạn An vay',
+          'direction': 'lend',
+          'counterparty': 'Bạn An',
+          'operation': 'repay',
+          'loanId': 'loan-1',
+          'remainingCents': 700000,
+          'financialAccountId': 'wallet-1',
+        },
+      };
+
+  test('trả nợ khớp một khoản vay: hỏi xác nhận (còn lại bao nhiêu), đồng ý mới ghi, không có Hoàn tác', () async {
+    final c = controller(_Repo([repayReply()]));
+
+    await c.send('bạn An đã trả cho tôi 500k');
+
+    var card = c.state.messages.whereType<ItemCard>().single;
+    expect(card.status, ItemCardStatus.needsConfirm);
+    expect(card.question, allOf(contains('500.000'), contains('200.000'), contains('ví')));
+    expect(repaid, isEmpty);
+
+    await c.confirmRepayment(card.id);
+    expect(repaid.single.loanId, 'loan-1');
+    card = c.state.messages.whereType<ItemCard>().single;
+    expect(card.summary, contains('Bạn An trả bạn'));
+    await c.confirmRepayment(card.id); // bấm lại không ghi lần hai
+    expect(repaid, hasLength(1));
+  });
+
+  test('không đồng ý ghi lần trả, hoặc ghi lỗi: không ghi gì, lỗi thì bấm lại được', () async {
+    final c = controller(_Repo([repayReply(), repayReply()]), repayFails: true);
+
+    await c.send('bạn An đã trả cho tôi 500k');
+    final failing = c.state.messages.whereType<ItemCard>().single;
+    await c.confirmRepayment(failing.id);
+    expect(c.state.messages.whereType<ItemCard>().single.status, ItemCardStatus.needsConfirm);
+    expect(c.state.messages.whereType<ItemCard>().single.error, contains('trả hết'));
+
+    await c.send('bạn An đã trả cho tôi 500k');
+    final second = c.state.messages.whereType<ItemCard>().last;
+    c.declineRepayment(second.id);
+    expect(c.state.messages.whereType<ItemCard>().last.status, ItemCardStatus.declined);
+    expect(repaid, isEmpty);
   });
 
   test('app không tạo được loại này: nói thẳng, không hiện thẻ', () async {

@@ -58,7 +58,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       await ref.read(authControllerProvider.notifier).register(email, password, name);
       if (mounted) {
         // Chuyển sang màn hình xác thực OTP (BR-02)
-        context.push('/verify-otp', extra: email);
+        // Thay màn đăng ký: tài khoản đã được tạo, quay lại từ màn OTP không được về lại form đã nộp.
+        context.pushReplacement('/verify-otp', extra: email);
       }
     } catch (e) {
       if (mounted) {

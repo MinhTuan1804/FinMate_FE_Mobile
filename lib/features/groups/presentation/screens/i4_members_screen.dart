@@ -8,12 +8,15 @@ import 'package:finmate/core/theme/glass/glass_radius.dart';
 import 'package:finmate/core/theme/glass/glass_typography.dart';
 import 'package:finmate/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:finmate/features/groups/domain/group.dart';
+import 'package:finmate/core/format/money.dart';
+import 'package:finmate/features/groups/data/group_debts_repository.dart';
 import 'package:finmate/features/groups/data/groups_repository.dart';
 import 'package:finmate/features/groups/presentation/controllers/groups_controller.dart';
 import 'package:finmate/shared/widgets/glass/glass_background.dart';
 import 'package:finmate/shared/widgets/glass/glass_badge.dart';
 import 'package:finmate/shared/widgets/glass/glass_card.dart';
 import 'package:finmate/shared/widgets/glass/glass_dialog.dart';
+import 'package:finmate/core/widgets/async_action_builder.dart';
 
 /// I4 — Thành viên nhóm (Stitch `i4_members`). BỎ banner "ứng trước cho nhóm"/"nhắc thanh toán" và
 /// dòng nợ từng thành viên của Stitch — hệ thống thật chỉ có 1 sổ quỹ chung (Phase 85), không có khái
@@ -40,6 +43,22 @@ class I4MembersScreen extends ConsumerWidget {
       ref.invalidate(groupMembersProvider(groupId));
       messenger.showSnackBar(const SnackBar(content: Text('Đã đổi vai trò')));
     } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(errorMessage(e)), backgroundColor: GlassColors.danger));
+    }
+  }
+
+  Future<void> _remind(BuildContext context, WidgetRef ref, {GroupMemberEntity? member}) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final repo = ref.read(groupDebtsRepositoryProvider);
+      final result = member == null
+          ? await repo.remindAll(groupId)
+          : await repo.remindDebt(groupId: groupId, userId: member.userId);
+      messenger.showSnackBar(SnackBar(
+        content: Text(result.sent.isEmpty ? 'Chưa gửi được nhắc nhở nào (có thể vừa nhắc gần đây).' : 'Đã gửi nhắc nợ cho ${result.sent.length} người.'),
+      ));
+    } catch (e) {
+      // 429 GROUP_REMINDER_COOLDOWN: mỗi người chỉ nhắc 1 lần/24 giờ/nhóm
       messenger.showSnackBar(SnackBar(content: Text(errorMessage(e)), backgroundColor: GlassColors.danger));
     }
   }
@@ -99,6 +118,7 @@ class I4MembersScreen extends ConsumerWidget {
     final membersAsync = ref.watch(groupMembersProvider(groupId));
     final fundAsync = ref.watch(groupPrimaryFundProvider(groupId));
     final myUserId = ref.watch(currentUserIdProvider) ?? '';
+    final balances = groupAsync.valueOrNull?.isSplitBill == true ? ref.watch(groupBalancesProvider(groupId)).valueOrNull : null;
 
     return GlassBackground(
       child: Scaffold(
@@ -143,8 +163,16 @@ class I4MembersScreen extends ConsumerWidget {
                 return ListView(
                   padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
                   children: [
-                    if (fundId != null) _FundStatusCard(groupId: groupId, fundId: fundId),
-                    if (fundId != null) const SizedBox(height: 20),
+                    if (balances != null) ...[
+                      _DebtStatusCard(
+                        net: balances.netOf(myUserId),
+                        canRemind: balances.members.any((m) => m.netCents < BigInt.zero),
+                        onRemindAll: () => _remind(context, ref),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
+                    if (fundId != null && !group.isSplitBill) _FundStatusCard(groupId: groupId, fundId: fundId),
+                    if (fundId != null && !group.isSplitBill) const SizedBox(height: 20),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -160,7 +188,12 @@ class I4MembersScreen extends ConsumerWidget {
                             colorIndex: entry.key,
                             isMe: entry.value.userId == myUserId,
                             groupId: groupId,
-                            fundId: fundId,
+                            fundId: group.isSplitBill ? null : fundId,
+                            net: balances == null ? null : balances.netOf(entry.value.userId),
+                            canRemind: balances != null &&
+                                entry.value.userId != myUserId &&
+                                (group.isOwner || group.myRole == GroupRole.manager || balances.netOf(myUserId) > BigInt.zero),
+                            onRemind: () => _remind(context, ref, member: entry.value),
                             canManage: group.isOwner,
                             onChangeRole: () => _changeRole(context, ref, entry.value),
                             onRemove: () => _removeMember(context, ref, entry.value),
@@ -168,11 +201,14 @@ class I4MembersScreen extends ConsumerWidget {
                         )),
                     if (group.isOwner) ...[
                       const SizedBox(height: 4),
-                      OutlinedButton.icon(
-                        key: const ValueKey('transfer-ownership'),
+                      AsyncActionBuilder(
                         onPressed: () => _transferOwnership(context, ref, members, myUserId),
-                        icon: const Icon(LucideIcons.users, size: 16),
-                        label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Chuyển quyền chủ nhóm', maxLines: 1)),
+                        builder: (_, onTap, running) => OutlinedButton.icon(
+                          key: const ValueKey('transfer-ownership'),
+                          onPressed: onTap,
+                          icon: running ? const ButtonLoadingIndicator(size: 16) : const Icon(LucideIcons.users, size: 16),
+                          label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Chuyển quyền chủ nhóm', maxLines: 1)),
+                        ),
                       ),
                     ],
                     const SizedBox(height: 20),
@@ -189,7 +225,7 @@ class I4MembersScreen extends ConsumerWidget {
                           label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Mời thêm thành viên mới', maxLines: 1)),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: GlassColors.ink,
-                            foregroundColor: Colors.white,
+                            foregroundColor: GlassColors.onInk,
                             shape: RoundedRectangleBorder(borderRadius: GlassRadius.roundedPill),
                           ),
                         ),
@@ -200,6 +236,52 @@ class I4MembersScreen extends ConsumerWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _DebtStatusCard extends StatelessWidget {
+  final BigInt net;
+  final bool canRemind;
+  final VoidCallback onRemindAll;
+  const _DebtStatusCard({required this.net, required this.canRemind, required this.onRemindAll});
+
+  @override
+  Widget build(BuildContext context) {
+    final owed = net > BigInt.zero;
+    final owes = net < BigInt.zero;
+    return GlassCard(
+      key: const ValueKey('debt-status'),
+      level: 2,
+      borderRadius: GlassRadius.roundedCardLarge,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('TÌNH TRẠNG THANH TOÁN NHÓM', style: GlassTypography.labelCaps(color: GlassColors.accentSkyBlue)),
+          const SizedBox(height: 8),
+          Text(owed ? 'Bạn đang ứng trước cho nhóm:' : (owes ? 'Bạn đang nợ nhóm:' : 'Bạn đã cân bằng với mọi người.'), style: GlassTypography.bodySm()),
+          if (owed || owes) ...[
+            const SizedBox(height: 2),
+            Text(
+              '${owed ? "+" : "-"}${formatVnd(owed ? net : -net)}',
+              style: GlassTypography.displayHero(color: owes ? GlassColors.danger : GlassColors.success),
+            ),
+          ],
+          if (canRemind) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              height: 44,
+              child: OutlinedButton.icon(
+                key: const ValueKey('remind-all'),
+                onPressed: onRemindAll,
+                icon: const Icon(LucideIcons.bellRing, size: 16),
+                label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Nhắc thanh toán một chạm', maxLines: 1)),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -247,10 +329,18 @@ class _MemberCard extends StatelessWidget {
   final bool canManage;
   final String groupId;
   final String? fundId;
+
+  /// Số nợ ròng (dương = đang được nợ, âm = đang nợ); null khi nhóm không chia nợ.
+  final BigInt? net;
+  final bool canRemind;
+  final VoidCallback onRemind;
   final VoidCallback onChangeRole;
   final VoidCallback onRemove;
 
   const _MemberCard({
+    required this.net,
+    required this.canRemind,
+    required this.onRemind,
     required this.member,
     required this.colorIndex,
     required this.isMe,
@@ -267,45 +357,83 @@ class _MemberCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = _avatarColors[colorIndex % _avatarColors.length];
     final initial = member.displayName.isEmpty ? '?' : member.displayName[0].toUpperCase();
+    final owes = net != null && net! < BigInt.zero;
+    final owed = net != null && net! > BigInt.zero;
+    final showRemind = owes && canRemind;
+    final showManage = canManage && !isMe;
     return GlassCard(
       key: ValueKey('member-${member.userId}'),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          CircleAvatar(radius: 22, backgroundColor: color.withValues(alpha: 0.25), child: Text(initial, style: GlassTypography.headlineSm(color: color))),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CircleAvatar(radius: 22, backgroundColor: color.withValues(alpha: 0.25), child: Text(initial, style: GlassTypography.headlineSm(color: color))),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Flexible(child: Text(member.displayName, style: GlassTypography.bodyMd(color: GlassColors.textPrimary), overflow: TextOverflow.ellipsis)),
-                    if (isMe) ...[const SizedBox(width: 6), const GlassBadge(text: 'Bạn')],
+                    Row(
+                      children: [
+                        Flexible(child: Text(member.displayName, style: GlassTypography.bodyMd(color: GlassColors.textPrimary), overflow: TextOverflow.ellipsis)),
+                        if (isMe) ...[const SizedBox(width: 6), const GlassBadge(text: 'Bạn')],
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    GlassBadge(text: member.role.label, color: member.role == GroupRole.owner ? GlassColors.success : GlassColors.textSecondary),
+                    if (fundId != null) _ContributionLine(groupId: groupId, fundId: fundId!, userId: member.userId),
                   ],
                 ),
-                const SizedBox(height: 4),
-                GlassBadge(text: member.role.label, color: member.role == GroupRole.owner ? GlassColors.success : GlassColors.textSecondary),
-                if (fundId != null) _ContributionLine(groupId: groupId, fundId: fundId!, userId: member.userId),
+              ),
+              if (net != null) ...[
+                const SizedBox(width: 8),
+                // Số nợ canh phải như Figma: nhãn nhỏ phía trên, số tiền đậm bên dưới.
+                Column(
+                  key: ValueKey('net-${member.userId}'),
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(owes ? 'Đang nợ' : (owed ? 'Được nợ' : 'Đã cân bằng'), style: GlassTypography.bodySm(color: owes ? GlassColors.danger : GlassColors.textMuted)),
+                    if (owes || owed)
+                      Text(
+                        formatVnd(owes ? -net! : net!),
+                        style: GlassTypography.labelNumeric(color: owes ? GlassColors.danger : GlassColors.success),
+                      ),
+                  ],
+                ),
               ],
-            ),
+            ],
           ),
-          if (canManage && !isMe)
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  key: ValueKey('change-role-${member.userId}'),
-                  tooltip: 'Đổi vai trò',
-                  icon: const Icon(LucideIcons.pencil, size: 18),
-                  onPressed: onChangeRole,
-                ),
-                IconButton(
-                  key: ValueKey('remove-member-${member.userId}'),
-                  tooltip: 'Xóa',
-                  icon: Icon(LucideIcons.trash2, size: 18, color: GlassColors.danger),
-                  onPressed: onRemove,
-                ),
-              ],
+          if (showRemind || showManage)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  if (showRemind)
+                    TextButton.icon(
+                      key: ValueKey('remind-${member.userId}'),
+                      onPressed: onRemind,
+                      icon: const Icon(LucideIcons.bellRing, size: 16),
+                      label: const Text('Nhắc nợ'),
+                    ),
+                  if (showManage) ...[
+                    IconButton(
+                      key: ValueKey('change-role-${member.userId}'),
+                      tooltip: 'Đổi vai trò',
+                      icon: const Icon(LucideIcons.pencil, size: 18),
+                      onPressed: onChangeRole,
+                    ),
+                    IconButton(
+                      key: ValueKey('remove-member-${member.userId}'),
+                      tooltip: 'Xóa',
+                      icon: Icon(LucideIcons.trash2, size: 18, color: GlassColors.danger),
+                      onPressed: onRemove,
+                    ),
+                  ],
+                ],
+              ),
             ),
         ],
       ),

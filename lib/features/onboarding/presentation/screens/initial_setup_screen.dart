@@ -284,7 +284,7 @@ class _InitialSetupScreenState extends ConsumerState<InitialSetupScreen> {
                           title: Text(provider.displayName, style: GlassTypography.bodyLg().copyWith(fontWeight: FontWeight.w600)),
                           subtitle: Text(provider.type.label, style: GlassTypography.bodySm()),
                           value: selected,
-                          activeThumbColor: Colors.white,
+                          activeThumbColor: GlassColors.onInk,
                           activeTrackColor: GlassColors.ink,
                           onChanged: (val) {
                             setState(() {

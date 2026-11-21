@@ -19,6 +19,7 @@ import 'package:finmate/shared/widgets/glass/glass_badge.dart';
 import 'package:finmate/shared/widgets/glass/glass_bottom_nav.dart';
 import 'package:finmate/shared/widgets/glass/glass_card.dart';
 import 'package:finmate/shared/widgets/glass/glass_progress_bar.dart';
+import 'package:finmate/core/widgets/async_action_builder.dart';
 
 enum _Period { day, week, month, year }
 
@@ -700,17 +701,20 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                         ],
                       ),
                       if (!insight.isRead)
-                        TextButton(
+                        AsyncActionBuilder(
                           onPressed: () async {
                             await ref
                                 .read(reportsRepositoryProvider)
                                 .markInsightRead(insight.id);
                             ref.invalidate(spendingInsightsProvider);
                           },
-                          child: Text(
-                            'Đã xem',
-                            style: GlassTypography.bodyMd(
-                              color: GlassColors.accentSkyBlue,
+                          builder: (_, onTap, running) => TextButton(
+                            onPressed: onTap,
+                            child: running ? const ButtonLoadingIndicator() : Text(
+                              'Đã xem',
+                              style: GlassTypography.bodyMd(
+                                color: GlassColors.accentSkyBlue,
+                              ),
                             ),
                           ),
                         ),

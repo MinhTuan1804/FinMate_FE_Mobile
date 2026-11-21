@@ -72,7 +72,7 @@ class _Repo extends AssistantRepository {
       : super(apiClient: testApiClient(RouteAdapter((o) => respondJson({'success': true}))));
 
   @override
-  Future<ChatReply> chat(String text, {String? accountId, String? clientRequestId}) async {
+  Future<ChatReply> chat(String text, {String? accountId, String? clientRequestId, Map<String, dynamic>? itemContext}) async {
     chatted.add(text);
     return chatReply;
   }

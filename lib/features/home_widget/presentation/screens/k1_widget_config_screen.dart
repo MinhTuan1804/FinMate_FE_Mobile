@@ -1,16 +1,78 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:finmate/core/theme/app_colors.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:finmate/core/format/money.dart';
 import 'package:finmate/core/theme/app_spacing.dart';
-import 'package:finmate/core/theme/app_theme.dart';
+import 'package:finmate/core/theme/glass/glass_colors.dart';
 import 'package:finmate/features/accounts/data/accounts_repository.dart';
 import 'package:finmate/features/accounts/domain/financial_account.dart';
+import 'package:finmate/features/finance_methods/domain/finance_method.dart';
+import 'package:finmate/features/finance_methods/presentation/controllers/finance_methods_controller.dart';
+import 'package:finmate/features/forecast/presentation/controllers/forecast_controller.dart';
 import 'package:finmate/features/home_widget/data/widget_config_bridge.dart';
 import 'package:finmate/features/home_widget/domain/widget_config.dart';
+import 'package:finmate/shared/widgets/glass/glass_background.dart';
+import 'package:finmate/core/widgets/async_action_builder.dart';
 
 final _accountsProvider = FutureProvider<List<FinancialAccount>>(
   (ref) => ref.watch(accountsRepositoryProvider).getAccounts(),
 );
+
+/// Dữ liệu xem trước đã tính từ số liệu thật của người dùng — cùng công thức với các lớp *Sync.kt
+/// (perDay = spendable / số ngày còn lại trong tháng; percent = spent / income). Giá trị null = chưa có.
+class WidgetPreviewData {
+  const WidgetPreviewData({
+    this.accountLabel,
+    this.balance,
+    this.perDay,
+    this.spent,
+    this.income,
+    this.percentUsed,
+    this.forecastEnd,
+  });
+
+  final String? accountLabel;
+  final BigInt? balance;
+  final BigInt? perDay;
+  final BigInt? spent;
+  final BigInt? income;
+  final int? percentUsed;
+  final BigInt? forecastEnd;
+
+  bool get hasBudget => perDay != null;
+
+  static WidgetPreviewData compute({
+    required SpendableEntity spendable,
+    List<FinancialAccount>? accounts,
+    String? sourceAccountId,
+    BigInt? forecastEnd,
+    DateTime? now,
+  }) {
+    final today = now ?? DateTime.now();
+    final daysRemaining = DateTime(today.year, today.month + 1, 0).day - today.day + 1;
+    final spendableCents = spendable.spendableCents;
+    final income = spendable.incomeCents;
+
+    BigInt? balance;
+    String? label;
+    if (accounts != null && accounts.isNotEmpty) {
+      final picked = sourceAccountId == null ? accounts : accounts.where((a) => a.id == sourceAccountId).toList();
+      if (picked.isNotEmpty) {
+        balance = picked.fold<BigInt>(BigInt.zero, (sum, a) => sum + a.balanceCents);
+        label = sourceAccountId == null ? 'Tất cả tài khoản' : picked.first.name;
+      }
+    }
+    return WidgetPreviewData(
+      accountLabel: label,
+      balance: balance,
+      perDay: spendableCents == null ? null : spendableCents ~/ BigInt.from(daysRemaining),
+      spent: spendable.spentCents,
+      income: income,
+      percentUsed: (income == null || income == BigInt.zero) ? 0 : (spendable.spentCents * BigInt.from(100) ~/ income).toInt(),
+      forecastEnd: forecastEnd,
+    );
+  }
+}
 
 /// Màn "Cấu hình Widget FinMate" (k1_widget_config_screen.png).
 ///
@@ -114,62 +176,102 @@ class _K1WidgetConfigScreenState extends ConsumerState<K1WidgetConfigScreen> {
   @override
   Widget build(BuildContext context) {
     if (_loadingWidgetId) {
-      return Theme(
-        data: AppTheme.lightTheme,
-        child: const Scaffold(body: Center(child: CircularProgressIndicator())),
+      return GlassBackground(
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          body: Center(child: CircularProgressIndicator(color: GlassColors.ink)),
+        ),
       );
     }
 
-    // Màn này được thiết kế với màu "Light"-suffixed (dùng cho entrypoint độc lập
-    // widgetConfigMain). Ép theme light cục bộ để khi bị push vào app chính (đang dark) vẫn hiện
-    // đúng như bản gốc, không bị chữ tối-trên-nền-tối.
-    return Theme(
-      data: AppTheme.lightTheme,
+    return GlassBackground(
       child: Scaffold(
+        backgroundColor: Colors.transparent,
         appBar: AppBar(
-          leading: IconButton(icon: const Icon(Icons.close), onPressed: _onClose),
-          title: const Text('Cấu hình Widget FinMate'),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          leading: IconButton(
+            tooltip: 'Đóng',
+            icon: Icon(LucideIcons.x, color: GlassColors.textPrimary),
+            onPressed: _onClose,
+          ),
+          title: Text(
+            'Cấu hình Widget FinMate',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(color: GlassColors.textPrimary, fontSize: 18, fontWeight: FontWeight.w700),
+          ),
           actions: [
             Padding(
               padding: const EdgeInsets.only(right: AppSpacing.lg),
-              child: FilledButton(
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.textPrimaryLight,
-                  foregroundColor: Colors.white,
-                  shape: const StadiumBorder(),
-                ),
+              child: AsyncActionBuilder(
                 onPressed: _onDone,
-                child: const Text('Hoàn tất'),
+                builder: (_, onTap, running) => FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: GlassColors.ink,
+                    foregroundColor: GlassColors.onInk,
+                    shape: const StadiumBorder(),
+                  ),
+                  onPressed: onTap,
+                  child: running ? const ButtonLoadingIndicator() : const Text('Hoàn tất'),
+                ),
               ),
             ),
           ],
         ),
-        body: ListView(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          children: [
-            _SizeSection(selected: _previewKind, onSelected: (k) => setState(() => _previewKind = k)),
-            const SizedBox(height: AppSpacing.xl),
-            _PreviewSection(kind: _previewKind, config: _config),
-            const SizedBox(height: AppSpacing.xl),
-            _PrivacySection(
-              config: _config,
-              onChanged: (c) => setState(() => _config = c),
-            ),
-            const SizedBox(height: AppSpacing.xl),
-            _SourceAccountSection(
-              selectedAccountId: _config.sourceAccountId,
-              onSelected: (id) => setState(() => _config = _config.copyWith(sourceAccountId: () => id)),
-            ),
-            const SizedBox(height: AppSpacing.xl),
-            _RefreshModeSection(
-              mode: _config.refreshMode,
-              onChanged: (m) => setState(() => _config = _config.copyWith(refreshMode: m)),
-            ),
-            const SizedBox(height: AppSpacing.xl),
-            const _TipCard(),
-          ],
+        body: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            children: [
+              _SizeSection(selected: _previewKind, onSelected: (k) => setState(() => _previewKind = k)),
+              const SizedBox(height: AppSpacing.xl),
+              _PreviewSection(kind: _previewKind, config: _config),
+              const SizedBox(height: AppSpacing.xl),
+              _PrivacySection(
+                config: _config,
+                onChanged: (c) => setState(() => _config = c),
+              ),
+              const SizedBox(height: AppSpacing.xl),
+              _SourceAccountSection(
+                selectedAccountId: _config.sourceAccountId,
+                onSelected: (id) => setState(() => _config = _config.copyWith(sourceAccountId: () => id)),
+              ),
+              const SizedBox(height: AppSpacing.xl),
+              _RefreshModeSection(
+                mode: _config.refreshMode,
+                onChanged: (m) => setState(() => _config = _config.copyWith(refreshMode: m)),
+              ),
+              const SizedBox(height: AppSpacing.xl),
+              const _TipCard(),
+            ],
+          ),
         ),
       ),
+    );
+  }
+}
+
+TextStyle _title() => TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: GlassColors.textPrimary);
+
+/// Thẻ kính dùng chung cho mọi khối của màn (nền/viền theo GlassColors, tự đổi sáng/tối).
+class _Panel extends StatelessWidget {
+  const _Panel({required this.child, this.padding = const EdgeInsets.all(AppSpacing.md)});
+
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: padding,
+      decoration: BoxDecoration(
+        color: GlassColors.glassFill,
+        borderRadius: AppSpacing.roundedLarge,
+        border: Border.all(color: GlassColors.glassBorder),
+      ),
+      child: child,
     );
   }
 }
@@ -186,16 +288,13 @@ class _SizeSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text('Chọn kích thước tiện ích', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+            Expanded(child: Text('Chọn kích thước tiện ích', style: _title())),
+            const SizedBox(width: AppSpacing.sm),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppColors.surfaceLightSubtle,
-                borderRadius: AppSpacing.roundedPill,
-              ),
-              child: const Text('iOS & Android', style: TextStyle(fontSize: 11, color: AppColors.textSecondaryLight)),
+              decoration: BoxDecoration(color: GlassColors.secondarySurface, borderRadius: AppSpacing.roundedPill),
+              child: Text('iOS & Android', style: TextStyle(fontSize: 11, color: GlassColors.textSecondary)),
             ),
           ],
         ),
@@ -204,7 +303,7 @@ class _SizeSection extends StatelessWidget {
           children: [
             Expanded(
               child: _SizeCard(
-                icon: Icons.crop_square,
+                icon: LucideIcons.square,
                 title: '2 × 2',
                 subtitle: 'Chi an toàn',
                 hint: 'Nhỏ gọn, đơn giản',
@@ -215,7 +314,7 @@ class _SizeSection extends StatelessWidget {
             const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: _SizeCard(
-                icon: Icons.view_agenda_outlined,
+                icon: LucideIcons.rectangleHorizontal,
                 title: '4 × 2',
                 subtitle: 'Tổng quan',
                 hint: 'Số dư & thao tác',
@@ -227,7 +326,7 @@ class _SizeSection extends StatelessWidget {
             const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: _SizeCard(
-                icon: Icons.dashboard_outlined,
+                icon: LucideIcons.layoutDashboard,
                 title: '4 × 4',
                 subtitle: 'Chi tiết',
                 hint: 'Dự báo & sổ phụ',
@@ -263,54 +362,62 @@ class _SizeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: AppSpacing.roundedLarge,
-      child: Stack(
-        clipBehavior: Clip.none,
-        alignment: Alignment.topCenter,
-        children: [
-          Container(
-            margin: badge != null ? const EdgeInsets.only(top: 10) : EdgeInsets.zero,
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.md, horizontal: AppSpacing.sm),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceLightSubtle,
-              borderRadius: AppSpacing.roundedLarge,
-              border: Border.all(
-                color: selected ? AppColors.textPrimaryLight : AppColors.borderLight,
-                width: selected ? 2 : 1,
-              ),
-            ),
-            child: Column(
-              children: [
-                CircleAvatar(
-                  radius: 18,
-                  backgroundColor: AppColors.surfaceLight,
-                  child: Icon(icon, size: 18, color: AppColors.textPrimaryLight),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-                Text(subtitle, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                Text(hint, style: const TextStyle(fontSize: 11, color: AppColors.textMutedLight)),
-              ],
-            ),
-          ),
-          if (badge != null)
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: 'Cỡ $title, $subtitle',
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: AppSpacing.roundedLarge,
+        child: Stack(
+          clipBehavior: Clip.none,
+          alignment: Alignment.topCenter,
+          children: [
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              width: double.infinity,
+              margin: const EdgeInsets.only(top: 10),
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.md, horizontal: AppSpacing.sm),
               decoration: BoxDecoration(
-                color: AppColors.textPrimaryLight,
-                borderRadius: AppSpacing.roundedPill,
+                color: GlassColors.glassFill,
+                borderRadius: AppSpacing.roundedLarge,
+                border: Border.all(color: selected ? GlassColors.ink : GlassColors.glassBorder, width: selected ? 2 : 1),
               ),
-              child: Text(badge!, style: const TextStyle(fontSize: 10, color: Colors.white)),
+              child: Column(
+                children: [
+                  CircleAvatar(
+                    radius: 18,
+                    backgroundColor: GlassColors.secondarySurface,
+                    child: Icon(icon, size: 18, color: GlassColors.textPrimary),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(title, style: TextStyle(fontWeight: FontWeight.w700, color: GlassColors.textPrimary)),
+                  Text(
+                    subtitle,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: GlassColors.textPrimary),
+                  ),
+                  Text(
+                    hint,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 11, color: GlassColors.textSecondary),
+                  ),
+                ],
+              ),
             ),
-        ],
+            if (badge != null)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(color: GlassColors.ink, borderRadius: AppSpacing.roundedPill),
+                child: Text(badge!, style: TextStyle(fontSize: 10, color: GlassColors.onInk)),
+              ),
+          ],
+        ),
       ),
     );
   }
 }
 
-class _PreviewSection extends StatelessWidget {
+class _PreviewSection extends ConsumerWidget {
   const _PreviewSection({required this.kind, required this.config});
 
   final HomeWidgetKind kind;
@@ -323,199 +430,360 @@ class _PreviewSection extends StatelessWidget {
       };
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final spendable = ref.watch(spendableProvider);
+    final accounts = kind == HomeWidgetKind.safeSpend ? null : ref.watch(_accountsProvider);
+    // Dự báo chỉ làm đẹp thêm cho 4×4: lỗi/đang tải thì hiện "—", không chặn cả xem trước.
+    final forecast = kind == HomeWidgetKind.detail ? ref.watch(cashflowForecastProvider) : null;
+
+    Widget body;
+    final failed = spendable.hasError ? spendable : (accounts?.hasError ?? false) ? accounts : null;
+    if (failed != null && !(failed.hasValue)) {
+      body = _PreviewMessage(
+        icon: LucideIcons.triangleAlert,
+        text: 'Không tải được dữ liệu xem trước.',
+        actionLabel: 'Thử lại',
+        onAction: () {
+          ref.invalidate(spendableProvider);
+          ref.invalidate(_accountsProvider);
+          ref.invalidate(cashflowForecastProvider);
+        },
+      );
+    } else if (!spendable.hasValue || (accounts != null && !accounts.hasValue)) {
+      body = const _PreviewMessage(loading: true, text: 'Đang tải dữ liệu xem trước…');
+    } else {
+      final data = WidgetPreviewData.compute(
+        spendable: spendable.requireValue,
+        accounts: accounts?.valueOrNull,
+        sourceAccountId: config.sourceAccountId,
+        forecastEnd: forecast?.valueOrNull?.endBalanceCents,
+      );
+      body = switch (kind) {
+        HomeWidgetKind.safeSpend => _SafeSpendPreview(data: data, config: config),
+        HomeWidgetKind.overview => _OverviewPreview(data: data, config: config),
+        HomeWidgetKind.detail => _DetailPreview(data: data, config: config),
+      };
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text('Xem trước tương tác thực tế', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-            Text('Cỡ $_sizeLabel', style: const TextStyle(fontSize: 12, color: AppColors.textMutedLight)),
+            Expanded(child: Text('Xem trước tương tác thực tế', style: _title())),
+            Text('Cỡ $_sizeLabel', style: TextStyle(fontSize: 12, color: GlassColors.textSecondary)),
           ],
         ),
         const SizedBox(height: AppSpacing.md),
-        switch (kind) {
-          HomeWidgetKind.safeSpend => const _SafeSpendPreview(),
-          HomeWidgetKind.overview => _OverviewPreview(config: config),
-          HomeWidgetKind.detail => const _DetailPreview(),
-        },
+        body,
       ],
     );
   }
 }
 
-/// Preview W1 "Chi an toàn" (2×2) — bản Flutter đơn giản hoá của SafeSpendWidget.kt (chỉ đổ bóng
-/// hình dáng, không cần khớp pixel-for-pixel), khớp card đầu tiên trong w1_states.png.
-class _SafeSpendPreview extends StatelessWidget {
-  const _SafeSpendPreview();
+String _vnd(BigInt? v) => v == null ? '—' : formatVnd(v);
+
+TextStyle _muted([double size = 11]) => TextStyle(fontSize: size, color: GlassColors.textSecondary);
+
+/// Khung hiển thị 1 trạng thái không có số (đang tải / lỗi) trong vùng xem trước.
+class _PreviewMessage extends StatelessWidget {
+  const _PreviewMessage({required this.text, this.loading = false, this.icon, this.actionLabel, this.onAction});
+
+  final String text;
+  final bool loading;
+  final IconData? icon;
+  final String? actionLabel;
+  final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 180,
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceLightSubtle,
-        borderRadius: AppSpacing.roundedLarge,
-        border: Border.all(color: AppColors.borderLight),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return _Panel(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Row(
         children: [
-          const Row(
-            children: [
-              Icon(Icons.shield_outlined, size: 14, color: AppColors.textMutedLight),
-              SizedBox(width: 6),
-              Text('FinMate • Chi an toàn', style: TextStyle(fontSize: 11, color: AppColors.textMutedLight)),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          const Text('120.000 đ', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 2),
-          const Text(
-            'Hôm nay có thể chi tiêu an toàn',
-            style: TextStyle(fontSize: 11, color: AppColors.textMutedLight),
-          ),
+          if (loading)
+            SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: GlassColors.ink))
+          else if (icon != null)
+            Icon(icon, size: 18, color: GlassColors.warning),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(child: Text(text, style: TextStyle(fontSize: 13, color: GlassColors.textSecondary))),
+          if (actionLabel != null) TextButton(onPressed: onAction, child: Text(actionLabel!)),
         ],
       ),
     );
   }
 }
 
-/// Preview W2 "Tổng quan" (4×2) — giữ nguyên nội dung gốc đã có từ trước (chip tài khoản, số dư,
-/// gợi ý AI, 2 nút thao tác).
-class _OverviewPreview extends StatelessWidget {
-  const _OverviewPreview({required this.config});
+/// Nhãn nhỏ báo khung này chưa có số thật (người dùng chưa có dữ liệu) — không hiển thị số bịa.
+class _EmptyNote extends StatelessWidget {
+  const _EmptyNote(this.text);
 
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(top: AppSpacing.sm),
+        child: Text(text, style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: GlassColors.textSecondary)),
+      );
+}
+
+Color _ringColor(int percent) => percent >= 100 ? GlassColors.danger : (percent >= 80 ? GlassColors.warning : GlassColors.success);
+
+class _Ring extends StatelessWidget {
+  const _Ring({required this.percent});
+
+  final int percent;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _ringColor(percent);
+    return Semantics(
+      label: '$percent% ngân sách tháng đã dùng',
+      child: SizedBox(
+        width: 52,
+        height: 52,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            SizedBox.expand(
+              child: CircularProgressIndicator(
+                value: (percent / 100).clamp(0.0, 1.0),
+                strokeWidth: 5,
+                color: color,
+                backgroundColor: color.withValues(alpha: 0.2),
+              ),
+            ),
+            Text('$percent%', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: color)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Hai nút thao tác của widget — chỉ minh họa, không bấm được.
+class _ActionButtons extends StatelessWidget {
+  const _ActionButtons();
+
+  @override
+  Widget build(BuildContext context) {
+    Widget pill(IconData icon, String label, {required bool filled}) => Expanded(
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+            decoration: BoxDecoration(
+              color: filled ? GlassColors.ink : GlassColors.secondarySurface,
+              borderRadius: AppSpacing.roundedMedium,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 16, color: filled ? GlassColors.onInk : GlassColors.textPrimary),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: filled ? GlassColors.onInk : GlassColors.textPrimary),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+    return ExcludeSemantics(
+      child: Row(children: [
+        pill(LucideIcons.plus, 'Ghi chép', filled: false),
+        const SizedBox(width: AppSpacing.sm),
+        pill(LucideIcons.qrCode, 'Quét QR', filled: true),
+      ]),
+    );
+  }
+}
+
+/// W1 "Chi an toàn" (2×2) — bản Flutter đơn giản hoá của SafeSpendWidget.kt.
+class _SafeSpendPreview extends StatelessWidget {
+  const _SafeSpendPreview({required this.data, required this.config});
+
+  final WidgetPreviewData data;
   final WidgetConfig config;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceLightSubtle,
-        borderRadius: AppSpacing.roundedLarge,
-        border: Border.all(color: AppColors.borderLight),
+    final over = data.hasBudget && (data.percentUsed ?? 0) >= 100;
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: SizedBox(
+        width: 220,
+        child: _Panel(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(over ? LucideIcons.triangleAlert : LucideIcons.shieldCheck, size: 14, color: GlassColors.textSecondary),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(over ? 'Cần điều chỉnh' : 'FinMate • Chi an toàn', maxLines: 1, overflow: TextOverflow.ellipsis, style: _muted()),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            data.hasBudget ? _vnd(data.perDay) : '—',
+                            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: over ? GlassColors.danger : GlassColors.textPrimary),
+                          ),
+                        ),
+                        Text(data.hasBudget ? 'Hôm nay có thể chi tiêu an toàn' : 'Chưa đặt ngân sách', style: _muted()),
+                      ],
+                    ),
+                  ),
+                  if (config.aiSuggestionsEnabled && data.hasBudget) ...[
+                    const SizedBox(width: 6),
+                    _Ring(percent: data.percentUsed ?? 0),
+                  ],
+                ],
+              ),
+              if (!data.hasBudget) const _EmptyNote('Chưa có dữ liệu — khung xem trước, không phải số thật.'),
+            ],
+          ),
+        ),
       ),
+    );
+  }
+}
+
+/// W2 "Tổng quan" (4×2) — nội dung theo OverviewWidget.kt.
+class _OverviewPreview extends StatelessWidget {
+  const _OverviewPreview({required this.data, required this.config});
+
+  final WidgetPreviewData data;
+  final WidgetConfig config;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasAccount = data.balance != null;
+    return _Panel(
+      padding: const EdgeInsets.all(AppSpacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Text('Tất cả tài khoản', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-              const SizedBox(width: 4),
-              const Icon(Icons.expand_more, size: 16),
-              const Spacer(),
-              Container(width: 6, height: 6, decoration: const BoxDecoration(color: AppColors.safe, shape: BoxShape.circle)),
-              const SizedBox(width: 4),
-              const Text('Vừa đồng bộ', style: TextStyle(fontSize: 11, color: AppColors.textMutedLight)),
+              Icon(LucideIcons.sparkles, size: 14, color: GlassColors.textSecondary),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'FinMate • ${data.accountLabel ?? 'Tất cả tài khoản'}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: GlassColors.textSecondary),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
-          const Text('HẠN MỨC KHẢ DỤNG HÔM NAY', style: TextStyle(fontSize: 11, color: AppColors.textMutedLight, letterSpacing: 0.5)),
-          const SizedBox(height: 4),
-          const Text('42.850.000 đ', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800)),
-          if (config.aiSuggestionsEnabled) ...[
-            const SizedBox(height: AppSpacing.sm),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 6),
-              decoration: BoxDecoration(color: AppColors.surfaceLight, borderRadius: AppSpacing.roundedMedium),
-              child: const Row(
-                children: [
-                  Icon(Icons.auto_awesome, size: 14, color: AppColors.primary),
-                  SizedBox(width: 6),
-                  Expanded(
-                    child: Text('FinMate AI: Bạn đã tiêu 62% ngân sách tuần', style: TextStyle(fontSize: 12)),
-                  ),
-                ],
-              ),
-            ),
-          ],
-          const SizedBox(height: AppSpacing.md),
           Row(
             children: [
-              OutlinedButton.icon(
-                onPressed: null,
-                icon: const Icon(Icons.add, size: 16),
-                label: const Text('Ghi nhanh'),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('SỐ DƯ KHẢ DỤNG', style: TextStyle(fontSize: 11, color: GlassColors.textSecondary, letterSpacing: 0.5)),
+                    const SizedBox(height: 4),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(_vnd(data.balance), style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: GlassColors.textPrimary)),
+                    ),
+                    if (data.hasBudget) ...[
+                      Text('Đã chi tháng này: ${_vnd(data.spent)}', style: _muted(), maxLines: 1, overflow: TextOverflow.ellipsis),
+                      Text('Chi an toàn: ${_vnd(data.perDay)}/ngày', style: _muted(), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    ],
+                  ],
+                ),
               ),
-              const SizedBox(width: AppSpacing.sm),
-              FilledButton.icon(
-                style: FilledButton.styleFrom(backgroundColor: AppColors.textPrimaryLight),
-                onPressed: null,
-                icon: const Icon(Icons.qr_code, size: 16),
-                label: const Text('Quét mã QR'),
-              ),
+              if (config.aiSuggestionsEnabled && data.hasBudget) ...[
+                const SizedBox(width: AppSpacing.sm),
+                _Ring(percent: data.percentUsed ?? 0),
+              ],
             ],
           ),
+          if (config.aiSuggestionsEnabled && !data.hasBudget) Text('Chưa đặt ngân sách tháng', style: _muted()),
+          if (!hasAccount) const _EmptyNote('Chưa có tài khoản — khung xem trước, không phải số thật.'),
+          const SizedBox(height: AppSpacing.md),
+          const _ActionButtons(),
         ],
       ),
     );
   }
 }
 
-/// Preview W3 "Chi tiết" (4×4) — card cao hơn 4×2: số dư + dự báo cuối tháng + vài dòng giao dịch
-/// gần đây (dữ liệu tĩnh cho mục đích xem trước), khớp hình dáng w_4x4_detail.png.
+/// Widget "Chi tiết" (4×4) — số dư + dự báo cuối tháng + hạn mức, theo DetailWidget.kt. Danh sách giao
+/// dịch gần đây của widget thật không dựng ở đây (xem ghi chú dưới thẻ).
 class _DetailPreview extends StatelessWidget {
-  const _DetailPreview();
+  const _DetailPreview({required this.data, required this.config});
 
-  static const _rows = [
-    (icon: Icons.restaurant, label: 'Ăn uống', amount: '-85.000 đ'),
-    (icon: Icons.local_gas_station, label: 'Xăng xe', amount: '-120.000 đ'),
-    (icon: Icons.shopping_bag_outlined, label: 'Mua sắm', amount: '-350.000 đ'),
-  ];
+  final WidgetPreviewData data;
+  final WidgetConfig config;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceLightSubtle,
-        borderRadius: AppSpacing.roundedLarge,
-        border: Border.all(color: AppColors.borderLight),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('HẠN MỨC KHẢ DỤNG HÔM NAY', style: TextStyle(fontSize: 11, color: AppColors.textMutedLight, letterSpacing: 0.5)),
-          const SizedBox(height: 4),
-          const Text('42.850.000 đ', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 4),
-          const Text('Dự báo cuối tháng: ~38.200.000 đ', style: TextStyle(fontSize: 12, color: AppColors.textMutedLight)),
-          const SizedBox(height: AppSpacing.md),
-          const Text('Giao dịch gần đây', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-          const SizedBox(height: AppSpacing.sm),
-          for (final row in _rows)
-            Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-              child: Row(
-                children: [
-                  Icon(row.icon, size: 16, color: AppColors.textSecondaryLight),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(child: Text(row.label, style: const TextStyle(fontSize: 13))),
-                  Text(row.amount, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                ],
-              ),
-            ),
-          const SizedBox(height: AppSpacing.sm),
-          Row(
+    Widget metric(String label, String value, double size) => Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              OutlinedButton.icon(
-                onPressed: null,
-                icon: const Icon(Icons.add, size: 16),
-                label: const Text('Ghi nhanh'),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              FilledButton.icon(
-                style: FilledButton.styleFrom(backgroundColor: AppColors.textPrimaryLight),
-                onPressed: null,
-                icon: const Icon(Icons.qr_code, size: 16),
-                label: const Text('Quét mã QR'),
+              Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: GlassColors.textSecondary, letterSpacing: 0.5)),
+              const SizedBox(height: 4),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(value, style: TextStyle(fontSize: size, fontWeight: FontWeight.w800, color: GlassColors.textPrimary)),
               ),
             ],
           ),
+        );
+    return _Panel(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'FinMate • ${data.accountLabel ?? 'Tất cả tài khoản'}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: GlassColors.textSecondary),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            children: [
+              metric('SỐ DƯ KHẢ DỤNG', _vnd(data.balance), 22),
+              const SizedBox(width: AppSpacing.sm),
+              metric('DỰ BÁO CUỐI THÁNG', _vnd(data.forecastEnd), 16),
+              if (config.aiSuggestionsEnabled && data.hasBudget) ...[
+                const SizedBox(width: AppSpacing.sm),
+                _Ring(percent: data.percentUsed ?? 0),
+              ],
+            ],
+          ),
+          if (data.hasBudget) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Text('Đã chi: ${_vnd(data.spent)} / Ngân sách: ${_vnd(data.income)}', style: _muted(12)),
+          ],
+          if (data.balance == null) const _EmptyNote('Chưa có tài khoản — khung xem trước, không phải số thật.'),
+          const SizedBox(height: AppSpacing.md),
+          const _ActionButtons(),
+          const SizedBox(height: AppSpacing.sm),
+          Text('Giao dịch vừa ghi nhận sẽ hiện trên widget thật.', style: _muted()),
         ],
       ),
     );
@@ -533,7 +801,7 @@ class _PrivacySection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Tùy chọn hiển thị & Riêng tư', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+        Text('Tùy chọn hiển thị & Riêng tư', style: _title()),
         const SizedBox(height: AppSpacing.md),
         _SwitchTile(
           title: 'Gợi ý thông minh từ FinMate AI',
@@ -556,26 +824,25 @@ class _SwitchTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceLightSubtle,
-        borderRadius: AppSpacing.roundedLarge,
-        border: Border.all(color: AppColors.borderLight),
-      ),
+    return _Panel(
       child: Row(
         children: [
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                Text(title, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: GlassColors.textPrimary)),
                 const SizedBox(height: 2),
-                Text(subtitle, style: const TextStyle(fontSize: 12, color: AppColors.textMutedLight)),
+                Text(subtitle, style: TextStyle(fontSize: 12, color: GlassColors.textSecondary)),
               ],
             ),
           ),
-          Switch(value: value, onChanged: onChanged, activeTrackColor: AppColors.textPrimaryLight),
+          Switch(
+            value: value,
+            onChanged: onChanged,
+            activeTrackColor: GlassColors.ink,
+            activeThumbColor: GlassColors.onInk,
+          ),
         ],
       ),
     );
@@ -594,7 +861,7 @@ class _SourceAccountSection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Nguồn tiền hiển thị trên widget', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+        Text('Nguồn tiền hiển thị trên widget', style: _title()),
         const SizedBox(height: AppSpacing.md),
         Wrap(
           spacing: AppSpacing.sm,
@@ -628,19 +895,23 @@ class _AccountChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: AppSpacing.roundedPill,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-        decoration: BoxDecoration(
-          color: selected ? AppColors.textPrimaryLight : AppColors.surfaceLight,
-          borderRadius: AppSpacing.roundedPill,
-          border: Border.all(color: selected ? AppColors.textPrimaryLight : AppColors.borderLight),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: selected ? Colors.white : AppColors.textPrimaryLight),
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: AppSpacing.roundedPill,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+          decoration: BoxDecoration(
+            color: selected ? GlassColors.ink : GlassColors.glassFill,
+            borderRadius: AppSpacing.roundedPill,
+            border: Border.all(color: selected ? GlassColors.ink : GlassColors.glassBorder),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: selected ? GlassColors.onInk : GlassColors.textPrimary),
+          ),
         ),
       ),
     );
@@ -660,32 +931,26 @@ class _RefreshModeSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text('Chu kỳ tự động làm mới', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+            Expanded(child: Text('Chu kỳ tự động làm mới', style: _title())),
             TextButton(
+              style: TextButton.styleFrom(foregroundColor: GlassColors.ink),
               onPressed: () => onChanged(batterySaver ? WidgetRefreshMode.immediateAndPeriodic : WidgetRefreshMode.batterySaver),
               child: Text(batterySaver ? 'DÙNG MẶC ĐỊNH' : 'TIẾT KIỆM PIN'),
             ),
           ],
         ),
-        Container(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          decoration: BoxDecoration(
-            color: AppColors.surfaceLightSubtle,
-            borderRadius: AppSpacing.roundedLarge,
-            border: Border.all(color: AppColors.borderLight),
-          ),
+        _Panel(
           child: Row(
             children: [
-              const Icon(Icons.sync, size: 18, color: AppColors.textSecondaryLight),
+              Icon(LucideIcons.refreshCw, size: 18, color: GlassColors.textSecondary),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
                   batterySaver
                       ? 'Chỉ làm mới định kỳ mỗi 2 giờ (không làm mới ngay khi có giao dịch mới).'
                       : 'Ngay khi có giao dịch mới & định kỳ mỗi 30 phút.',
-                  style: const TextStyle(fontSize: 13),
+                  style: TextStyle(fontSize: 13, color: GlassColors.textPrimary),
                 ),
               ),
             ],
@@ -701,20 +966,15 @@ class _TipCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceLightSubtle,
-        borderRadius: AppSpacing.roundedLarge,
-      ),
-      child: const Row(
+    return _Panel(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.lightbulb_outline, color: AppColors.warning),
-          SizedBox(width: AppSpacing.sm),
+          Icon(LucideIcons.lightbulb, size: 20, color: GlassColors.warning),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text.rich(
-              TextSpan(
+              const TextSpan(
                 children: [
                   TextSpan(text: 'Mẹo thêm nhanh tiện ích: ', style: TextStyle(fontWeight: FontWeight.w700)),
                   TextSpan(
@@ -723,7 +983,7 @@ class _TipCard extends StatelessWidget {
                   ),
                 ],
               ),
-              style: TextStyle(fontSize: 13, color: AppColors.textSecondaryLight),
+              style: TextStyle(fontSize: 13, color: GlassColors.textSecondary),
             ),
           ),
         ],

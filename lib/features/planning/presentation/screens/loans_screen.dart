@@ -15,9 +15,11 @@ import 'package:finmate/core/theme/glass/glass_colors.dart';
 import 'package:finmate/core/theme/glass/glass_radius.dart';
 import 'package:finmate/core/theme/glass/glass_typography.dart';
 import 'package:finmate/shared/widgets/glass/glass_buttons.dart';
+import 'package:finmate/shared/widgets/glass/glass_card.dart';
 import 'package:finmate/shared/widgets/glass/glass_dialog.dart';
 import 'package:finmate/shared/widgets/glass/glass_text_field.dart';
 import 'package:finmate/features/planning/data/loans_repository.dart';
+import 'package:finmate/core/widgets/async_action_builder.dart';
 
 /// Màn G9 - G11: Quản lý Khoản vay & Nợ. Dữ liệu thật từ /loans; ghi trả có thể kèm ví để sinh giao dịch.
 class LoansScreen extends ConsumerStatefulWidget {
@@ -83,7 +85,12 @@ class _LoansScreenState extends ConsumerState<LoansScreen> {
 
   Future<void> _recordRepayment(LoanItem loan) async {
     final accounts = ref.read(accountsControllerProvider).valueOrNull ?? const <FinancialAccount>[];
-    final input = await showDialog<_RepayInput>(context: context, builder: (_) => _RepayDialog(loan: loan, accounts: accounts));
+    final input = await showModalBottomSheet<_RepayInput>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => _RepayDialog(loan: loan, accounts: accounts),
+    );
     if (input == null) return;
     await _run(
       () => ref.read(loansRepositoryProvider).repay(loanId: loan.id, amountCents: input.amountCents, financialAccountId: input.accountId),
@@ -110,6 +117,7 @@ class _LoansScreenState extends ConsumerState<LoansScreen> {
   @override
   Widget build(BuildContext context) {
     final async = ref.watch(loansProvider);
+    ref.watch(accountsControllerProvider); // giữ danh sách ví đã tải sẵn cho sheet ghi trả
     final currentType = _selectedTab == 0 ? LoanType.borrow : LoanType.lend;
 
     return Scaffold(
@@ -221,6 +229,7 @@ class _LoansScreenState extends ConsumerState<LoansScreen> {
       key: ValueKey('loan-${loan.id}'),
       padding: const EdgeInsets.only(bottom: 14),
       child: LiquidGlassCard(
+        variant: LiquidGlassVariant.subtle, // dòng trong list: không blur từng item
         padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -267,15 +276,18 @@ class _LoansScreenState extends ConsumerState<LoansScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Đã trả: ${formatVnd(loan.paidCents)}', style: AppTypography.caption(context).copyWith(fontSize: 12)),
-                Text(
+                Flexible(child: Text('Đã trả: ${formatVnd(loan.paidCents)}', maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.caption(context).copyWith(fontSize: 12))),
+                const SizedBox(width: 8),
+                Flexible(child: Text(
                   'Còn lại: ${formatVnd(loan.remainingCents)}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: AppTypography.body(context).copyWith(
                     fontWeight: FontWeight.w800,
                     fontSize: 13,
                     color: done ? AppColors.safe : AppColors.danger,
                   ),
-                ),
+                )),
               ],
             ),
             if ((loan.accruedInterestCents ?? BigInt.zero) > BigInt.zero && !done) ...[
@@ -290,17 +302,22 @@ class _LoansScreenState extends ConsumerState<LoansScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
+                Flexible(child: Text(
                   loan.dueDate == null ? 'Không đặt hạn' : 'Hạn cuối: ${DateFormat('dd/MM/yyyy').format(loan.dueDate!)}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: AppTypography.caption(context).copyWith(fontSize: 11.5),
-                ),
+                )),
                 if (!done)
-                  OutlinedButton.icon(
-                    key: ValueKey('repay-loan-${loan.id}'),
-                    icon: const Icon(LucideIcons.check, size: 14),
-                    label: FittedBox(fit: BoxFit.scaleDown, child: Text(loan.type == LoanType.borrow ? 'Ghi nhận trả' : 'Ghi nhận thu hồi', maxLines: 1)),
-                    style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), shape: const StadiumBorder()),
+                  AsyncActionBuilder(
                     onPressed: () => _recordRepayment(loan),
+                    builder: (_, onTap, running) => OutlinedButton.icon(
+                      key: ValueKey('repay-loan-${loan.id}'),
+                      icon: running ? const ButtonLoadingIndicator(size: 16) : const Icon(LucideIcons.check, size: 14),
+                      label: FittedBox(fit: BoxFit.scaleDown, child: Text(loan.type == LoanType.borrow ? 'Ghi nhận trả' : 'Ghi nhận thu hồi', maxLines: 1)),
+                      style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), shape: const StadiumBorder()),
+                      onPressed: onTap,
+                    ),
                   )
                 else
                   Text('Đã tất toán', style: AppTypography.caption(context).copyWith(fontWeight: FontWeight.w700, color: AppColors.safe)),
@@ -567,6 +584,8 @@ class _RepayInput {
   const _RepayInput(this.amountCents, this.accountId);
 }
 
+/// Bottom sheet kính "Ghi nhận trả nợ / thu hồi". Chỉ hiện phần có dữ liệu thật (khoản vay, ví);
+/// phần Figma về kỳ trả, phân loại/hũ, đồng bộ lịch nợ chưa có API nên không dựng.
 class _RepayDialog extends StatefulWidget {
   final LoanItem loan;
   final List<FinancialAccount> accounts;
@@ -585,12 +604,19 @@ class _RepayDialogState extends State<_RepayDialog> {
   void initState() {
     super.initState();
     if (widget.accounts.isNotEmpty) _accountId = widget.accounts.first.id;
+    _amount.addListener(() => setState(() {})); // cập nhật nhãn nút xác nhận
   }
 
   @override
   void dispose() {
     _amount.dispose();
     super.dispose();
+  }
+
+  void _setAmount(BigInt v) {
+    _amount.text = formatAmountDigits(v);
+    _amount.selection = TextSelection.collapsed(offset: _amount.text.length);
+    setState(() => _error = null);
   }
 
   void _submit() {
@@ -606,61 +632,283 @@ class _RepayDialogState extends State<_RepayDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final borrow = widget.loan.type == LoanType.borrow;
-    return GlassDialogShell(
-      title: '${borrow ? 'Ghi nhận trả nợ' : 'Ghi nhận thu hồi'} - ${widget.loan.title}',
-      child: Flexible(
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    final loan = widget.loan;
+    final borrow = loan.type == LoanType.borrow;
+    final amount = parseAmountInput(_amount.text);
+    final half = loan.remainingCents ~/ BigInt.two;
+    final maxHeight = MediaQuery.of(context).size.height * 0.92;
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(16, 12, 16, 16 + MediaQuery.of(context).viewInsets.bottom),
+        child: SizedBox(
+          width: double.infinity,
+          child: GlassCard(
+            level: 3,
+            padding: const EdgeInsets.all(17),
+            borderRadius: GlassRadius.roundedCardLarge,
+            child: Material(
+              type: MaterialType.transparency,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: maxHeight),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(borrow ? LucideIcons.landmark : LucideIcons.handCoins, size: 16, color: GlassColors.ink),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(loan.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: GlassTypography.bodySm(color: GlassColors.ink)),
+                        ),
+                        IconButton(
+                          tooltip: 'Đóng',
+                          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                          icon: Icon(LucideIcons.x, size: 20, color: GlassColors.textSecondary),
+                          onPressed: () => Navigator.of(context).maybePop(),
+                        ),
+                      ],
+                    ),
+                    Semantics(header: true, child: Text(borrow ? 'Ghi nhận trả nợ' : 'Ghi nhận thu hồi', style: GlassTypography.headlineSm())),
+                    const SizedBox(height: 12),
+                    Flexible(
+                      child: SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _infoCard(loan),
+                            const SizedBox(height: 16),
+                            Text('SỐ TIỀN THỰC ${borrow ? 'TRẢ' : 'THU'}', style: GlassTypography.labelCaps(color: GlassColors.textMuted)),
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              decoration: BoxDecoration(
+                                color: GlassColors.fieldFill,
+                                borderRadius: GlassRadius.roundedInput,
+                                border: Border.all(color: GlassColors.fieldBorder, width: 1.5),
+                              ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: TextField(
+                                      key: const ValueKey('repay-amount'),
+                                      controller: _amount,
+                                      keyboardType: TextInputType.number,
+                                      inputFormatters: [ThousandsSeparatorInputFormatter()],
+                                      style: GlassTypography.headlineLg(color: GlassColors.textPrimary),
+                                      decoration: InputDecoration(
+                                        border: InputBorder.none,
+                                        hintText: '0',
+                                        hintStyle: GlassTypography.headlineLg(color: GlassColors.textMuted),
+                                        contentPadding: const EdgeInsets.symmetric(vertical: 16),
+                                      ),
+                                    ),
+                                  ),
+                                  Text('₫', style: GlassTypography.bodyLg(color: GlassColors.textSecondary)),
+                                ],
+                              ),
+                            ),
+                            if (_error != null) ...[
+                              const SizedBox(height: 8),
+                              Text(_error!, style: GlassTypography.bodySm(color: GlassColors.danger)),
+                            ],
+                            const SizedBox(height: 10),
+                            Row(
+                              children: [
+                                Expanded(child: _chip('repay-chip-all', LucideIcons.circleCheck, 'Trả hết còn lại', loan.remainingCents, selected: amount == loan.remainingCents)),
+                                if (half > BigInt.zero) ...[
+                                  const SizedBox(width: 8),
+                                  Expanded(child: _chip('repay-chip-half', LucideIcons.divide, 'Một nửa', half, selected: amount == half)),
+                                ],
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            Text(borrow ? 'TRẢ TỪ VÍ' : 'NHẬN VÀO VÍ', style: GlassTypography.labelCaps(color: GlassColors.textMuted)),
+                            const SizedBox(height: 8),
+                            for (final a in widget.accounts) ...[
+                              _accountCard(
+                                key: ValueKey('repay-account-${a.id}'),
+                                icon: LucideIcons.wallet,
+                                title: a.name,
+                                subtitle: 'Số dư ${formatVnd(a.balanceCents)}',
+                                selected: _accountId == a.id,
+                                onTap: () => setState(() => _accountId = a.id),
+                              ),
+                              const SizedBox(height: 8),
+                            ],
+                            _accountCard(
+                              key: const ValueKey('repay-account'),
+                              icon: LucideIcons.bookOpen,
+                              title: 'Chỉ ghi sổ',
+                              subtitle: null,
+                              selected: _accountId == null,
+                              onTap: () => setState(() => _accountId = null),
+                            ),
+                            if (_accountId == null) ...[
+                              const SizedBox(height: 8),
+                              Text('Chỉ ghi sổ, không đổi số dư ví.', style: GlassTypography.bodySm(color: GlassColors.textSecondary)),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    GlassPrimaryButton(
+                      key: const ValueKey('repay-save'),
+                      icon: LucideIcons.circleCheck,
+                      label: amount == null ? 'Xác nhận' : 'Xác nhận ${formatVnd(amount)}',
+                      onPressed: _submit,
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: GlassGhostButton(label: 'Hủy', onPressed: () => Navigator.pop(context)),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _infoCard(LoanItem loan) {
+    final due = loan.dueDate;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: GlassColors.glassFill,
+        borderRadius: GlassRadius.roundedCard,
+        border: Border.all(color: GlassColors.glassBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              Text('Số còn lại: ${formatVnd(widget.loan.remainingCents)}', style: GlassTypography.bodyMd(color: GlassColors.textSecondary)),
-              const SizedBox(height: 14),
-              GlassTextField(
-                key: const ValueKey('repay-amount'),
-                controller: _amount,
-                label: 'Số tiền (₫)',
-                hintText: '0',
-                prefixIcon: LucideIcons.banknote,
-                keyboardType: TextInputType.number,
-                inputFormatters: [ThousandsSeparatorInputFormatter()],
+              Expanded(
+                child: Text(
+                  loan.counterparty.isEmpty ? loan.title : loan.counterparty,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GlassTypography.bodyMd(color: GlassColors.textPrimary).copyWith(fontWeight: FontWeight.w600),
+                ),
               ),
-              if (_error != null) ...[
-                const SizedBox(height: 8),
-                Text(_error!, style: GlassTypography.bodySm(color: GlassColors.danger)),
+              if (due != null) ...[
+                const SizedBox(width: 8),
+                Icon(LucideIcons.calendar, size: 14, color: GlassColors.textSecondary),
+                const SizedBox(width: 4),
+                Text('Hạn ${DateFormat('dd/MM/yyyy').format(due)}', style: GlassTypography.bodySm(color: GlassColors.textSecondary)),
               ],
-              const SizedBox(height: 14),
-              Text(borrow ? 'Trả từ ví' : 'Nhận vào ví', style: GlassTypography.bodyMd(color: GlassColors.textPrimary).copyWith(fontWeight: FontWeight.w600)),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                decoration: BoxDecoration(
-                  color: GlassColors.fieldFill,
-                  borderRadius: GlassRadius.roundedInput,
-                  border: Border.all(color: GlassColors.fieldBorder, width: 1.5),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String?>(
-                    key: const ValueKey('repay-account'),
-                    value: _accountId,
-                    isExpanded: true,
-                    items: [
-                      for (final a in widget.accounts) DropdownMenuItem<String?>(value: a.id, child: Text(a.name, overflow: TextOverflow.ellipsis)),
-                      const DropdownMenuItem<String?>(value: null, child: Text('Chỉ ghi sổ, không đổi số dư ví', overflow: TextOverflow.ellipsis)),
-                    ],
-                    onChanged: (v) => setState(() => _accountId = v),
-                  ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text('Số còn lại', style: GlassTypography.bodySm(color: GlassColors.textSecondary)),
+          const SizedBox(height: 2),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(formatVnd(loan.remainingCents), maxLines: 1, style: GlassTypography.headlineMd(color: GlassColors.textPrimary)),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Gốc ${formatVnd(loan.principalCents)} · Đã trả ${formatVnd(loan.paidCents)}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GlassTypography.bodySm(color: GlassColors.textMuted),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _chip(String key, IconData icon, String label, BigInt value, {required bool selected}) {
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: '$label, ${formatVnd(value)}',
+      child: ExcludeSemantics(
+        child: Material(
+          color: selected ? GlassColors.activeFill : GlassColors.fieldFill,
+          shape: StadiumBorder(side: BorderSide(color: selected ? GlassColors.activeBorder : GlassColors.fieldBorder)),
+          child: InkWell(
+            key: ValueKey(key),
+            customBorder: const StadiumBorder(),
+            onTap: () => _setAmount(value),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 48),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(icon, size: 16, color: selected ? GlassColors.activeFg : GlassColors.textSecondary),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(label, maxLines: 1, style: GlassTypography.bodyMd(color: selected ? GlassColors.activeFg : GlassColors.textPrimary).copyWith(fontWeight: FontWeight.w600)),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 20),
-              Row(
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _accountCard({
+    required Key key,
+    required IconData icon,
+    required String title,
+    required String? subtitle,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return Semantics(
+      container: true,
+      button: true,
+      inMutuallyExclusiveGroup: true,
+      checked: selected,
+      child: ExcludeSemantics(
+        child: Material(
+          color: selected ? GlassColors.activeFill : GlassColors.fieldFill,
+          borderRadius: GlassRadius.roundedInput,
+          child: InkWell(
+            key: key,
+            borderRadius: GlassRadius.roundedInput,
+            onTap: onTap,
+            child: Container(
+              constraints: const BoxConstraints(minHeight: 56),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                borderRadius: GlassRadius.roundedInput,
+                border: Border.all(color: selected ? GlassColors.activeBorder : GlassColors.fieldBorder, width: selected ? 1.5 : 1),
+              ),
+              child: Row(
                 children: [
-                  Expanded(child: GlassGhostButton(label: 'Hủy', onPressed: () => Navigator.pop(context))),
+                  Icon(icon, size: 20, color: selected ? GlassColors.activeFg : GlassColors.textSecondary),
                   const SizedBox(width: 12),
-                  Expanded(child: GlassPrimaryButton(key: const ValueKey('repay-save'), label: 'Xác nhận', onPressed: _submit)),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: GlassTypography.bodyMd(color: GlassColors.textPrimary).copyWith(fontWeight: FontWeight.w600)),
+                        if (subtitle != null) Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: GlassTypography.bodySm(color: GlassColors.textSecondary)),
+                      ],
+                    ),
+                  ),
+                  if (selected) Icon(LucideIcons.check, size: 18, color: GlassColors.activeFg),
                 ],
               ),
-            ],
+            ),
           ),
         ),
       ),

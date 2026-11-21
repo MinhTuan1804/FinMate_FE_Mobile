@@ -16,10 +16,12 @@ import 'package:finmate/features/recurring/domain/recurring_item.dart';
 import 'package:finmate/shared/widgets/glass/glass_background.dart';
 import 'package:finmate/shared/widgets/glass/glass_badge.dart';
 import 'package:finmate/shared/widgets/glass/glass_card.dart';
+import 'package:finmate/core/widgets/async_action_builder.dart';
 
 enum _Horizon { days30, days60, quarter }
 
-const _confidenceLabel = {'high': 'Độ tin cậy cao', 'medium': 'Độ tin cậy trung bình', 'low': 'Độ tin cậy thấp'};
+// BE trả 'normal' | 'low' (cùng từ vựng với các màn dự báo khác); 'high'/'medium' giữ lại cho tương thích.
+const _confidenceLabel = {'high': 'Độ tin cậy cao', 'medium': 'Độ tin cậy trung bình', 'normal': 'Độ tin cậy bình thường', 'low': 'Độ tin cậy thấp'};
 
 /// F3 — Dự báo dòng tiền (Luồng 6). Dùng thẳng [cashflowForecastProvider] (`GET /forecast/cashflow`,
 /// đã có sẵn cho tính năng Dự báo). Khác Stitch 2 điểm có chủ đích:
@@ -239,10 +241,15 @@ class _F3CashflowForecastScreenState extends ConsumerState<F3CashflowForecastScr
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 16, color: color),
-          const SizedBox(height: 6),
-          Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: GlassTypography.bodySm()),
-          const SizedBox(height: 2),
+          // Icon và nhãn cùng một hàng (trước đây icon chiếm riêng một dòng phía trên).
+          Row(
+            children: [
+              Icon(icon, size: 16, color: color),
+              const SizedBox(width: 6),
+              Expanded(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: GlassTypography.bodySm())),
+            ],
+          ),
+          const SizedBox(height: 4),
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
@@ -471,7 +478,7 @@ class _F3CashflowForecastScreenState extends ConsumerState<F3CashflowForecastScr
                 const SizedBox(height: 16),
                 SizedBox(
                   width: double.infinity,
-                  child: ElevatedButton(
+                  child: AsyncActionBuilder(
                     onPressed: () async {
                       final amount = parseAmountInput(amountController.text);
                       if (amount == null) return;
@@ -489,8 +496,11 @@ class _F3CashflowForecastScreenState extends ConsumerState<F3CashflowForecastScr
                         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errorMessage(e))));
                       }
                     },
-                    style: ElevatedButton.styleFrom(backgroundColor: GlassColors.ink, foregroundColor: GlassColors.onInk, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: GlassRadius.roundedPill)),
-                    child: const Text('Xem kết quả'),
+                    builder: (_, onTap, running) => ElevatedButton(
+                      onPressed: onTap,
+                      style: ElevatedButton.styleFrom(backgroundColor: GlassColors.ink, foregroundColor: GlassColors.onInk, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: GlassRadius.roundedPill)),
+                      child: running ? const ButtonLoadingIndicator() : const Text('Xem kết quả'),
+                    ),
                   ),
                 ),
               ],

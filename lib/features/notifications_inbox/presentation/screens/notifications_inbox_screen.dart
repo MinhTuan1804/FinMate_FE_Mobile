@@ -83,6 +83,8 @@ class NotificationsInboxScreen extends ConsumerWidget {
     for (final item in page.items) {
       grouped.putIfAbsent(_dateGroupLabel(item.createdAt), () => []).add(item);
     }
+    // Dàn phẳng (tiêu đề nhóm | thông báo) để ListView.builder chỉ dựng dòng đang hiện.
+    final rows = <Object>[for (final group in grouped.entries) ...[group.key, ...group.value]];
 
     return Column(
       children: [
@@ -139,30 +141,33 @@ class NotificationsInboxScreen extends ConsumerWidget {
                     ),
                   ),
                 )
-              : ListView(
+              : ListView.builder(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                  children: [
-                    for (final group in grouped.entries) ...[
-                      Padding(
+                  itemCount: rows.length,
+                  itemBuilder: (context, i) {
+                    final row = rows[i];
+                    if (row is String) {
+                      return Padding(
                         padding: const EdgeInsets.symmetric(vertical: 8),
-                        child: Text(group.key.toUpperCase(), style: GlassTypography.labelCaps()),
+                        child: Text(row.toUpperCase(), style: GlassTypography.labelCaps()),
+                      );
+                    }
+                    final item = row as UserNotificationEntity;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: GlassNotificationCard(
+                        icon: _iconForType(item.type).$1,
+                        iconColor: _iconForType(item.type).$2,
+                        title: item.title,
+                        body: item.body,
+                        metaText: _timeLabel(item.createdAt),
+                        unread: item.isUnread,
+                        onTap: () => controller.markRead(item.id),
+                        onDismiss: () => controller.delete(item.id),
                       ),
-                      for (final item in group.value) ...[
-                        GlassNotificationCard(
-                          icon: _iconForType(item.type).$1,
-                          iconColor: _iconForType(item.type).$2,
-                          title: item.title,
-                          body: item.body,
-                          metaText: _timeLabel(item.createdAt),
-                          unread: item.isUnread,
-                          onTap: () => controller.markRead(item.id),
-                          onDismiss: () => controller.delete(item.id),
-                        ),
-                        const SizedBox(height: 10),
-                      ],
-                    ],
-                  ],
-                ),
+                    );
+                  },
+                  ),
         ),
         if (page.items.isNotEmpty)
           Padding(

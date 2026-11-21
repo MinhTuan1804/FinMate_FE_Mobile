@@ -13,6 +13,7 @@ import 'package:finmate/features/accounts/presentation/controllers/accounts_cont
 import 'package:finmate/features/assistant/data/receipt_image_source.dart';
 import 'package:finmate/features/assistant/data/speech_end_detector.dart';
 import 'package:finmate/features/assistant/data/voice_recorder.dart';
+import 'package:finmate/features/assistant/data/assistant_bubble_bridge.dart';
 import 'package:finmate/features/assistant/presentation/controllers/assistant_controller.dart';
 import 'package:finmate/features/assistant/presentation/widgets/chat_cards.dart';
 
@@ -386,6 +387,15 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
               size: 40,
               iconSize: 18,
               onPressed: () => Navigator.of(context).maybePop(),
+            )
+          else if (ref.watch(isAssistantBubbleProvider))
+            LiquidGlassIconButton(
+              key: const ValueKey('bubble-open-full-app'),
+              icon: LucideIcons.maximize2,
+              tooltip: 'Mở trong FinMate',
+              size: 40,
+              iconSize: 18,
+              onPressed: () => ref.read(assistantBubbleBridgeProvider).openFullApp(),
             )
           else
             const SizedBox(width: AppSpacing.minTouchTarget),

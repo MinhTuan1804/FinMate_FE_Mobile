@@ -10,9 +10,11 @@ import 'package:finmate/core/theme/app_theme.dart';
 import 'package:finmate/core/theme/app_typography.dart';
 import 'package:finmate/core/widgets/glass/liquid_glass.dart';
 import 'package:finmate/features/accounts/presentation/controllers/accounts_controller.dart';
+import 'package:finmate/features/assistant/presentation/widgets/assistant_bubble_tile.dart';
 import 'package:finmate/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:finmate/features/finance_methods/presentation/controllers/finance_methods_controller.dart';
 import 'package:finmate/features/subscriptions/presentation/controllers/subscriptions_controller.dart';
+import 'package:finmate/core/widgets/async_action_builder.dart';
 
 /// Một hàng trong nhóm cài đặt (Figma H1): biểu tượng, tiêu đề, mô tả phụ, nội dung bên phải và mũi tên/biểu tượng mở ngoài.
 class _Row {
@@ -242,6 +244,7 @@ class ProfileScreen extends ConsumerWidget {
                     ],
                   ),
                 ),
+                if (ref.watch(assistantBubbleSupportedProvider).valueOrNull ?? false) const AssistantBubbleTile(),
               ],
               rows: [
                 _Row(
@@ -337,15 +340,18 @@ class ProfileScreen extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 28),
-            OutlinedButton.icon(
+            AsyncActionBuilder(
               onPressed: () => _logout(context, ref),
-              icon: const Icon(LucideIcons.logOut, size: 18, color: AppColors.danger),
-              label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Đăng xuất tài khoản', style: TextStyle(color: AppColors.danger), maxLines: 1)),
-              style: OutlinedButton.styleFrom(
-                backgroundColor: AppColors.inset(context, 0.7),
-                side: BorderSide(color: AppColors.danger.withValues(alpha: 0.5)),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: const StadiumBorder(),
+              builder: (_, onTap, running) => OutlinedButton.icon(
+                onPressed: onTap,
+                icon: running ? const ButtonLoadingIndicator(size: 16) : const Icon(LucideIcons.logOut, size: 18, color: AppColors.danger),
+                label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Đăng xuất tài khoản', style: TextStyle(color: AppColors.danger), maxLines: 1)),
+                style: OutlinedButton.styleFrom(
+                  backgroundColor: AppColors.inset(context, 0.7),
+                  side: BorderSide(color: AppColors.danger.withValues(alpha: 0.5)),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: const StadiumBorder(),
+                ),
               ),
             ),
           ],

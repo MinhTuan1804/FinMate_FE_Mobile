@@ -173,6 +173,7 @@ class _GroupsHubScreenState extends ConsumerState<GroupsHubScreen> {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 12),
                   child: LiquidGlassCard(
+                    variant: LiquidGlassVariant.subtle, // dòng trong list: không blur từng item
                     padding: const EdgeInsets.all(18),
                     onTap: () {
                       ScaffoldMessenger.of(context).showSnackBar(
