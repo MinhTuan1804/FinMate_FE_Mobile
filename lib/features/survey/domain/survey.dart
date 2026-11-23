@@ -2,10 +2,18 @@ class SurveyOptionEntity {
   final String code;
   final String text;
 
-  const SurveyOptionEntity({required this.code, required this.text});
+  /// Khoảng % thu nhập của đáp án câu chi linh hoạt; [shareMaxPct] null = "từ mức này trở lên".
+  final int? shareMinPct;
+  final int? shareMaxPct;
 
-  factory SurveyOptionEntity.fromJson(Map<String, dynamic> json) =>
-      SurveyOptionEntity(code: json['code'] as String, text: json['text'] as String);
+  const SurveyOptionEntity({required this.code, required this.text, this.shareMinPct, this.shareMaxPct});
+
+  factory SurveyOptionEntity.fromJson(Map<String, dynamic> json) => SurveyOptionEntity(
+        code: json['code'] as String,
+        text: json['text'] as String,
+        shareMinPct: json['shareMinPct'] as int?,
+        shareMaxPct: json['shareMaxPct'] as int?,
+      );
 }
 
 /// Một câu hỏi khảo sát. [showIf] null = luôn hỏi; không null thì dùng [isVisibleGiven] để tự ẩn/hiện
@@ -17,13 +25,26 @@ class SurveyQuestionEntity {
   final Map<String, dynamic>? showIf;
   final List<SurveyOptionEntity> options;
 
+  /// 'choice' (chọn đáp án) hoặc 'amount' (nhập số tiền, không có đáp án).
+  final String answerType;
+
+  /// Vai trò trong kế hoạch tháng: 'income' | 'fixed' | 'flexible' | 'savings_balance'; null = câu chọn phương pháp.
+  final String? planRole;
+  final String? categorySlug;
+
   const SurveyQuestionEntity({
     required this.code,
     required this.group,
     required this.text,
     required this.showIf,
     required this.options,
+    this.answerType = 'choice',
+    this.planRole,
+    this.categorySlug,
   });
+
+  bool get isAmount => answerType == 'amount';
+  bool get isFlexible => planRole == 'flexible';
 
   /// Giữ nguyên logic `ShowIfEvaluator.IsVisible` phía BE: showIf null/hỏng → luôn hiện; dạng
   /// `{"all":[{"question":mã,"in":[...]} | {"question":mã,"not_in":[...]}]}`; câu chưa trả lời
@@ -56,19 +77,29 @@ class SurveyQuestionEntity {
         text: json['text'] as String,
         showIf: json['showIf'] as Map<String, dynamic>?,
         options: (json['options'] as List).map((e) => SurveyOptionEntity.fromJson(e as Map<String, dynamic>)).toList(),
+        answerType: json['answerType'] as String? ?? 'choice',
+        planRole: json['planRole'] as String?,
+        categorySlug: json['categorySlug'] as String?,
       );
 }
 
+/// Câu chọn có [optionCode]; câu nhập số tiền có [amountVnd] (đồng). Không bao giờ có cả hai.
 class SurveyAnswerEntity {
   final String questionCode;
-  final String optionCode;
+  final String? optionCode;
+  final int? amountVnd;
 
-  const SurveyAnswerEntity({required this.questionCode, required this.optionCode});
+  const SurveyAnswerEntity({required this.questionCode, this.optionCode, this.amountVnd});
 
-  factory SurveyAnswerEntity.fromJson(Map<String, dynamic> json) =>
-      SurveyAnswerEntity(questionCode: json['questionCode'] as String, optionCode: json['optionCode'] as String);
+  factory SurveyAnswerEntity.fromJson(Map<String, dynamic> json) => SurveyAnswerEntity(
+        questionCode: json['questionCode'] as String,
+        optionCode: json['optionCode'] as String?,
+        amountVnd: (json['amountVnd'] as num?)?.toInt(),
+      );
 
-  Map<String, dynamic> toJson() => {'questionCode': questionCode, 'optionCode': optionCode};
+  Map<String, dynamic> toJson() => amountVnd != null
+      ? {'questionCode': questionCode, 'amountVnd': amountVnd}
+      : {'questionCode': questionCode, 'optionCode': optionCode};
 }
 
 /// [status]: 'pending' | 'completed' | 'skipped'.
