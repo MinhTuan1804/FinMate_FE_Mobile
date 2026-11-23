@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:finmate/features/finance_methods/data/finance_methods_repository.dart';
+import 'package:finmate/features/finance_methods/domain/financial_plan.dart';
 import '../../fixtures/fixture.dart';
 
 void main() {
@@ -174,6 +175,32 @@ void main() {
       expect(adapter.requests.single.path, contains('/me/spendable'));
       expect(s.incomeCents, isNull);
       expect(s.spendableCents, isNull);
+    });
+
+    test('getFinancialPlanDraft() GET đúng path, đọc số tiền và các dòng hạn mức', () async {
+      final adapter = RouteAdapter((o) => respondJson({
+            'success': true,
+            'error': null,
+            'meta': null,
+            'data': {
+              'methodCode': 'rule_80_20', 'methodVersion': 1, 'incomeVnd': 10000000, 'fixedVnd': 0, 'fixedOtherVnd': 1000000,
+              'plannedSpendVnd': 4000000, 'surplusVnd': 6000000, 'saveTargetVnd': 2000000, 'savingsBalanceVnd': null,
+              'warnings': <String>[],
+              'groups': [{'key': null, 'label': 'Chi tiêu', 'kind': 'spend', 'pct': null, 'capVnd': null}],
+              'categories': [
+                {'categoryId': 'c1', 'slug': 'food', 'name': 'Ăn uống', 'groupKey': null, 'fixedVnd': 0, 'declaredVnd': 3000000, 'limitVnd': 3000000, 'reducedByVnd': 0},
+              ],
+            },
+          }));
+      final repo = FinanceMethodsRepository(apiClient: testApiClient(adapter));
+
+      final plan = await repo.getFinancialPlanDraft();
+
+      expect(adapter.requests.single.path, contains('/me/financial-plan/draft'));
+      expect(plan.surplusVnd, 6000000);
+      expect(plan.categories.single.limitVnd, 3000000);
+      expect(plan.groups.single.key, isNull);
+      expect(planSurplus(plan, {'food': 2000000}), 7000000, reason: 'thu − hạn mức đã sửa − trả nợ');
     });
   });
 }

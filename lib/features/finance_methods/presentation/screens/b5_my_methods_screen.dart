@@ -113,6 +113,16 @@ class MyMethodsScreen extends ConsumerWidget {
               onPressed: () => context.go('/home'),
             ),
             IconButton(
+              key: const ValueKey('open-financial-plan'),
+              tooltip: 'Kế hoạch tháng',
+              icon: Icon(
+                LucideIcons.calendarRange,
+                size: 20,
+                color: GlassColors.slateAnchor,
+              ),
+              onPressed: () => context.push('/finance-methods/plan'),
+            ),
+            IconButton(
               key: const ValueKey('open-alert-thresholds'),
               tooltip: 'Ngưỡng cảnh báo',
               icon: Icon(

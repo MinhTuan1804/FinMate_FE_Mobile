@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:finmate/core/network/api_client.dart';
 import 'package:finmate/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:finmate/features/finance_methods/domain/finance_method.dart';
+import 'package:finmate/features/finance_methods/domain/financial_plan.dart';
 
 final financeMethodsRepositoryProvider = Provider<FinanceMethodsRepository>(
   (ref) => FinanceMethodsRepository(apiClient: ref.watch(apiClientProvider)),
@@ -124,6 +125,15 @@ class FinanceMethodsRepository {
       fromJsonT: (json) => (json as List).map((e) => JarSetEntity.fromJson(e as Map<String, dynamic>)).toList(),
     );
     return response.data ?? const [];
+  }
+
+  /// GET /me/financial-plan/draft: bản nháp kế hoạch tháng từ khảo sát + cách quản lý chính. Không lưu gì.
+  Future<FinancialPlanEntity> getFinancialPlanDraft() async {
+    final response = await apiClient.get(
+      '/api/v1/me/financial-plan/draft',
+      fromJsonT: (json) => FinancialPlanEntity.fromJson(json as Map<String, dynamic>),
+    );
+    return response.data!;
   }
 
   /// GET /me/spendable: tiền khả dụng tháng này.

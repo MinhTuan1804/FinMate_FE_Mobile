@@ -91,6 +91,7 @@ import 'package:finmate/features/devices/presentation/screens/devices_screen.dar
 import 'package:finmate/features/finance_methods/presentation/screens/b4_recommendations_screen.dart';
 import 'package:finmate/features/finance_methods/presentation/screens/b5_my_methods_screen.dart';
 import 'package:finmate/features/finance_methods/presentation/screens/b6_jar_detail_screen.dart';
+import 'package:finmate/features/finance_methods/presentation/screens/b8_financial_plan_screen.dart';
 import 'package:finmate/features/finance_methods/presentation/screens/b7_alert_thresholds_screen.dart';
 import 'package:finmate/features/home_widget/data/widget_config_bridge.dart';
 import 'package:finmate/features/home_widget/domain/widget_config.dart';
@@ -472,6 +473,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/finance-methods/alert-thresholds',
         builder: (context, state) => const AlertThresholdsScreen(),
+      ),
+      GoRoute(
+        path: '/finance-methods/plan',
+        builder: (context, state) => const FinancialPlanScreen(),
       ),
       GoRoute(
         path: '/finance-methods/jar-detail',
