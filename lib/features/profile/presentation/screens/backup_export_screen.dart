@@ -93,7 +93,7 @@ class _BackupExportScreenState extends ConsumerState<BackupExportScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(color: AppColors.secondary.withValues(alpha: 0.2), borderRadius: AppSpacing.roundedPill),
-      child: Text('Sắp có', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.slateOn(context))),
+      child: Text('Sắp có', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.slateOn(context))),
     );
   }
 
@@ -149,7 +149,7 @@ class _BackupExportScreenState extends ConsumerState<BackupExportScreen> {
               children: [
                 Icon(LucideIcons.history, size: 16, color: AppColors.textSecondary(context)),
                 const SizedBox(width: 8),
-                Expanded(child: Text('Chưa có bản sao lưu nào', style: AppTypography.caption(context).copyWith(fontSize: 12.5))),
+                Expanded(child: Text('Chưa có bản sao lưu nào', style: AppTypography.caption(context).copyWith(fontSize: 13))),
               ],
             ),
           ),
@@ -258,7 +258,7 @@ class _BackupExportScreenState extends ConsumerState<BackupExportScreen> {
           Text(
             'Xuất tệp cần máy chủ hỗ trợ nên chưa dùng được. Dữ liệu của bạn vẫn an toàn trên tài khoản FinMate.',
             textAlign: TextAlign.center,
-            style: AppTypography.caption(context).copyWith(fontSize: 11.5),
+            style: AppTypography.caption(context).copyWith(fontSize: 12),
           ),
         ],
       ),

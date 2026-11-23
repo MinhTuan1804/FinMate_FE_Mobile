@@ -105,7 +105,7 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(color: AppColors.danger.withValues(alpha: 0.16), borderRadius: AppSpacing.roundedPill),
-                child: const Text('VÙNG NGUY HIỂM', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppColors.danger, letterSpacing: 0.4)),
+                child: Text('VÙNG NGUY HIỂM', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.danger, letterSpacing: 0.4)),
               ),
             ),
           ),
@@ -151,7 +151,7 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(color: AppColors.danger.withValues(alpha: 0.14), borderRadius: AppSpacing.roundedPill),
-                      child: const Text('Không hoàn tác', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppColors.danger)),
+                      child: Text('Không hoàn tác', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.danger)),
                     ),
                   ],
                 ),
@@ -184,7 +184,7 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
                                 child: Icon(item.icon, size: 18, color: AppColors.danger),
                               ),
                               const SizedBox(width: 12),
-                              Expanded(child: Text(item.text, style: AppTypography.body(context).copyWith(fontSize: 13.5, fontWeight: FontWeight.w600))),
+                              Expanded(child: Text(item.text, style: AppTypography.body(context).copyWith(fontSize: 14, fontWeight: FontWeight.w600))),
                               const Icon(LucideIcons.x, size: 16, color: AppColors.danger),
                             ],
                           ),
@@ -208,9 +208,9 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text('Xác nhận hành động xóa', style: AppTypography.h2(context).copyWith(fontSize: 17, fontWeight: FontWeight.w700)),
+                    Text('Xác nhận hành động xóa', style: AppTypography.h2(context).copyWith(fontSize: 18, fontWeight: FontWeight.w700)),
                     const SizedBox(height: 6),
-                    Text('Để đảm bảo an toàn, hãy gõ chính xác dòng chữ "XÓA TÀI KHOẢN" và nhập mật khẩu đăng nhập của bạn.', style: AppTypography.caption(context).copyWith(fontSize: 12.5)),
+                    Text('Để đảm bảo an toàn, hãy gõ chính xác dòng chữ "XÓA TÀI KHOẢN" và nhập mật khẩu đăng nhập của bạn.', style: AppTypography.caption(context).copyWith(fontSize: 13)),
                     const SizedBox(height: 12),
                     TextFormField(
                       key: const ValueKey('delete-phrase'),
@@ -240,7 +240,7 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
                       controlAffinity: ListTileControlAffinity.leading,
                       value: _acknowledged,
                       onChanged: (v) => setState(() => _acknowledged = v ?? false),
-                      title: Text('Tôi hiểu rằng các dữ liệu tài chính của tôi sẽ biến mất vĩnh viễn.', style: AppTypography.caption(context).copyWith(fontSize: 12.5)),
+                      title: Text('Tôi hiểu rằng các dữ liệu tài chính của tôi sẽ biến mất vĩnh viễn.', style: AppTypography.caption(context).copyWith(fontSize: 13)),
                     ),
                   ],
                 ),

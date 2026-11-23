@@ -7,4 +7,6 @@
     <color name="widget_chip_bg">#E2E8F0</color>
     <color name="widget_on_primary">#FFFFFF</color>
     <color name="widget_safe">#15803D</color>
+    <!-- Màu nhấn của icon push FCM trên thanh thông báo: GlassColors.accentSkyBlue -->
+    <color name="push_accent">#7CA9D6</color>
 </resources>

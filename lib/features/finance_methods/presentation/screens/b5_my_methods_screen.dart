@@ -740,7 +740,7 @@ class _StepsCard extends StatelessWidget {
                       '${i + 1}',
                       style: GlassTypography.labelCaps(
                         color: GlassColors.slateAnchor,
-                      ).copyWith(fontSize: 10),
+                      ).copyWith(fontSize: 12),
                     ),
                   ),
                   const SizedBox(width: 10),

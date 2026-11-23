@@ -155,7 +155,7 @@ class UserBubble extends StatelessWidget {
                       Text(
                         time!,
                         style: TextStyle(
-                          fontSize: 10,
+                          fontSize: 12,
                           color: onAction.withValues(alpha: 0.7),
                         ),
                       ),
@@ -368,7 +368,7 @@ class SavedCardView extends ConsumerWidget {
                       ),
                       Text(
                         _dateLabel(tx.date) ?? 'Hôm nay',
-                        style: secondary.copyWith(fontSize: 10),
+                        style: secondary.copyWith(fontSize: 12),
                       ),
                     ],
                   ),
@@ -1420,7 +1420,7 @@ class AgentCardView extends ConsumerWidget {
               style: AppTypography.tabular(AppTypography.bodyMedium(context))
                   .copyWith(
                     fontWeight: FontWeight.w800,
-                    fontSize: 17,
+                    fontSize: 18,
                     color: valueColor,
                   ),
             ),
@@ -1976,7 +1976,7 @@ class ErrorNoteView extends StatelessWidget {
           Expanded(
             child: Text(
               note.message,
-              style: const TextStyle(color: AppColors.danger, fontSize: 13),
+              style: TextStyle(color: AppColors.danger, fontSize: 13),
             ),
           ),
           if (note.retryText != null)

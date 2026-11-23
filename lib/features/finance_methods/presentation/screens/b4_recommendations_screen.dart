@@ -354,7 +354,7 @@ class _AllocationRow extends StatelessWidget {
                 height: 24,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(color: GlassColors.accentSkyBlue.withValues(alpha: 0.25), shape: BoxShape.circle),
-                child: Text('$index', style: GlassTypography.labelCaps(color: GlassColors.slateAnchor).copyWith(fontSize: 10)),
+                child: Text('$index', style: GlassTypography.labelCaps(color: GlassColors.slateAnchor).copyWith(fontSize: 12)),
               ),
               const SizedBox(width: 8),
               Expanded(

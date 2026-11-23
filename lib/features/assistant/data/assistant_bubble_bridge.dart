@@ -17,7 +17,7 @@ typedef AssistantBubbleStatus = ({
 /// Cầu nối tới bong bóng FinMate AI kiểu Messenger (Bubbles API, Android 11+).
 /// Nền tảng không có kênh (iOS, test) coi như không hỗ trợ thay vì ném lỗi.
 class AssistantBubbleBridge {
-  AssistantBubbleBridge([MethodChannel? channel]) : _channel = channel ?? const MethodChannel('com.example.finmate/assistant_bubble');
+  AssistantBubbleBridge([MethodChannel? channel]) : _channel = channel ?? const MethodChannel('com.finmate.app/assistant_bubble');
 
   final MethodChannel _channel;
 

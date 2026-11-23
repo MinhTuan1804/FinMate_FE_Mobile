@@ -67,7 +67,7 @@ class _LegalDocumentScreenState extends ConsumerState<LegalDocumentScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(title),
-            Text('Phiên bản ${ConsentVersions.terms}', style: AppTypography.caption(context).copyWith(fontSize: 11)),
+            Text('Phiên bản ${ConsentVersions.terms}', style: AppTypography.caption(context).copyWith(fontSize: 12)),
           ],
         ),
         leading: Padding(
@@ -135,7 +135,7 @@ class _LegalDocumentScreenState extends ConsumerState<LegalDocumentScreen> {
                         const SizedBox(height: 2),
                         Text(
                           'FinMate không lưu mật khẩu ngân hàng hay mã OTP của bạn, và chỉ gửi dữ liệu cho AI khi bạn đồng ý.',
-                          style: AppTypography.caption(context).copyWith(fontSize: 12.5),
+                          style: AppTypography.caption(context).copyWith(fontSize: 13),
                         ),
                       ],
                     ),
@@ -164,7 +164,7 @@ class _LegalDocumentScreenState extends ConsumerState<LegalDocumentScreen> {
                           decoration: BoxDecoration(color: AppColors.secondary.withValues(alpha: 0.2), borderRadius: AppSpacing.roundedPill),
                           child: Text(
                             'MỤC ${(i + 1).toString().padLeft(2, '0')}',
-                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.slateOn(context), letterSpacing: 0.5),
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.slateOn(context), letterSpacing: 0.5),
                           ),
                         ),
                         const SizedBox(height: 8),

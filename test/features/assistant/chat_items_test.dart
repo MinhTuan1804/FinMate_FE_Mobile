@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:finmate/features/assistant/data/assistant_repository.dart';
+import 'package:finmate/features/assistant/domain/agent_answer.dart';
 import 'package:finmate/features/assistant/domain/assistant_models.dart';
 import 'package:finmate/features/assistant/presentation/controllers/assistant_controller.dart';
 import '../../fixtures/fixture.dart';
@@ -23,6 +24,18 @@ class _Repo extends AssistantRepository {
   final List<String> sent = [];
   final List<Map<String, dynamic>?> contexts = [];
 
+  @override
+  Future<AgentAnswer> askAgent(String question) async => AgentAnswer.fromJson({
+        'status': 'answered',
+        'claims': [{'text': 'Số dư mỗi tháng khoảng 14.500.000 đồng.', 'evidenceIds': ['capacity_base']}],
+        'evidence': [
+          {'id': 'income_declared', 'key': 'income_declared', 'valueVnd': 17000000, 'text': 'Thu nhập hằng tháng bạn đã khai', 'unit': 'VND', 'source': 'user_entered', 'asOf': '2026-11-20T10:00:00+07:00', 'confidence': 1.0},
+          {'id': 'spend_declared', 'key': 'spend_declared', 'valueVnd': 2500000, 'text': 'Mức chi chọn trong khảo sát', 'unit': 'VND', 'source': 'estimated', 'asOf': '2026-11-20T10:00:00+07:00', 'confidence': 0.5},
+          {'id': 'prelim_note', 'key': 'goal_plan_preliminary', 'text': 'Chỉ để tham khảo: mới dựa trên thu nhập bạn khai.', 'unit': 'label', 'source': 'estimated', 'asOf': '2026-11-20T10:00:00+07:00', 'confidence': 0.3},
+        ],
+        'suggestedActions': [],
+      });
+
   _Repo(this.replies) : super(apiClient: testApiClient(RouteAdapter((o) => respondJson({'success': true}))));
 
   @override
@@ -38,10 +51,13 @@ void main() {
   late List<ChatItemDraft> undone;
   late List<BigInt> updated;
   late List<ChatItemDraft> repaid;
+  late List<NamedItem> found;
+  late List<String> namedLog;
 
   AssistantController controller(_Repo repo, {bool withCreate = true, bool fails = false, bool missing = false, bool repayFails = false}) => AssistantController(
         repository: repo,
         retryEvery: null,
+        findItems: (op) async => found,
         repayLoan: (item) async {
           if (repayFails) throw StateError('Khoản này đã trả hết');
           repaid.add(item);
@@ -65,6 +81,8 @@ void main() {
     undone = [];
     updated = [];
     repaid = [];
+    found = [];
+    namedLog = [];
   });
 
   test('đọc phản hồi item: đủ trường; thiếu số tiền hoặc thiếu item thì chỉ là câu trả lời văn bản', () {
@@ -218,6 +236,100 @@ void main() {
     c.declineRepayment(second.id);
     expect(c.state.messages.whereType<ItemCard>().last.status, ItemCardStatus.declined);
     expect(repaid, isEmpty);
+  });
+
+  NamedItem named(String label, {int cents = 2000000}) => NamedItem(
+        kind: 'budget',
+        label: label,
+        amountCents: BigInt.from(cents),
+        update: (c) async {
+          namedLog.add('update:$c');
+          return 'Đã đổi $label thành $c.';
+        },
+        delete: () async => namedLog.add('delete:$label'),
+      );
+
+  Map<String, dynamic> namedReply(String operation, {int cents = 0}) => {
+        'action': 'item',
+        'intent': 'create_item',
+        'item': {'kind': 'any', 'amountCents': cents, 'name': 'Netflix', 'operation': operation},
+      };
+
+  test('sửa theo tên: tìm thấy đúng một mục thì đổi ngay, Hoàn tác trả về số cũ', () async {
+    found = [named('ngân sách Ăn uống')];
+    final c = controller(_Repo([namedReply('update_named', cents: 3000000)]));
+
+    await c.send('tăng ngân sách ăn uống lên 3 triệu');
+
+    expect(namedLog, ['update:3000000']);
+    final card = c.state.messages.whereType<ItemCard>().single;
+    expect(card.status, ItemCardStatus.created);
+    await c.undoItem(card.id);
+    expect(namedLog, ['update:3000000', 'update:2000000']);
+  });
+
+  test('xóa theo tên: luôn hỏi xác nhận; đồng ý mới xóa, không thì không xóa gì', () async {
+    found = [named('khoản định kỳ "Netflix"')];
+    final c = controller(_Repo([namedReply('delete_named'), namedReply('delete_named')]));
+
+    await c.send('xóa gói Netflix');
+    var card = c.state.messages.whereType<ItemCard>().single;
+    expect(card.status, ItemCardStatus.needsConfirm);
+    expect(card.question, contains('Netflix'));
+    expect(namedLog, isEmpty);
+    await c.confirmRepayment(card.id);
+    expect(namedLog, ['delete:khoản định kỳ "Netflix"']);
+    expect(c.state.messages.whereType<ItemCard>().single.summary, contains('Đã xóa'));
+
+    await c.send('xóa gói Netflix');
+    card = c.state.messages.whereType<ItemCard>().last;
+    c.declineRepayment(card.id);
+    expect(c.state.messages.whereType<ItemCard>().last.status, ItemCardStatus.declined);
+    expect(namedLog, hasLength(1));
+  });
+
+  test('không thấy hoặc nhiều mục khớp: nói rõ, không sửa gì', () async {
+    final c = controller(_Repo([namedReply('update_named', cents: 300000), namedReply('update_named', cents: 300000)]));
+
+    await c.send('đổi khoản Netflix thành 300k');
+    expect(c.state.messages.whereType<AssistantText>().last.text, contains('không thấy mục nào tên "Netflix"'));
+
+    found = [named('ngân sách A'), named('khoản B')];
+    await c.send('đổi khoản Netflix thành 300k');
+    expect(c.state.messages.whereType<AssistantText>().last.text, allOf(contains('2 mục'), contains('ngân sách A')));
+    expect(namedLog, isEmpty);
+  });
+
+  test('ngân sách tổng và thu nhập định kỳ là việc tạo thường: tạo ngay, nhớ làm ngữ cảnh', () async {
+    final repo = _Repo([
+      {'action': 'item', 'intent': 'create_item', 'item': {'kind': 'budget_total', 'amountCents': 15000000}},
+      {'action': 'item', 'intent': 'create_item', 'item': {'kind': 'recurring', 'amountCents': 15000000, 'name': 'Lương', 'cadence': 'monthly', 'nextDue': '2026-12-05', 'direction': 'inflow'}},
+    ]);
+    final c = controller(repo);
+
+    await c.send('đặt ngân sách tổng 15 triệu');
+    await c.send('lương 15 triệu hằng tháng ngày 5');
+
+    expect(created.map((i) => (i.kind, i.direction)), [('budget_total', null), ('recurring', 'inflow')]);
+    expect(repo.contexts.last, containsPair('kind', 'budget_total'));
+  });
+
+  test('xin giải thích số: đọc bằng chứng của câu trả lời agent gần nhất, không gọi AI; chưa có câu trả lời thì nói rõ', () async {
+    final repo = _Repo([
+      {'action': 'reply', 'intent': 'explain_numbers'},
+      {'action': 'reply', 'intent': 'ask_agent'},
+      {'action': 'reply', 'intent': 'explain_numbers'},
+    ]);
+    final c = controller(repo);
+
+    await c.send('số này tính thế nào');
+    expect(c.state.messages.whereType<AssistantText>().last.text, contains('chưa có con số nào'));
+
+    await c.send('đặt mục tiêu mua nhà');
+    await c.send('vì sao ô số dư ra 14,5 triệu?');
+
+    final text = c.state.messages.whereType<AssistantText>().last.text;
+    expect(text, allOf(contains('Thu nhập hằng tháng bạn đã khai: 17.000.000'), contains('do bạn nhập hoặc khai'), contains('Mức chi chọn trong khảo sát: 2.500.000'), contains('ước tính'), contains('Chỉ để tham khảo')));
   });
 
   test('app không tạo được loại này: nói thẳng, không hiện thẻ', () async {

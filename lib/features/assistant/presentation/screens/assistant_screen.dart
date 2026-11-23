@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:finmate/core/theme/app_colors.dart';
+import 'package:finmate/shared/widgets/permission_prompt.dart';
 import 'package:finmate/core/theme/app_spacing.dart';
 import 'package:finmate/core/theme/app_typography.dart';
 import 'package:finmate/core/widgets/glass/liquid_glass.dart';
@@ -98,8 +99,12 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
     }
     switch (await recorder.start()) {
       case VoiceStart.denied:
-        _snack(
-          'Cần quyền micro để ghi âm. Vào Cài đặt > Ứng dụng > FinMate > Quyền > Micro để bật.',
+        if (!mounted) return;
+        await showPermissionSettingsDialog(
+          context,
+          ref,
+          title: 'Cần quyền micro',
+          message: 'FinMate cần micro để nghe bạn nói và ghi giao dịch bằng giọng nói. Hãy bật quyền Micro trong Cài đặt nếu muốn dùng chức năng này.',
         );
         return;
       case VoiceStart.failed:
@@ -224,8 +229,12 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
       if (path == null || !mounted) return;
       controller.scanReceipt(path);
     } on ImageSourceException catch (e) {
-      _snack(
-        '${e.message} Bạn có thể bật quyền trong Cài đặt > Ứng dụng > FinMate > Quyền.',
+      if (!mounted) return;
+      await showPermissionSettingsDialog(
+        context,
+        ref,
+        title: 'Cần cấp quyền',
+        message: '${e.message} Hãy bật quyền trong Cài đặt nếu muốn dùng chức năng này.',
       );
     }
   }
@@ -432,7 +441,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
                                 overflow: TextOverflow.ellipsis,
                                 style: AppTypography.bodyLarge(context)
                                     .copyWith(
-                                      fontSize: 17,
+                                      fontSize: 18,
                                       fontWeight: FontWeight.w700,
                                       letterSpacing: -0.4,
                                       height: 1.3,

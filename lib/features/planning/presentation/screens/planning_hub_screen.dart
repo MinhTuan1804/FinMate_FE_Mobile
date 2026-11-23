@@ -395,7 +395,7 @@ class _PillarCard extends StatelessWidget {
                         child: Text(
                           footValue!,
                           textAlign: TextAlign.right,
-                          style: GlassTypography.labelNumeric().copyWith(fontSize: 14, fontWeight: FontWeight.w700),
+                          style: GlassTypography.labelNumeric().copyWith(fontSize: 14, fontWeight: FontWeight.w700, fontVariations: [FontVariation('wght', FontWeight.w700.value.toDouble())]),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),

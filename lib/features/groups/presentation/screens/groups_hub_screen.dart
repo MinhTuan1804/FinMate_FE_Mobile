@@ -141,7 +141,7 @@ class _GroupsHubScreenState extends ConsumerState<GroupsHubScreen> {
                       Text(
                         'QUẢN LÝ QUỸ & CHIA TIỀN TỰ ĐỘNG',
                         style: AppTypography.caption(context).copyWith(
-                          fontSize: 11.5,
+                          fontSize: 11,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 0.4,
                         ),
@@ -150,7 +150,7 @@ class _GroupsHubScreenState extends ConsumerState<GroupsHubScreen> {
                       Text(
                         'Minh bạch mọi chi phí nhóm',
                         style: AppTypography.h1(context).copyWith(
-                          fontSize: 22,
+                          fontSize: 20,
                           fontWeight: FontWeight.w800,
                         ),
                       ),

@@ -75,7 +75,7 @@ class GlassBottomNav extends StatelessWidget {
                 child: Text(
                   tab.label,
                   maxLines: 1,
-                  style: GlassTypography.labelCaps(color: selected ? GlassColors.slateAnchor : GlassColors.textMuted).copyWith(fontSize: 10, fontWeight: FontWeight.w600),
+                  style: GlassTypography.labelCaps(color: selected ? GlassColors.slateAnchor : GlassColors.textMuted).copyWith(fontSize: 11, fontWeight: FontWeight.w600),
                 ),
               ),
             ],
@@ -109,7 +109,7 @@ class GlassBottomNav extends StatelessWidget {
               const SizedBox(height: 2),
               FittedBox(
                 fit: BoxFit.scaleDown,
-                child: Text('Quét QR', maxLines: 1, style: GlassTypography.labelCaps(color: GlassColors.textPrimary).copyWith(fontSize: 10, fontWeight: FontWeight.w600)),
+                child: Text('Quét QR', maxLines: 1, style: GlassTypography.labelCaps(color: GlassColors.textPrimary).copyWith(fontSize: 11, fontWeight: FontWeight.w600)),
               ),
             ],
           ),

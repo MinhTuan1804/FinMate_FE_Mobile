@@ -269,7 +269,7 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: AppTypography.bodyLarge(context).copyWith(
-                fontSize: 17,
+                fontSize: 18,
                 fontWeight: FontWeight.w600,
                 letterSpacing: -0.4,
               ),
@@ -419,7 +419,7 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
                           const SizedBox(width: 8),
                           Text(
                             formatVnd(acc.balanceCents),
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontWeight: FontWeight.w500,
                               fontSize: 13,
                             ),
@@ -462,7 +462,7 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
                   onChanged: (_) => setState(() {}),
                   style: AppTypography.tabular(
                     AppTypography.h1(context).copyWith(
-                      fontSize: 30,
+                      fontSize: 32,
                       height: 1.25,
                       letterSpacing: -0.75,
                     ),
@@ -669,7 +669,7 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
                   Text(
                     'FINMATE THÔNG MINH',
                     style: AppTypography.caption(context).copyWith(
-                      fontSize: 11,
+                      fontSize: 12,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 0.55,
                       color: AppColors.slateOn(context),
@@ -717,7 +717,7 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
                       _isLoading ? 'Đang xử lý...' : 'Xác nhận chuyển ví',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
                       ),
@@ -736,7 +736,7 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
               minimumSize: const Size.fromHeight(44),
               foregroundColor: AppColors.textSecondary(context),
             ),
-            child: const Text(
+            child: Text(
               'Hủy bỏ',
               style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
             ),

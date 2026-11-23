@@ -44,7 +44,7 @@ class _FakeAndroid {
 }
 
 void main() {
-  const channel = MethodChannel('com.example.finmate/assistant_bubble');
+  const channel = MethodChannel('com.finmate.app/assistant_bubble');
 
   Future<_FakeAndroid> pump(WidgetTester tester, _FakeAndroid android) async {
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, android.handle);

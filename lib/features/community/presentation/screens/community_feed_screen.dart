@@ -166,7 +166,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
                       Text(
                         'DIỄN ĐÀN NGƯỜI DÙNG FINMATE',
                         style: AppTypography.caption(context).copyWith(
-                          fontSize: 11.5,
+                          fontSize: 11,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 0.4,
                         ),
@@ -175,7 +175,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
                       Text(
                         'Cùng nhau làm chủ tài chính',
                         style: AppTypography.h1(context).copyWith(
-                          fontSize: 22,
+                          fontSize: 20,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
@@ -210,7 +210,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
                               backgroundColor: AppColors.secondary.withValues(alpha: 0.2),
                               child: Text(
                                 post.authorName[0],
-                                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
                               ),
                             ),
                             const SizedBox(width: 10),
@@ -240,7 +240,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
                               ),
                               child: Text(
                                 post.tag,
-                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
                               ),
                             ),
                           ],
@@ -249,7 +249,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
                         Text(
                           post.content,
                           style: AppTypography.body(context).copyWith(
-                            fontSize: 13.5,
+                            fontSize: 14,
                             height: 1.45,
                             color: AppColors.textPrimary(context),
                           ),
@@ -273,7 +273,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
                                     Text(
                                       '${post.likeCount}',
                                       style: TextStyle(
-                                        fontSize: 12.5,
+                                        fontSize: 13,
                                         fontWeight: FontWeight.w600,
                                         color: post.isLiked ? AppColors.danger : AppColors.textMuted(context),
                                       ),
@@ -290,7 +290,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
                                 Text(
                                   '${post.commentCount}',
                                   style: TextStyle(
-                                    fontSize: 12.5,
+                                    fontSize: 13,
                                     fontWeight: FontWeight.w600,
                                     color: AppColors.textMuted(context),
                                   ),

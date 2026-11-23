@@ -230,7 +230,7 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
                                 Text(
                                   'Đội ngũ hỗ trợ FinMate',
                                   style: AppTypography.h2(context).copyWith(
-                                    fontSize: 17,
+                                    fontSize: 18,
                                     fontWeight: FontWeight.w800,
                                   ),
                                 ),
@@ -282,7 +282,7 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
                             Text(
                               ticket.id,
                               style: TextStyle(
-                                fontSize: 11.5,
+                                fontSize: 12,
                                 fontWeight: FontWeight.w800,
                                 color: AppColors.textMuted(context),
                               ),
@@ -315,7 +315,7 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
                           ticket.title,
                           style: AppTypography.body(context).copyWith(
                             fontWeight: FontWeight.w700,
-                            fontSize: 14.5,
+                            fontSize: 15,
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -324,7 +324,7 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: AppTypography.caption(context).copyWith(
-                            fontSize: 12.5,
+                            fontSize: 13,
                             color: AppColors.textSecondary(context),
                           ),
                         ),
@@ -338,9 +338,9 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
                               ).format(ticket.createdAt),
                               style: AppTypography.caption(
                                 context,
-                              ).copyWith(fontSize: 11.5),
+                              ).copyWith(fontSize: 12),
                             ),
-                            const Row(
+                            Row(
                               children: [
                                 Text(
                                   'Xem chi tiết',

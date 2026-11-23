@@ -175,7 +175,7 @@ class _SupportTicketDetailScreenState
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: AppTypography.bodyLarge(context).copyWith(
-                          fontSize: 17,
+                          fontSize: 18,
                           fontWeight: FontWeight.w600,
                           letterSpacing: -0.4,
                         ),

@@ -12,6 +12,20 @@
         android:name="${applicationName}"
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher">
+        <!-- BE gửi push theo Firebase Installation ID (FirebaseAdmin Fids): bật register()/onRegistered của firebase_messaging. -->
+        <meta-data
+            android:name="firebase_messaging_installation_id_enabled"
+            android:value="true" />
+        <!-- Giao diện push FCM khi app nền/tắt (Android tự vẽ): icon ví một màu, màu nhấn, kênh "Giao dịch" tạo ở MainActivity. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_stat_finmate" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/push_accent" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="finmate_transactions" />
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -71,7 +85,7 @@
             android:name=".bubble.AssistantOverlayActivity"
             android:exported="false"
             android:theme="@style/AssistantOverlayTheme"
-            android:taskAffinity="com.example.finmate.assistant_overlay"
+            android:taskAffinity="com.finmate.app.assistant_overlay"
             android:launchMode="singleTask"
             android:excludeFromRecents="true"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"

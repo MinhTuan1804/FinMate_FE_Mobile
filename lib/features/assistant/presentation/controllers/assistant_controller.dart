@@ -134,6 +134,21 @@ class ItemOutcome {
   const ItemOutcome(this.summary, this.undo, {this.update});
 }
 
+/// Một mục ĐÃ CÓ (ngân sách / khoản định kỳ / khoản vay nợ) tìm thấy theo tên để sửa hoặc xóa bằng chat.
+class NamedItem {
+  final String kind;
+
+  /// Mô tả cho người dùng, ví dụ `ngân sách Ăn uống 2.000.000 ₫/tháng`
+  final String label;
+  final BigInt amountCents;
+
+  /// Đổi số tiền, trả câu báo kết quả; null = loại này chưa sửa được từ chat
+  final Future<String> Function(BigInt cents)? update;
+  final Future<void> Function() delete;
+
+  const NamedItem({required this.kind, required this.label, required this.amountCents, this.update, required this.delete});
+}
+
 /// Việc vừa tạo trong phiên này: để hiểu câu nối tiếp ("xóa cái đó", "đổi thành 3 triệu", "còn di chuyển 1 triệu"). Chỉ nằm trong bộ nhớ của phiên, mất khi đóng app hoặc đăng xuất.
 class _RecentItem {
   ChatItemDraft draft;
@@ -368,6 +383,7 @@ final assistantControllerProvider =
               .read(planningControllerProvider.notifier)
               .createOrUpdateBudget(categoryId: category.id, limitAmountCents: limitCents);
         },
+        findItems: (op) => _findNamedItems(ref, op),
         repayLoan: (item) async {
           final loan = await ref
               .read(loansRepositoryProvider)
@@ -384,6 +400,7 @@ final assistantControllerProvider =
           ChatItemDraft.budget => _createBudgetItem(ref, item, createCategory: createCategory),
           ChatItemDraft.recurring => _createRecurringItem(ref, item),
           ChatItemDraft.loan => _createLoanItem(ref, item),
+          ChatItemDraft.budgetTotal => _createBudgetTotalItem(ref, item),
           _ => throw StateError('Loại này app chưa tạo được từ chat.'),
         },
         onDataChanged: () {
@@ -457,8 +474,9 @@ Future<ItemOutcome> _createRecurringItem(Ref ref, ChatItemDraft item) async {
   final repository = ref.read(recurringItemsRepositoryProvider);
   final cadence = RecurringCadence.values.where((c) => c.name == item.cadence).firstOrNull ?? RecurringCadence.monthly;
   final name = item.name ?? 'Khoản định kỳ';
+  final inflow = item.direction == 'inflow';
   final created = await repository.createItem(
-    direction: RecurringDirection.outflow,
+    direction: inflow ? RecurringDirection.inflow : RecurringDirection.outflow,
     name: name,
     amountCents: item.amountCents,
     cadence: cadence,
@@ -466,7 +484,7 @@ Future<ItemOutcome> _createRecurringItem(Ref ref, ChatItemDraft item) async {
   );
   ref.invalidate(recurringItemsControllerProvider);
   return ItemOutcome(
-    'Đã lưu khoản định kỳ "$name": ${formatVnd(item.amountCents)} ${cadence.label.toLowerCase()}, lần tới ${DateFormat('dd/MM/yyyy').format(due)}.',
+    'Đã lưu khoản ${inflow ? 'thu' : 'chi'} định kỳ "$name": ${formatVnd(item.amountCents)} ${cadence.label.toLowerCase()}, lần tới ${DateFormat('dd/MM/yyyy').format(due)}.',
     () async {
       await repository.cancel(created.id);
       ref.invalidate(recurringItemsControllerProvider);
@@ -512,6 +530,131 @@ Future<ItemOutcome> _createLoanItem(Ref ref, ChatItemDraft item) async {
   );
 }
 
+/// Khớp tên không phân biệt hoa thường và dấu; một tên chứa tên kia cũng khớp ("Netflix" với "Gói Netflix").
+bool _nameMatches(String candidate, String said) {
+  final a = _foldName(candidate);
+  final b = _foldName(said);
+  return b.isNotEmpty && a.isNotEmpty && (a == b || a.contains(b) || b.contains(a));
+}
+
+/// Các mục đã có của CHÍNH người dùng khớp tên trong câu sửa/xóa: ngân sách nhóm, khoản định kỳ đang chạy, khoản vay nợ (theo loại câu nói; `any` thì tìm cả ba).
+Future<List<NamedItem>> _findNamedItems(Ref ref, ChatItemDraft op) async {
+  final said = op.name ?? '';
+  final found = <NamedItem>[];
+  final all = op.kind == ChatItemDraft.any;
+
+  if (all || op.kind == ChatItemDraft.budget) {
+    final planning = ref.read(planningControllerProvider.notifier);
+    var budgets = ref.read(planningControllerProvider).valueOrNull?.categoryBudgets ?? const [];
+    if (budgets.isEmpty) {
+      await planning.loadPlanningData(silent: true);
+      budgets = ref.read(planningControllerProvider).valueOrNull?.categoryBudgets ?? const [];
+    }
+    final categories = await ref.read(allCategoriesProvider.future);
+    final slugId = op.categorySlug == null ? null : categories.where((c) => c.slug == op.categorySlug).firstOrNull?.id;
+    for (final b in budgets) {
+      if (_nameMatches(b.category, said) || (slugId != null && b.categoryId == slugId)) {
+        found.add(
+          NamedItem(
+            kind: ChatItemDraft.budget,
+            label: 'ngân sách ${b.category} ${formatVnd(b.limitAmountCents)}/tháng',
+            amountCents: b.limitAmountCents,
+            update: (cents) async {
+              await planning.createOrUpdateBudget(categoryId: b.categoryId, limitAmountCents: cents);
+              return 'Đã đổi hạn mức ngân sách ${b.category} thành ${formatVnd(cents)}/tháng.';
+            },
+            delete: () => planning.deleteBudget(b.id),
+          ),
+        );
+      }
+    }
+  }
+
+  if (all || op.kind == ChatItemDraft.recurring) {
+    final repository = ref.read(recurringItemsRepositoryProvider);
+    for (final r in await repository.getItems(status: RecurringStatus.active)) {
+      if (_nameMatches(r.name, said)) {
+        found.add(
+          NamedItem(
+            kind: ChatItemDraft.recurring,
+            label: 'khoản định kỳ "${r.name}" ${formatVnd(r.amountCents)} ${r.cadence.label.toLowerCase()}',
+            amountCents: r.amountCents,
+            update: (cents) async {
+              await repository.updateItem(id: r.id, amountCents: cents);
+              ref.invalidate(recurringItemsControllerProvider);
+              return 'Đã đổi số tiền khoản "${r.name}" thành ${formatVnd(cents)}.';
+            },
+            delete: () async {
+              await repository.cancel(r.id);
+              ref.invalidate(recurringItemsControllerProvider);
+            },
+          ),
+        );
+      }
+    }
+  }
+
+  if (all || op.kind == ChatItemDraft.loan) {
+    final repository = ref.read(loansRepositoryProvider);
+    for (final l in await repository.getLoans()) {
+      if (_nameMatches(l.counterparty, said) || _nameMatches(l.title, said)) {
+        found.add(
+          NamedItem(
+            kind: ChatItemDraft.loan,
+            label: 'khoản ${l.type == LoanType.lend ? '${l.counterparty} nợ bạn' : 'bạn nợ ${l.counterparty}'} ${formatVnd(l.principalCents)}',
+            amountCents: l.principalCents,
+            update: (cents) async {
+              await repository.updateLoan(
+                id: l.id,
+                type: l.type,
+                title: l.title,
+                counterparty: l.counterparty,
+                principalCents: cents,
+                interestRateYear: l.interestRateYear,
+                dueDate: l.dueDate,
+                startDate: l.startDate,
+              );
+              ref.invalidate(loansProvider);
+              return 'Đã sửa khoản vay nợ với ${l.counterparty} thành ${formatVnd(cents)}.';
+            },
+            delete: () async {
+              await repository.deleteLoan(l.id);
+              ref.invalidate(loansProvider);
+            },
+          ),
+        );
+      }
+    }
+  }
+  return found;
+}
+
+/// Đặt ngân sách TỔNG của tháng (không gắn nhóm). Đã có thì đổi hạn mức (hoàn tác trả về mức cũ), chưa có thì tạo (hoàn tác xóa).
+Future<ItemOutcome> _createBudgetTotalItem(Ref ref, ChatItemDraft item) async {
+  final planning = ref.read(planningControllerProvider.notifier);
+  dynamic overall() => ref.read(planningControllerProvider).valueOrNull?.overallBudget;
+  final previous = overall();
+  await planning.createOrUpdateBudget(categoryId: null, limitAmountCents: item.amountCents);
+  final summary = previous == null
+      ? 'Đã đặt ngân sách tổng ${formatVnd(item.amountCents)}/tháng.'
+      : 'Đã đổi ngân sách tổng từ ${formatVnd(previous.limitAmountCents)} thành ${formatVnd(item.amountCents)}/tháng.';
+  return ItemOutcome(
+    summary,
+    () async {
+      if (previous != null) {
+        await planning.createOrUpdateBudget(categoryId: null, limitAmountCents: previous.limitAmountCents);
+        return;
+      }
+      final created = overall();
+      if (created != null) await planning.deleteBudget(created.id);
+    },
+    update: (cents) async {
+      await planning.createOrUpdateBudget(categoryId: null, limitAmountCents: cents);
+      return 'Đã đổi ngân sách tổng thành ${formatVnd(cents)}/tháng.';
+    },
+  );
+}
+
 class _FailedVoice {
   final String path;
   final String requestId;
@@ -538,6 +681,9 @@ const _purchaseNeedsAmount = 'purchase_needs_amount';
 
 /// `intent` của server cho câu tạo ngân sách / khoản định kỳ / vay nợ (có `item` khi đủ thông tin, không thì `replyText` là câu hỏi lại)
 const _createItemIntent = 'create_item';
+
+/// `intent` của server khi người dùng xin giải thích con số của câu trả lời vừa rồi ("vì sao ô số dư ra 14,5 triệu?"): app đọc bằng chứng của chính câu trả lời đó, không gọi AI
+const _explainIntent = 'explain_numbers';
 
 /// Câu trả lời cho câu hỏi lại thường ngắn; dài hơn mức này thì coi là câu mới, không ghép vào câu dở
 const _maxFollowUpLength = 40;
@@ -592,6 +738,10 @@ class AssistantController extends StateNotifier<AssistantState> {
 
   /// Ghi một lần trả nợ vào khoản vay có sẵn (`POST /loans/{id}/repayments`) rồi trả câu báo kết quả; null = app không ghi được
   final Future<String> Function(ChatItemDraft item)? repayLoan;
+
+  /// Tìm trong dữ liệu CỦA NGƯỜI DÙNG các mục khớp tên mà câu "xóa ngân sách ăn uống" / "đổi khoản Netflix thành 300k" nói tới; null = app không tìm được
+  final Future<List<NamedItem>> Function(ChatItemDraft op)? findItems;
+  final Map<int, NamedItem> _pendingDelete = {};
   final Map<int, Future<void> Function()> _itemUndo = {};
 
   /// Các việc vừa tạo (tối đa [_maxRecentItems]), mới nhất ở cuối; việc mới nhất được gửi kèm mỗi tin chat làm ngữ cảnh
@@ -632,6 +782,7 @@ class AssistantController extends StateNotifier<AssistantState> {
     this.setBudgetLimit,
     this.createItem,
     this.repayLoan,
+    this.findItems,
     Duration? retryEvery = const Duration(seconds: 30),
   }) : super(const AssistantState()) {
     if (pending != null && retryEvery != null) {
@@ -735,7 +886,9 @@ class AssistantController extends StateNotifier<AssistantState> {
         if (!mounted) return true;
         _askedPurchase = reply.intent == _purchaseNeedsAmount ? text : null;
         _askedItem = reply.intent == _createItemIntent && reply.action == ChatAction.reply ? text : null;
-        if (_wantsAgent(reply)) {
+        if (reply.intent == _explainIntent) {
+          _explainLastAnswer();
+        } else if (_wantsAgent(reply)) {
           await _answerWithAgent(text, reply, source);
         } else {
           await _present(reply, source);
@@ -1217,6 +1370,8 @@ class AssistantController extends StateNotifier<AssistantState> {
             await _presentItem(reply.item!);
           case 'repay':
             _askRepay(reply.item!);
+          case 'update_named' || 'delete_named':
+            await _applyNamed(reply.item!);
           default:
             await _applyItemOperation(reply.item!);
         }
@@ -1278,6 +1433,67 @@ class AssistantController extends StateNotifier<AssistantState> {
     if (card != null && card.status == ItemCardStatus.needsCategory) _replace(card.copyWith(status: ItemCardStatus.declined));
   }
 
+  /// Giải thích các con số của câu trả lời agent GẦN NHẤT bằng chính bằng chứng của nó (mỗi số có mô tả, nguồn); không gọi AI và không tính lại, nên không thể lệch với con số đã hiện.
+  void _explainLastAnswer() {
+    final answer = state.messages.whereType<AgentCard>().lastOrNull?.answer;
+    final numbers = (answer?.evidence ?? const <AgentEvidence>[]).where((e) => e.valueVnd != null && e.text.isNotEmpty).take(8).toList();
+    if (answer == null || numbers.isEmpty) {
+      _add(AssistantText(_nextId++, 'Mình chưa có con số nào để giải thích. Bạn hỏi mình về mục tiêu hay chi tiêu trước, rồi hỏi lại "số này tính thế nào" nhé.'));
+      return;
+    }
+    String source(String s) => switch (s) {
+      'confirmed' => 'từ giao dịch đã xác nhận',
+      'user_entered' => 'do bạn nhập hoặc khai',
+      'document' => 'từ tài liệu',
+      _ => 'ước tính',
+    };
+    final lines = [for (final e in numbers) '• ${e.text}: ${formatVnd(e.valueVnd!)} (${source(e.source)})'];
+    final note = answer.preliminaryNote;
+    _add(AssistantText(_nextId++, 'Các con số trong câu trả lời vừa rồi được tính như sau:\n${lines.join('\n')}${note == null ? '' : '\n\n$note'}'));
+  }
+
+  /// Sửa / xóa một mục đã có theo tên. Không thấy hoặc nhiều mục khớp thì nói rõ, không đoán. Sửa số tiền thì làm ngay (có Hoàn tác về số cũ); xóa thì hỏi xác nhận trước vì xóa không khôi phục được.
+  Future<void> _applyNamed(ChatItemDraft op) async {
+    final finder = findItems;
+    final said = op.name ?? '';
+    if (finder == null) {
+      _add(AssistantText(_nextId++, 'Mình hiểu rồi nhưng chưa sửa được mục này từ chat. Bạn sửa giúp mình ở tab Kế hoạch nhé.'));
+      return;
+    }
+    try {
+      final found = await finder(op);
+      if (found.isEmpty) {
+        _add(AssistantText(_nextId++, 'Mình không thấy mục nào tên "$said" trong ngân sách, khoản định kỳ hay khoản vay nợ của bạn.'));
+        return;
+      }
+      if (found.length > 1) {
+        _add(AssistantText(_nextId++, 'Mình thấy ${found.length} mục khớp "$said": ${found.map((f) => f.label).join('; ')}. Bạn nói rõ hơn giúp mình nhé.'));
+        return;
+      }
+      final item = found.single;
+      final id = _nextId++;
+      if (op.operation == 'delete_named') {
+        _pendingDelete[id] = item;
+        _add(ItemCard(id, op, status: ItemCardStatus.needsConfirm, question: 'Xóa ${item.label}?'));
+        return;
+      }
+      final update = item.update;
+      if (update == null) {
+        _add(AssistantText(_nextId++, 'Mục này mình chưa sửa được từ chat. Bạn sửa giúp mình ở tab Kế hoạch nhé.'));
+        return;
+      }
+      final previous = item.amountCents;
+      final summary = await update(op.amountCents);
+      _itemUndo[id] = () async {
+        await update(previous);
+      };
+      _add(ItemCard(id, op, status: ItemCardStatus.created, summary: summary));
+      onDataChanged?.call();
+    } catch (e) {
+      _add(AssistantText(_nextId++, 'Chưa làm được: ${e is StateError ? e.message : errorMessage(e)}'));
+    }
+  }
+
   /// Câu trả nợ khớp một khoản vay có sẵn: hỏi xác nhận trước khi ghi (lần trả không hoàn tác được và ghi cả giao dịch ví).
   void _askRepay(ChatItemDraft item) {
     final who = item.counterparty ?? '';
@@ -1300,10 +1516,23 @@ class AssistantController extends StateNotifier<AssistantState> {
   Future<void> confirmRepayment(int messageId) async {
     final card = state.messages.whereType<ItemCard>().where((m) => m.id == messageId).firstOrNull;
     final repay = repayLoan;
-    if (card == null || repay == null || card.status != ItemCardStatus.needsConfirm) return;
+    final pendingDelete = _pendingDelete[messageId];
+    if (card == null || card.status != ItemCardStatus.needsConfirm || (repay == null && pendingDelete == null)) return;
     _replace(card.copyWith(status: ItemCardStatus.saving));
+    if (pendingDelete != null) {
+      try {
+        await pendingDelete.delete();
+        _pendingDelete.remove(messageId);
+        if (!mounted) return;
+        _replace(card.copyWith(status: ItemCardStatus.undone, summary: 'Đã xóa ${pendingDelete.label}.'));
+        onDataChanged?.call();
+      } catch (e) {
+        if (mounted) _replace(card.copyWith(status: ItemCardStatus.needsConfirm, error: e is StateError ? e.message : errorMessage(e)));
+      }
+      return;
+    }
     try {
-      final summary = await repay(card.item);
+      final summary = await repay!(card.item);
       if (!mounted) return;
       _replace(card.copyWith(status: ItemCardStatus.undone, summary: summary));
       onDataChanged?.call();
@@ -1314,7 +1543,10 @@ class AssistantController extends StateNotifier<AssistantState> {
 
   void declineRepayment(int messageId) {
     final card = state.messages.whereType<ItemCard>().where((m) => m.id == messageId).firstOrNull;
-    if (card != null && card.status == ItemCardStatus.needsConfirm) _replace(card.copyWith(status: ItemCardStatus.declined, summary: 'Mình không ghi lần trả này.'));
+    if (card != null && card.status == ItemCardStatus.needsConfirm) {
+      final isDelete = _pendingDelete.remove(messageId) != null;
+      _replace(card.copyWith(status: ItemCardStatus.declined, summary: isDelete ? 'Mình không xóa gì cả.' : 'Mình không ghi lần trả này.'));
+    }
   }
 
   void _remember(ChatItemDraft item, ItemOutcome outcome, int cardId) {

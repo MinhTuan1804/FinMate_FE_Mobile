@@ -219,7 +219,7 @@ class _RecurringTransactionsScreenState extends ConsumerState<RecurringTransacti
               Text(
                 formatVnd(totalMonthly),
                 key: const ValueKey('recurring-total'),
-                style: GlassTypography.displayHero().copyWith(fontSize: 28),
+                style: GlassTypography.displayHero().copyWith(fontSize: 26),
               ),
               Padding(
                 padding: const EdgeInsets.only(bottom: 4),
@@ -247,7 +247,7 @@ class _RecurringTransactionsScreenState extends ConsumerState<RecurringTransacti
                   ],
                 ),
                 const SizedBox(height: 4),
-                Text(formatVnd(soonTotal), style: GlassTypography.labelNumeric().copyWith(fontSize: 15, fontWeight: FontWeight.w700)),
+                Text(formatVnd(soonTotal), style: GlassTypography.labelNumeric().copyWith(fontSize: 15, fontWeight: FontWeight.w700, fontVariations: [FontVariation('wght', FontWeight.w700.value.toDouble())])),
                 const SizedBox(height: 2),
                 Text(
                   soonCount == 0 ? 'Chưa có khoản nào' : '$soonCount khoản cần chú ý',

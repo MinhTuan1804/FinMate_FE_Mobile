@@ -529,7 +529,7 @@ class _TransactionReviewScreenState
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: AppTypography.bodyLarge(context).copyWith(
-                fontSize: 17,
+                fontSize: 18,
                 fontWeight: FontWeight.w600,
                 letterSpacing: -0.4,
               ),
@@ -811,7 +811,7 @@ class _TransactionReviewScreenState
                           ? 'GHI CHÚ'
                           : 'GHI CHÚ TỰ ĐỘNG',
                       style: AppTypography.caption(context).copyWith(
-                        fontSize: 11,
+                        fontSize: 12,
                         fontWeight: FontWeight.w600,
                         letterSpacing: 0.66,
                         color: AppColors.textMuted(context),
@@ -863,7 +863,7 @@ class _TransactionReviewScreenState
     final amountStyle = AppTypography.tabular(
       AppTypography.h1(
         context,
-      ).copyWith(fontSize: 30, height: 1.25, letterSpacing: -0.75),
+      ).copyWith(fontSize: 32, height: 1.25, letterSpacing: -0.75),
     );
     return Container(
       padding: const EdgeInsets.only(bottom: 16),
@@ -877,7 +877,7 @@ class _TransactionReviewScreenState
           Text(
             _isSplit ? 'TỔNG HÓA ĐƠN' : 'SỐ TIỀN TRÍCH XUẤT',
             style: AppTypography.caption(context).copyWith(
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: FontWeight.w600,
               letterSpacing: 0.55,
             ),
@@ -1076,7 +1076,7 @@ class _TransactionReviewScreenState
           const SizedBox(width: 6),
           Text(
             text,
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
           ),
         ],
       ),
@@ -1132,7 +1132,7 @@ class _TransactionReviewScreenState
                               : 'Lưu vào sổ giao dịch',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
                           ),

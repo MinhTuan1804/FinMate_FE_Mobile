@@ -127,7 +127,7 @@ class _TransactionDetailScreenState
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: AppTypography.bodyLarge(context).copyWith(
-                          fontSize: 17,
+                          fontSize: 18,
                           fontWeight: FontWeight.w600,
                           letterSpacing: -0.4,
                         ),
@@ -169,7 +169,7 @@ class _TransactionDetailScreenState
                         child: Text(
                           'Mã giao dịch: ${_tx.id.length > 8 ? _tx.id.substring(0, 8).toUpperCase() : _tx.id}',
                           style: AppTypography.caption(context).copyWith(
-                            fontSize: 11,
+                            fontSize: 12,
                             fontWeight: FontWeight.w600,
                             letterSpacing: 0.66,
                             color: AppColors.textMuted(context),
@@ -233,7 +233,7 @@ class _TransactionDetailScreenState
             style: AppTypography.tabular(
               AppTypography.h1(context).copyWith(
                 color: typeColor,
-                fontSize: 30,
+                fontSize: 32,
                 height: 1.25,
                 letterSpacing: -0.75,
               ),
@@ -261,7 +261,7 @@ class _TransactionDetailScreenState
                       ? 'Chuyển tiền nội bộ'
                       : (isDraft ? 'Chờ duyệt' : 'Hoàn tất'),
                   style: AppTypography.caption(context).copyWith(
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: FontWeight.w600,
                     letterSpacing: 0.66,
                     color: AppColors.textPrimary(context),
@@ -305,7 +305,7 @@ class _TransactionDetailScreenState
                 Text(
                   'Ghi nhận bởi FinMate AI',
                   style: AppTypography.caption(context).copyWith(
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: FontWeight.w600,
                     letterSpacing: 0.66,
                   ),
@@ -478,7 +478,7 @@ class _TransactionDetailScreenState
           const SizedBox(width: 6),
           Text(
             text,
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
           ),
         ],
       ),
@@ -494,7 +494,7 @@ class _TransactionDetailScreenState
             backgroundColor: AppColors.primaryAction(context),
             foregroundColor: AppColors.onPrimaryAction(context),
           ),
-          child: const Row(
+          child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(LucideIcons.pencil, size: 14),
@@ -536,15 +536,26 @@ class _TransactionDetailScreenState
     );
   }
 
-  /// Tên ví thay cho mã (UUID); ví đã xóa hoặc chưa tải được thì ghi rõ thay vì lộ mã.
+  bool _reloadedAccounts = false;
+
+  /// Tên ví thay cho mã (UUID). Ví do máy chủ tự tạo lúc có thông báo đầu tiên, nên danh sách đã tải trong máy có thể chưa có nó, và mỗi lần `load()` danh sách trống
+  /// trong lúc tải: chưa thấy ví thì tải lại MỘT lần và hiện "Đang tải…", chỉ ghi "Không xác định" khi danh sách mới vẫn không có (ví đã xóa).
   String _accountName() {
     if (_tx.accountId.isEmpty) return 'Ví chính';
-    final accounts =
-        ref.watch(accountsControllerProvider).valueOrNull ?? const [];
-    return accounts
-            .where((a) => a.id == _tx.accountId)
-            .map((a) => a.name)
-            .firstOrNull ??
-        'Không xác định';
+    final state = ref.watch(accountsControllerProvider);
+    final name = (state.valueOrNull ?? const [])
+        .where((a) => a.id == _tx.accountId)
+        .map((a) => a.name)
+        .firstOrNull;
+    if (name != null) return name;
+    if (state.isLoading) return 'Đang tải…';
+    if (!_reloadedAccounts && !state.hasError) {
+      _reloadedAccounts = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) ref.read(accountsControllerProvider.notifier).load();
+      });
+      return 'Đang tải…';
+    }
+    return 'Không xác định';
   }
 }

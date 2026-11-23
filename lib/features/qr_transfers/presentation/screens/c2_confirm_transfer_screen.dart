@@ -145,6 +145,18 @@ class _C2ConfirmTransferScreenState extends ConsumerState<C2ConfirmTransferScree
       'url': 'https://www.vietqr.io/deeplink',
     });
 
+    // VietQR chỉ điền sẵn được ở một số app (VCB chỉ mở app, không vào màn chuyển tiền): sao chép số tài khoản trước để người dùng dán, và nhắc số tiền/nội dung.
+    await Clipboard.setData(ClipboardData(text: account));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        duration: const Duration(seconds: 8),
+        content: Text(
+          'Đã sao chép số tài khoản. Nếu app ngân hàng chưa điền sẵn, hãy dán số tài khoản, nhập ${formatVnd(amount)}'
+          '${message.isEmpty ? '' : ' và nội dung "$message"'}.',
+        ),
+      ));
+    }
+
     try {
       final opened = await launchUrl(deepLink, mode: LaunchMode.externalApplication);
       if (!opened && mounted) await _showManualTransferDialog(account: account, amount: amount);

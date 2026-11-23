@@ -6,7 +6,7 @@ import 'package:finmate/features/assistant/data/assistant_bubble_bridge.dart';
 import 'package:finmate/features/assistant/presentation/widgets/assistant_overlay_frame.dart';
 
 void main() {
-  const channel = MethodChannel('com.example.finmate/assistant_bubble');
+  const channel = MethodChannel('com.finmate.app/assistant_bubble');
 
   testWidgets('khung chat nằm ngay dưới bong bóng, bỏ padding trên; chạm vùng trống phía trên thì thu khung', (tester) async {
     final calls = <String>[];

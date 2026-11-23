@@ -228,7 +228,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                                               item.title,
                                               style: AppTypography.body(context).copyWith(
                                                 fontWeight: item.isRead ? FontWeight.w600 : FontWeight.w800,
-                                                fontSize: 14.5,
+                                                fontSize: 15,
                                               ),
                                             ),
                                           ),
@@ -259,7 +259,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                                       Text(
                                         DateFormat('dd/MM/yyyy HH:mm').format(item.createdAt),
                                         style: AppTypography.caption(context).copyWith(
-                                          fontSize: 11,
+                                          fontSize: 12,
                                           color: AppColors.textMuted(context),
                                         ),
                                       ),
@@ -291,7 +291,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       labelStyle: TextStyle(
         color: selected ? activeFg : AppColors.textPrimary(context),
         fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-        fontSize: 12.5,
+        fontSize: 13,
       ),
       onSelected: (_) => setState(() => _selectedFilter = filter),
     );

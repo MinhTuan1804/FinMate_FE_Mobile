@@ -177,7 +177,7 @@ class RecurringItemsScreen extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
             decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(6)),
-            child: Text(item.status.label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color)),
+            child: Text(item.status.label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color)),
           ),
           const SizedBox(height: 8),
           Row(
@@ -426,7 +426,7 @@ class _RecurringDialogState extends State<RecurringFormDialog> {
             if (_error != null)
               Padding(
                 padding: const EdgeInsets.only(top: 12),
-                child: Text(_error!, style: const TextStyle(color: AppColors.danger, fontSize: 13)),
+                child: Text(_error!, style: TextStyle(color: AppColors.danger, fontSize: 13)),
               ),
           ],
         ),

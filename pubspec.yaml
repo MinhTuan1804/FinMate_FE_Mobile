@@ -43,6 +43,9 @@ dependencies:
   # Home-screen Widgets (Luồng 9, Android/Jetpack Glance)
   home_widget: ^0.7.0
   workmanager: ^0.10.10
+  permission_handler: ^12.0.1
+  firebase_core: ^5.2.0
+  firebase_messaging: ^17.1.0
 
 dev_dependencies:
   flutter_test:
@@ -53,3 +56,22 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  # Font đóng gói sẵn (SIL OFL 1.1, giấy phép ở assets/fonts/*-OFL.txt): chữ đúng ngay lần mở đầu và khi offline.
+  # Be Vietnam Pro cho mọi chữ; Inter (variable, trục wght) chỉ cho số tiền — xem AppTypography.
+  fonts:
+    - family: BeVietnamPro
+      fonts:
+        - asset: assets/fonts/BeVietnamPro-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/BeVietnamPro-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/BeVietnamPro-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/BeVietnamPro-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/BeVietnamPro-ExtraBold.ttf
+          weight: 800
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Variable.ttf

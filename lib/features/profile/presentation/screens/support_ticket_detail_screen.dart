@@ -150,9 +150,7 @@ class _SupportTicketDetailScreenState extends ConsumerState<SupportTicketDetailS
                   final isUser = msg.sender == 'user';
                   final bubbleColor = isUser
                       ? AppColors.primaryAction(context)
-                      : (Theme.of(context).brightness == Brightness.dark
-                          ? const Color(0xFF1E2B45)
-                          : Colors.white);
+                      : (AppColors.isDark(context) ? AppColors.surfaceDarkElevated : AppColors.surfaceLightElevated);
                   final textColor = isUser
                       ? AppColors.onPrimaryAction(context)
                       : AppColors.textPrimary(context);
@@ -185,7 +183,7 @@ class _SupportTicketDetailScreenState extends ConsumerState<SupportTicketDetailS
                           Text(
                             isUser ? 'Bạn' : 'Hỗ trợ FinMate',
                             style: TextStyle(
-                              fontSize: 11,
+                              fontSize: 12,
                               fontWeight: FontWeight.w700,
                               color: textColor.withValues(alpha: 0.7),
                             ),
@@ -193,7 +191,7 @@ class _SupportTicketDetailScreenState extends ConsumerState<SupportTicketDetailS
                           const SizedBox(height: 4),
                           Text(
                             msg.text,
-                            style: TextStyle(fontSize: 13.5, color: textColor, height: 1.35),
+                            style: TextStyle(fontSize: 14, color: textColor, height: 1.35),
                           ),
                           const SizedBox(height: 4),
                           Align(
@@ -201,7 +199,7 @@ class _SupportTicketDetailScreenState extends ConsumerState<SupportTicketDetailS
                             child: Text(
                               DateFormat('HH:mm').format(msg.time),
                               style: TextStyle(
-                                fontSize: 10,
+                                fontSize: 12,
                                 color: textColor.withValues(alpha: 0.6),
                               ),
                             ),
@@ -225,9 +223,7 @@ class _SupportTicketDetailScreenState extends ConsumerState<SupportTicketDetailS
                       decoration: InputDecoration(
                         hintText: 'Nhập tin nhắn phản hồi...',
                         filled: true,
-                        fillColor: Theme.of(context).brightness == Brightness.dark
-                            ? const Color(0xFF1E2B45)
-                            : Colors.white,
+                        fillColor: AppColors.isDark(context) ? AppColors.surfaceDarkElevated : AppColors.surfaceLightElevated,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(24),
                           borderSide: BorderSide.none,

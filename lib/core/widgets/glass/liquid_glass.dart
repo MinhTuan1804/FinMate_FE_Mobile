@@ -812,7 +812,7 @@ class ZenvestSurfaceSheet extends StatelessWidget {
                         title ?? '',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          fontSize: 17,
+                          fontSize: 18,
                           fontWeight: FontWeight.w700,
                           letterSpacing: -0.3,
                           color: AppColors.textPrimary(context),
@@ -989,7 +989,7 @@ class ZenvestTransactionTile extends StatelessWidget {
                 Text(
                   typeLabel,
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: FontWeight.w700,
                     color: typeColor,
                   ),

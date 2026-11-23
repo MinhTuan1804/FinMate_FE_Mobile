@@ -431,14 +431,15 @@ void main() {
       expect(find.byKey(const ValueKey('voice-level')), findsNothing);
     });
 
-    testWidgets('bị từ chối quyền micro: báo hướng dẫn, không ghi', (tester) async {
+    testWidgets('bị từ chối quyền micro: hiện hộp thoại bật quyền kèm nút Mở Cài đặt, không ghi', (tester) async {
       recorder.startResult = VoiceStart.denied;
       await pumpChat(tester);
 
       await tester.tap(find.byKey(const ValueKey('mic-button')));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('Cần quyền micro để ghi âm'), findsOneWidget);
+      expect(find.text('Cần quyền micro'), findsOneWidget);
+      expect(find.text('Mở Cài đặt'), findsOneWidget);
       expect(find.textContaining('Đang nghe'), findsNothing);
     });
 

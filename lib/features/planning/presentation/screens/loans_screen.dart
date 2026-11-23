@@ -179,17 +179,16 @@ class _LoansScreenState extends ConsumerState<LoansScreen> {
             children: [
               Text(
                 _selectedTab == 0 ? 'TỔNG DƯ NỢ CẦN TRẢ' : 'TỔNG TIỀN CẦN THU HỒI',
-                style: AppTypography.caption(context).copyWith(fontSize: 11.5, fontWeight: FontWeight.w700, letterSpacing: 0.4),
+                style: AppTypography.caption(context).copyWith(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.4),
               ),
               const SizedBox(height: 6),
               Text(
                 formatVnd(total),
                 key: const ValueKey('loans-total'),
                 style: AppTypography.displayBalance(context).copyWith(
-                  fontSize: 28,
+                  fontSize: 26,
                   fontWeight: FontWeight.w800,
-                  color: _selectedTab == 0 ? AppColors.danger : AppColors.safe,
-                ),
+                  color: _selectedTab == 0 ? AppColors.danger : AppColors.safe, fontVariations: [FontVariation('wght', FontWeight.w800.value.toDouble())]),
               ),
               const SizedBox(height: 10),
               Text('Theo dõi tiến độ trả nợ gốc. Lãi suất chỉ để ghi nhớ, chưa tự tính vào số còn lại.', style: AppTypography.caption(context)),
@@ -295,7 +294,7 @@ class _LoansScreenState extends ConsumerState<LoansScreen> {
               Text(
                 'Lãi tạm tính: ${formatVnd(loan.accruedInterestCents!)} • Cả gốc và lãi: ${formatVnd(loan.totalDueCents)}',
                 key: ValueKey('loan-interest-${loan.id}'),
-                style: AppTypography.caption(context).copyWith(fontSize: 11.5),
+                style: AppTypography.caption(context).copyWith(fontSize: 12),
               ),
             ],
             const SizedBox(height: 14),
@@ -306,7 +305,7 @@ class _LoansScreenState extends ConsumerState<LoansScreen> {
                   loan.dueDate == null ? 'Không đặt hạn' : 'Hạn cuối: ${DateFormat('dd/MM/yyyy').format(loan.dueDate!)}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: AppTypography.caption(context).copyWith(fontSize: 11.5),
+                  style: AppTypography.caption(context).copyWith(fontSize: 12),
                 )),
                 if (!done)
                   AsyncActionBuilder(

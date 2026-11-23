@@ -740,7 +740,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
               Text(
                 '$days NGÀY',
                 style: caption.copyWith(
-                  fontSize: 11,
+                  fontSize: 12,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.55,
                 ),
@@ -915,7 +915,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: secondary.copyWith(
-                          fontSize: 10,
+                          fontSize: 11,
                           fontWeight: FontWeight.w600,
                           color: AppColors.slateOn(context),
                         ),

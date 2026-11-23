@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:finmate/core/network/api_exceptions.dart';
 import 'package:finmate/core/theme/glass/glass_colors.dart';
@@ -19,6 +20,18 @@ import 'package:finmate/shared/widgets/glass/glass_notification_card.dart';
       'RecurringBillDue' => (LucideIcons.calendarClock, GlassColors.warning),
       'ForecastReady' => (LucideIcons.chartLine, GlassColors.accentSkyBlue),
       _ => (LucideIcons.bell, GlassColors.slateAnchor),
+    };
+
+/// Bấm một thông báo trong hộp thư → màn của đúng thứ nó báo (cùng đích với push cùng loại, xem routeForPush). null: chỉ đánh dấu đã đọc.
+@visibleForTesting
+String? routeForInboxType(String type) => switch (type) {
+      'BalanceChange' => '/transactions',
+      'GoalMilestone' => '/planning/goals',
+      'BudgetThreshold' => '/planning/budgets',
+      'AnomalyDetected' => '/analytics/alerts',
+      'RecurringBillDue' => '/planning/recurring',
+      'ForecastReady' => '/analytics/insights',
+      _ => null,
     };
 
 String _dateGroupLabel(DateTime date) {
@@ -162,7 +175,11 @@ class NotificationsInboxScreen extends ConsumerWidget {
                         body: item.body,
                         metaText: _timeLabel(item.createdAt),
                         unread: item.isUnread,
-                        onTap: () => controller.markRead(item.id),
+                        onTap: () {
+                          controller.markRead(item.id);
+                          final path = routeForInboxType(item.type);
+                          if (path != null) context.push(path);
+                        },
                         onDismiss: () => controller.delete(item.id),
                       ),
                     );

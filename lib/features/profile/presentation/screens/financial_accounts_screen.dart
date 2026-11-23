@@ -142,7 +142,7 @@ class _FinancialAccountsScreenState extends ConsumerState<FinancialAccountsScree
                       children: [
                         Container(width: 7, height: 7, decoration: const BoxDecoration(color: AppColors.safe, shape: BoxShape.circle)),
                         const SizedBox(width: 6),
-                        Text('$monitored/${accounts.length} đang theo dõi', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                        Text('$monitored/${accounts.length} đang theo dõi', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
                       ],
                     ),
                   ),
@@ -157,7 +157,7 @@ class _FinancialAccountsScreenState extends ConsumerState<FinancialAccountsScree
                       key: const ValueKey('total-balance'),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: AppTypography.displayBalance(context).copyWith(fontSize: 30, fontWeight: FontWeight.w800),
+                      style: AppTypography.displayBalance(context).copyWith(fontSize: 32, fontWeight: FontWeight.w800, fontVariations: [FontVariation('wght', FontWeight.w800.value.toDouble())]),
                     ),
                   ),
                   IconButton(
@@ -234,7 +234,7 @@ class _FinancialAccountsScreenState extends ConsumerState<FinancialAccountsScree
           children: [
             Icon(icon, size: 18, color: AppColors.textSecondary(context)),
             const SizedBox(width: 8),
-            Expanded(child: Text(title, style: AppTypography.h2(context).copyWith(fontSize: 17, fontWeight: FontWeight.w700))),
+            Expanded(child: Text(title, style: AppTypography.h2(context).copyWith(fontSize: 18, fontWeight: FontWeight.w700))),
             Text(type == AccountType.bank ? '${items.length} tài khoản' : '${items.length} ví', style: AppTypography.caption(context).copyWith(fontSize: 12)),
           ],
         ),
@@ -274,7 +274,7 @@ class _FinancialAccountsScreenState extends ConsumerState<FinancialAccountsScree
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(a.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w700, fontSize: 14.5)),
+                  Text(a.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w700, fontSize: 15)),
                   const SizedBox(height: 2),
                   Text(a.providerName ?? a.type.label, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.caption(context).copyWith(fontSize: 12)),
                 ],
@@ -289,7 +289,7 @@ class _FinancialAccountsScreenState extends ConsumerState<FinancialAccountsScree
                   style: AppTypography.tabular(AppTypography.body(context).copyWith(fontWeight: FontWeight.w800, fontSize: 14)),
                 ),
                 const SizedBox(height: 2),
-                Text(status, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: statusColor)),
+                Text(status, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: statusColor)),
               ],
             ),
             PopupMenuButton<String>(

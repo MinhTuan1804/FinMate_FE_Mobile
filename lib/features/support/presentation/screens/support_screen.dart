@@ -168,7 +168,7 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
                   children: [
                     Text('Trung tâm trợ giúp', style: AppTypography.h2(context).copyWith(fontSize: 18, fontWeight: FontWeight.w800)),
                     const SizedBox(height: 2),
-                    Text('Gửi yêu cầu và theo dõi phản hồi từ đội ngũ hỗ trợ FinMate.', style: AppTypography.caption(context).copyWith(fontSize: 12.5)),
+                    Text('Gửi yêu cầu và theo dõi phản hồi từ đội ngũ hỗ trợ FinMate.', style: AppTypography.caption(context).copyWith(fontSize: 13)),
                   ],
                 ),
               ),
@@ -253,7 +253,7 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(color: AppColors.secondary.withValues(alpha: 0.16), borderRadius: BorderRadius.circular(6)),
-                          child: Text(supportCategoryLabel(t.category), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: AppColors.slateOn(context))),
+                          child: Text(supportCategoryLabel(t.category), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: AppColors.slateOn(context))),
                         ),
                       ),
                       const Spacer(),
@@ -277,7 +277,7 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
                       const Spacer(),
                       Icon(LucideIcons.clock, size: 13, color: AppColors.textMuted(context)),
                       const SizedBox(width: 4),
-                      Text('Cập nhật ${DateFormat('dd/MM HH:mm').format(t.updatedAt.toLocal())}', style: AppTypography.caption(context).copyWith(fontSize: 11.5)),
+                      Text('Cập nhật ${DateFormat('dd/MM HH:mm').format(t.updatedAt.toLocal())}', style: AppTypography.caption(context).copyWith(fontSize: 12)),
                     ],
                   ),
                 ],

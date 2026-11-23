@@ -85,7 +85,7 @@ class GlassOtpInputState extends State<GlassOtpInput> {
       ),
       child: Text(
         filled ? text[index] : '',
-        style: GlassTypography.displayHero().copyWith(fontSize: 22),
+        style: GlassTypography.displayHero().copyWith(fontSize: 20),
       ),
     );
   }

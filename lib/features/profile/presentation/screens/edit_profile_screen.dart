@@ -106,7 +106,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     backgroundColor: AppColors.secondary.withValues(alpha: 0.2),
                     child: Text(
                       shownName.isNotEmpty ? shownName[0].toUpperCase() : 'U',
-                      style: TextStyle(fontSize: 36, fontWeight: FontWeight.w800, color: AppColors.primaryAction(context)),
+                      style: TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: AppColors.primaryAction(context)),
                     ),
                   ),
                 ),
@@ -213,7 +213,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                               key: const ValueKey('income-field'),
                               controller: _incomeController,
                               keyboardType: TextInputType.number,
-                              style: AppTypography.tabular(AppTypography.displayBalance(context).copyWith(fontSize: 26, fontWeight: FontWeight.w800)),
+                              style: AppTypography.tabular(AppTypography.displayBalance(context).copyWith(fontSize: 26, fontWeight: FontWeight.w800, fontVariations: [FontVariation('wght', FontWeight.w800.value.toDouble())])),
                               decoration: InputDecoration(
                                 hintText: '15.000.000',
                                 suffix: Container(

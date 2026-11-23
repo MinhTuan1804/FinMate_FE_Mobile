@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
-const _channel = MethodChannel('com.example.finmate/widget_refresh');
+const _channel = MethodChannel('com.finmate.app/widget_refresh');
 
 /// Báo native đồng bộ + vẽ lại ngay cả 3 widget home-screen (W1/W2/4×4) — gọi sau mọi thay đổi dữ
 /// liệu mà chúng hiển thị (tài khoản, ngân sách/mục tiêu, giao dịch), thay vì chờ chu kỳ định kỳ

@@ -163,7 +163,7 @@ class _CategoryFormScreenState extends ConsumerState<CategoryFormScreen> {
                     label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: selected ? AppColors.activeFg(context) : AppColors.textPrimary(context), fontWeight: selected ? FontWeight.w700 : FontWeight.w500, fontSize: 13.5),
+                    style: TextStyle(color: selected ? AppColors.activeFg(context) : AppColors.textPrimary(context), fontWeight: selected ? FontWeight.w700 : FontWeight.w500, fontSize: 14),
                   ),
                 ),
               ],
@@ -254,11 +254,11 @@ class _CategoryFormScreenState extends ConsumerState<CategoryFormScreen> {
                     children: [
                       Row(
                         children: [
-                          Expanded(child: Text('Chọn biểu tượng', style: AppTypography.h2(context).copyWith(fontSize: 17, fontWeight: FontWeight.w700))),
+                          Expanded(child: Text('Chọn biểu tượng', style: AppTypography.h2(context).copyWith(fontSize: 18, fontWeight: FontWeight.w700))),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                             decoration: BoxDecoration(color: AppColors.secondary.withValues(alpha: 0.2), borderRadius: AppSpacing.roundedPill),
-                            child: Text('${categoryIconChoices.length} mẫu', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: AppColors.slateOn(context))),
+                            child: Text('${categoryIconChoices.length} mẫu', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.slateOn(context))),
                           ),
                         ],
                       ),
@@ -301,7 +301,7 @@ class _CategoryFormScreenState extends ConsumerState<CategoryFormScreen> {
                     children: [
                       Row(
                         children: [
-                          Expanded(child: Text('Màu nhận diện', style: AppTypography.h2(context).copyWith(fontSize: 17, fontWeight: FontWeight.w700))),
+                          Expanded(child: Text('Màu nhận diện', style: AppTypography.h2(context).copyWith(fontSize: 18, fontWeight: FontWeight.w700))),
                           if (selectedColorName != null)
                             Text(selectedColorName, key: const ValueKey('category-color-name'), style: AppTypography.caption(context).copyWith(fontWeight: FontWeight.w700)),
                         ],

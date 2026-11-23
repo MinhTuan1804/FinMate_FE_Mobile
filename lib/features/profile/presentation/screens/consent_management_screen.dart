@@ -191,7 +191,7 @@ class _ConsentManagementScreenState extends ConsumerState<ConsentManagementScree
                     const SizedBox(height: 4),
                     Text(
                       'Khi tắt trợ lý AI, các tính năng dùng AI như trò chuyện và phân loại hóa đơn sẽ tạm ngừng. Tắt đóng góp dữ liệu sẽ xóa dữ liệu bạn đã đóng góp.',
-                      style: AppTypography.caption(context).copyWith(fontSize: 12.5),
+                      style: AppTypography.caption(context).copyWith(fontSize: 13),
                     ),
                   ],
                 ),
@@ -229,12 +229,12 @@ class _ConsentManagementScreenState extends ConsumerState<ConsentManagementScree
                     spacing: 8,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      Text(title, style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w700, fontSize: 14.5)),
+                      Text(title, style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w700, fontSize: 15)),
                       if (badge != null)
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(color: AppColors.secondary.withValues(alpha: 0.22), borderRadius: AppSpacing.roundedPill),
-                          child: Text(badge, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppColors.slateOn(context))),
+                          child: Text(badge, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.slateOn(context))),
                         ),
                     ],
                   ),
@@ -245,7 +245,7 @@ class _ConsentManagementScreenState extends ConsumerState<ConsentManagementScree
             const SizedBox(height: 4),
             Text(
               description,
-              style: AppTypography.caption(context).copyWith(fontSize: 12.5, color: AppColors.textSecondary(context)),
+              style: AppTypography.caption(context).copyWith(fontSize: 13, color: AppColors.textSecondary(context)),
             ),
             const Divider(height: 20),
             Row(

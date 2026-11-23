@@ -399,7 +399,7 @@ class _SizeCard extends StatelessWidget {
                   Text(
                     hint,
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 11, color: GlassColors.textSecondary),
+                    style: TextStyle(fontSize: 12, color: GlassColors.textSecondary),
                   ),
                 ],
               ),
@@ -408,7 +408,7 @@ class _SizeCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(color: GlassColors.ink, borderRadius: AppSpacing.roundedPill),
-                child: Text(badge!, style: TextStyle(fontSize: 10, color: GlassColors.onInk)),
+                child: Text(badge!, style: TextStyle(fontSize: 11, color: GlassColors.onInk)),
               ),
           ],
         ),
@@ -523,7 +523,7 @@ class _EmptyNote extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.only(top: AppSpacing.sm),
-        child: Text(text, style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: GlassColors.textSecondary)),
+        child: Text(text, style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: GlassColors.textSecondary)),
       );
 }
 
@@ -698,7 +698,7 @@ class _OverviewPreview extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('SỐ DƯ KHẢ DỤNG', style: TextStyle(fontSize: 11, color: GlassColors.textSecondary, letterSpacing: 0.5)),
+                    Text('SỐ DƯ KHẢ DỤNG', style: TextStyle(fontSize: 12, color: GlassColors.textSecondary, letterSpacing: 0.5)),
                     const SizedBox(height: 4),
                     FittedBox(
                       fit: BoxFit.scaleDown,
@@ -742,7 +742,7 @@ class _DetailPreview extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: GlassColors.textSecondary, letterSpacing: 0.5)),
+              Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: GlassColors.textSecondary, letterSpacing: 0.5)),
               const SizedBox(height: 4),
               FittedBox(
                 fit: BoxFit.scaleDown,

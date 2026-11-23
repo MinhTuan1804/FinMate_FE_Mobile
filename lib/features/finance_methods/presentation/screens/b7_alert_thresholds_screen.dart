@@ -316,7 +316,7 @@ class _AlertThresholdsScreenState extends ConsumerState<AlertThresholdsScreen> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text('$value%', style: GlassTypography.labelNumeric(color: color).copyWith(fontSize: 22, fontWeight: FontWeight.w800, height: 1.2)),
+                  Text('$value%', style: GlassTypography.labelNumeric(color: color).copyWith(fontSize: 20, fontWeight: FontWeight.w800, height: 1.2, fontVariations: [FontVariation('wght', FontWeight.w800.value.toDouble())])),
                   Text('ngân sách', style: GlassTypography.bodySm()),
                 ],
               ),
@@ -352,7 +352,7 @@ class _AlertThresholdsScreenState extends ConsumerState<AlertThresholdsScreen> {
                     child: Text(
                       '${formatVnd(limit * BigInt.from(value) ~/ BigInt.from(100))} / ${formatVnd(limit)}',
                       textAlign: TextAlign.right,
-                      style: GlassTypography.labelNumeric().copyWith(fontSize: 12.5),
+                      style: GlassTypography.labelNumeric().copyWith(fontSize: 13),
                     ),
                   ),
                 ],

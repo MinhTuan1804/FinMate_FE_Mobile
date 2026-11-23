@@ -142,7 +142,7 @@ class _AssistantBubbleTileState extends ConsumerState<AssistantBubbleTile> with 
                   children: [
                     Text(
                       'Bong bóng trợ lý',
-                      style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w600, fontSize: 14.5),
+                      style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w600, fontSize: 15),
                     ),
                     const SizedBox(height: 3),
                     Text(subtitle, style: AppTypography.caption(context).copyWith(fontSize: 12)),

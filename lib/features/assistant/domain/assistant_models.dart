@@ -619,6 +619,12 @@ class ChatItemDraft {
   static const recurring = 'recurring';
   static const loan = 'loan';
 
+  /// Ngân sách TỔNG của tháng, không gắn một nhóm chi
+  static const budgetTotal = 'budget_total';
+
+  /// Sửa/xóa theo tên mà câu không nói rõ loại: app tìm trong ngân sách, khoản định kỳ và khoản vay nợ
+  static const any = 'any';
+
   /// budget | recurring | loan
   final String kind;
   final BigInt amountCents;
@@ -635,6 +641,7 @@ class ChatItemDraft {
   final String? direction;
   final String? counterparty;
 
+  /// update_named / delete_named: sửa / xóa một mục ĐÃ CÓ theo tên ([name]), không cần ngữ cảnh; app tìm mục khớp tên.
   /// create | update (đổi số tiền việc vừa làm) | add (cộng thêm vào số tiền việc vừa làm) | delete (hủy việc vừa làm). Ba thao tác sau áp lên việc gần nhất của phiên này ([amountCents] là số mới / số cộng thêm / 0).
   final String operation;
 
@@ -802,7 +809,7 @@ class ChatReply {
           final item = json['item'];
           if (item is! Map<String, dynamic>) return generic();
           final draft = ChatItemDraft.fromJson(item);
-          if (draft.kind.isEmpty || (draft.amountCents <= BigInt.zero && draft.operation != 'delete')) return generic();
+          if (draft.kind.isEmpty || (draft.amountCents <= BigInt.zero && draft.operation != 'delete' && draft.operation != 'delete_named')) return generic();
           return ChatReply(
             action: ChatAction.item,
             intent: intent,

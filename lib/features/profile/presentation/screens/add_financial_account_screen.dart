@@ -238,7 +238,7 @@ class _AddFinancialAccountScreenState extends ConsumerState<AddFinancialAccountS
                 t.label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: selected ? AppColors.activeFg(context) : AppColors.textSecondary(context)),
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: selected ? AppColors.activeFg(context) : AppColors.textSecondary(context)),
               ),
             ],
           ),

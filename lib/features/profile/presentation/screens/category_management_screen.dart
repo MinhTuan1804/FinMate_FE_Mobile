@@ -160,7 +160,7 @@ class _CategoryManagementScreenState extends ConsumerState<CategoryManagementScr
         padding: const EdgeInsets.fromLTRB(4, 20, 4, 10),
         child: Row(
           children: [
-            Expanded(child: Text(title, style: AppTypography.h2(context).copyWith(fontSize: 17, fontWeight: FontWeight.w700))),
+            Expanded(child: Text(title, style: AppTypography.h2(context).copyWith(fontSize: 18, fontWeight: FontWeight.w700))),
             Text('${items.length} DANH MỤC', style: AppTypography.sectionLabel(context)),
           ],
         ),
@@ -199,7 +199,7 @@ class _CategoryManagementScreenState extends ConsumerState<CategoryManagementScr
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(c.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w700, fontSize: 14.5)),
+                  Text(c.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w700, fontSize: 15)),
                   const SizedBox(height: 2),
                   Text(
                     // Hạn mức thật (ngân sách) ưu tiên; chưa có thì hiện hạn mức GỢI Ý người dùng đã nhập lúc tạo danh mục.

@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:finmate/features/onboarding/presentation/screens/notification_permission_screen.dart';
 
-const _notificationsChannel = MethodChannel('com.example.finmate/notifications');
+const _notificationsChannel = MethodChannel('com.finmate.app/notifications');
 
 Future<void> _pump(WidgetTester tester) async {
   tester.view.physicalSize = const Size(800, 2000);

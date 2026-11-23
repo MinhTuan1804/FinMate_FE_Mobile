@@ -215,7 +215,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         Expanded(
                           child: Text(
                             'FinMate cam kết Zero-Credential: Không bao giờ yêu cầu hay lưu trữ mật khẩu ngân hàng.',
-                            style: GlassTypography.bodySm().copyWith(fontSize: 11),
+                            style: GlassTypography.bodySm().copyWith(fontSize: 12),
                           ),
                         ),
                       ],

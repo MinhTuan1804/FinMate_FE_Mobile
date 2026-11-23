@@ -104,7 +104,7 @@ class _RowTile extends StatelessWidget {
                   children: [
                     Text(
                       row.label,
-                      style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w600, fontSize: 14.5, color: color),
+                      style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w600, fontSize: 15, color: color),
                     ),
                     // Chip và mô tả nằm ở dòng phụ (Wrap tự xuống dòng khi hẹp) để không tranh chỗ với tiêu đề
                     if (row.subtitle != null || row.trailingText != null) ...[
@@ -222,7 +222,7 @@ class ProfileScreen extends ConsumerWidget {
                           const SizedBox(width: 14),
                           Text(
                             'Chế độ giao diện',
-                            style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w600, fontSize: 14.5),
+                            style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w600, fontSize: 15),
                           ),
                         ],
                       ),
@@ -386,7 +386,7 @@ class _ProfileCard extends StatelessWidget {
                 backgroundColor: AppColors.primaryAction(context).withValues(alpha: 0.15),
                 child: Text(
                   name.isNotEmpty ? name[0].toUpperCase() : 'F',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: AppColors.primaryAction(context)),
+                  style: TextStyle(fontSize: 26, fontWeight: FontWeight.w700, color: AppColors.primaryAction(context)),
                 ),
               ),
               const SizedBox(width: 14),
@@ -414,7 +414,7 @@ class _ProfileCard extends StatelessWidget {
                             ),
                             child: Text(
                               planLabel!.toUpperCase(),
-                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.slateOn(context)),
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.slateOn(context)),
                             ),
                           ),
                         ],

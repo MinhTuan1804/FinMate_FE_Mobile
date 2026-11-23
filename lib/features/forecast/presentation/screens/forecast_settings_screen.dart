@@ -11,10 +11,10 @@ import 'package:finmate/features/forecast/presentation/controllers/forecast_cont
 import 'package:finmate/core/widgets/async_action_builder.dart';
 
 String _exclusionReasonLabel(String value) => switch (value) {
-      'one_off' => 'Chi một lần',
-      'user_marked' => 'Người dùng tự loại',
-      _ => value,
-    };
+  'one_off' => 'Chi một lần',
+  'user_marked' => 'Người dùng tự loại',
+  _ => value,
+};
 
 /// Cài đặt dự báo: dự phòng, ngưỡng số dư thấp, giờ yên lặng, bật/tắt cảnh báo, ví tính vào dự báo,
 /// và một ô thử nhanh loại/đưa lại một giao dịch khỏi dữ liệu dự báo.
@@ -22,10 +22,12 @@ class ForecastSettingsScreen extends ConsumerStatefulWidget {
   const ForecastSettingsScreen({super.key});
 
   @override
-  ConsumerState<ForecastSettingsScreen> createState() => _ForecastSettingsScreenState();
+  ConsumerState<ForecastSettingsScreen> createState() =>
+      _ForecastSettingsScreenState();
 }
 
-class _ForecastSettingsScreenState extends ConsumerState<ForecastSettingsScreen> {
+class _ForecastSettingsScreenState
+    extends ConsumerState<ForecastSettingsScreen> {
   final _reserveController = TextEditingController();
   final _lowBalanceController = TextEditingController();
   final _quietStartController = TextEditingController();
@@ -58,9 +60,13 @@ class _ForecastSettingsScreenState extends ConsumerState<ForecastSettingsScreen>
     if (_initialized) return;
     _initialized = true;
     _useDefaultReserve = settings.usesDefaultReserve;
-    _reserveController.text = settings.reserveCents == null ? '' : formatAmountDigits(settings.reserveCents!);
+    _reserveController.text = settings.reserveCents == null
+        ? ''
+        : formatAmountDigits(settings.reserveCents!);
     _lowBalanceAlertOn = settings.lowBalanceAlertEnabled;
-    _lowBalanceController.text = settings.lowBalanceThresholdCents == null ? '' : formatAmountDigits(settings.lowBalanceThresholdCents!);
+    _lowBalanceController.text = settings.lowBalanceThresholdCents == null
+        ? ''
+        : formatAmountDigits(settings.lowBalanceThresholdCents!);
     _useDefaultQuietHours = settings.usesDefaultQuietHours;
     _quietStartController.text = settings.quietHoursStart ?? '';
     _quietEndController.text = settings.quietHoursEnd ?? '';
@@ -76,19 +82,37 @@ class _ForecastSettingsScreenState extends ConsumerState<ForecastSettingsScreen>
     final messenger = ScaffoldMessenger.of(context);
     setState(() => _saving = true);
     try {
-      await ref.read(forecastSettingsControllerProvider.notifier).update(
-            reserveCents: _useDefaultReserve ? null : _parseCents(_reserveController.text),
-            lowBalanceThresholdCents: _lowBalanceAlertOn ? _parseCents(_lowBalanceController.text) : null,
-            quietHoursStart: _useDefaultQuietHours ? null : _quietStartController.text.trim(),
-            quietHoursEnd: _useDefaultQuietHours ? null : _quietEndController.text.trim(),
+      await ref
+          .read(forecastSettingsControllerProvider.notifier)
+          .update(
+            reserveCents: _useDefaultReserve
+                ? null
+                : _parseCents(_reserveController.text),
+            lowBalanceThresholdCents: _lowBalanceAlertOn
+                ? _parseCents(_lowBalanceController.text)
+                : null,
+            quietHoursStart: _useDefaultQuietHours
+                ? null
+                : _quietStartController.text.trim(),
+            quietHoursEnd: _useDefaultQuietHours
+                ? null
+                : _quietEndController.text.trim(),
             forecastAlertsEnabled: _alertsEnabled,
           );
       if (mounted) {
-        _initialized = false; // nạp lại form từ dữ liệu đã lưu (BE có thể chuẩn hoá lại giá trị)
-        messenger.showSnackBar(const SnackBar(content: Text('Đã lưu cài đặt dự báo.')));
+        _initialized =
+            false; // nạp lại form từ dữ liệu đã lưu (BE có thể chuẩn hoá lại giá trị)
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Đã lưu cài đặt dự báo.')),
+        );
       }
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text(errorMessage(e)), backgroundColor: AppColors.danger));
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(errorMessage(e)),
+          backgroundColor: AppColors.danger,
+        ),
+      );
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -97,9 +121,16 @@ class _ForecastSettingsScreenState extends ConsumerState<ForecastSettingsScreen>
   Future<void> _toggleAccount(String accountId, bool included) async {
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await ref.read(forecastSettingsControllerProvider.notifier).setAccountInclusion(accountId, included);
+      await ref
+          .read(forecastSettingsControllerProvider.notifier)
+          .setAccountInclusion(accountId, included);
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text(errorMessage(e)), backgroundColor: AppColors.danger));
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(errorMessage(e)),
+          backgroundColor: AppColors.danger,
+        ),
+      );
     }
   }
 
@@ -109,14 +140,21 @@ class _ForecastSettingsScreenState extends ConsumerState<ForecastSettingsScreen>
     final messenger = ScaffoldMessenger.of(context);
     setState(() => _exclusionBusy = true);
     try {
-      final result = await ref.read(forecastRepositoryProvider).setTransactionExclusion(
+      final result = await ref
+          .read(forecastRepositoryProvider)
+          .setTransactionExclusion(
             id,
             excluded: excluded,
             reason: excluded ? _exclusionReason : null,
           );
       if (mounted) setState(() => _exclusionResult = result);
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text(errorMessage(e)), backgroundColor: AppColors.danger));
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(errorMessage(e)),
+          backgroundColor: AppColors.danger,
+        ),
+      );
     } finally {
       if (mounted) setState(() => _exclusionBusy = false);
     }
@@ -129,7 +167,12 @@ class _ForecastSettingsScreenState extends ConsumerState<ForecastSettingsScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: AppTypography.bodyLarge(context).copyWith(fontWeight: FontWeight.w700)),
+            Text(
+              title,
+              style: AppTypography.bodyLarge(
+                context,
+              ).copyWith(fontWeight: FontWeight.w700),
+            ),
             const SizedBox(height: AppSpacing.sm),
             child,
           ],
@@ -138,7 +181,10 @@ class _ForecastSettingsScreenState extends ConsumerState<ForecastSettingsScreen>
     );
   }
 
-  Widget _buildReserveCard(BuildContext context, ForecastSettingsEntity settings) {
+  Widget _buildReserveCard(
+    BuildContext context,
+    ForecastSettingsEntity settings,
+  ) {
     return _sectionCard(
       title: 'Khoản dự phòng',
       child: Column(
@@ -152,7 +198,9 @@ class _ForecastSettingsScreenState extends ConsumerState<ForecastSettingsScreen>
             key: const ValueKey('forecast-settings-use-default-reserve'),
             contentPadding: EdgeInsets.zero,
             controlAffinity: ListTileControlAffinity.leading,
-            title: Text('Dùng mức mặc định hệ thống (${settings.defaultReservePercentOfIncome}% thu nhập)'),
+            title: Text(
+              'Dùng mức mặc định hệ thống (${settings.defaultReservePercentOfIncome}% thu nhập)',
+            ),
             value: _useDefaultReserve,
             onChanged: (v) => setState(() => _useDefaultReserve = v ?? true),
           ),
@@ -162,7 +210,9 @@ class _ForecastSettingsScreenState extends ConsumerState<ForecastSettingsScreen>
               controller: _reserveController,
               keyboardType: TextInputType.number,
               inputFormatters: [ThousandsSeparatorInputFormatter()],
-              decoration: const InputDecoration(labelText: 'Dự phòng tự đặt (₫)'),
+              decoration: const InputDecoration(
+                labelText: 'Dự phòng tự đặt (₫)',
+              ),
             ),
         ],
       ),
@@ -188,14 +238,19 @@ class _ForecastSettingsScreenState extends ConsumerState<ForecastSettingsScreen>
               controller: _lowBalanceController,
               keyboardType: TextInputType.number,
               inputFormatters: [ThousandsSeparatorInputFormatter()],
-              decoration: const InputDecoration(labelText: 'Ngưỡng cảnh báo (₫)'),
+              decoration: const InputDecoration(
+                labelText: 'Ngưỡng cảnh báo (₫)',
+              ),
             ),
         ],
       ),
     );
   }
 
-  Widget _buildQuietHoursCard(BuildContext context, ForecastSettingsEntity settings) {
+  Widget _buildQuietHoursCard(
+    BuildContext context,
+    ForecastSettingsEntity settings,
+  ) {
     return _sectionCard(
       title: 'Giờ yên lặng (không gửi cảnh báo)',
       child: Column(
@@ -205,7 +260,9 @@ class _ForecastSettingsScreenState extends ConsumerState<ForecastSettingsScreen>
             key: const ValueKey('forecast-settings-use-default-quiet-hours'),
             contentPadding: EdgeInsets.zero,
             controlAffinity: ListTileControlAffinity.leading,
-            title: Text('Dùng giờ mặc định hệ thống (${settings.defaultQuietHoursStart}–${settings.defaultQuietHoursEnd})'),
+            title: Text(
+              'Dùng giờ mặc định hệ thống (${settings.defaultQuietHoursStart}–${settings.defaultQuietHoursEnd})',
+            ),
             value: _useDefaultQuietHours,
             onChanged: (v) => setState(() => _useDefaultQuietHours = v ?? true),
           ),
@@ -216,7 +273,9 @@ class _ForecastSettingsScreenState extends ConsumerState<ForecastSettingsScreen>
                   child: TextField(
                     key: const ValueKey('forecast-settings-quiet-start'),
                     controller: _quietStartController,
-                    decoration: const InputDecoration(labelText: 'Bắt đầu (HH:mm)'),
+                    decoration: const InputDecoration(
+                      labelText: 'Bắt đầu (HH:mm)',
+                    ),
                   ),
                 ),
                 const SizedBox(width: AppSpacing.sm),
@@ -224,7 +283,9 @@ class _ForecastSettingsScreenState extends ConsumerState<ForecastSettingsScreen>
                   child: TextField(
                     key: const ValueKey('forecast-settings-quiet-end'),
                     controller: _quietEndController,
-                    decoration: const InputDecoration(labelText: 'Kết thúc (HH:mm)'),
+                    decoration: const InputDecoration(
+                      labelText: 'Kết thúc (HH:mm)',
+                    ),
                   ),
                 ),
               ],
@@ -240,14 +301,19 @@ class _ForecastSettingsScreenState extends ConsumerState<ForecastSettingsScreen>
       child: SwitchListTile(
         key: const ValueKey('forecast-settings-alerts-enabled'),
         contentPadding: EdgeInsets.zero,
-        title: const Text('Bật cảnh báo dự báo (số dư thấp, vượt ngân sách, thu nhập trễ...)'),
+        title: const Text(
+          'Bật cảnh báo dự báo (số dư thấp, vượt ngân sách, thu nhập trễ...)',
+        ),
         value: _alertsEnabled,
         onChanged: (v) => setState(() => _alertsEnabled = v),
       ),
     );
   }
 
-  Widget _buildAccountsCard(BuildContext context, ForecastSettingsEntity settings) {
+  Widget _buildAccountsCard(
+    BuildContext context,
+    ForecastSettingsEntity settings,
+  ) {
     return _sectionCard(
       title: 'Ví tính vào dự báo',
       child: settings.accounts.isEmpty
@@ -291,30 +357,58 @@ class _ForecastSettingsScreenState extends ConsumerState<ForecastSettingsScreen>
             decoration: const InputDecoration(labelText: 'Lý do (khi loại)'),
             items: [
               for (final r in const ['one_off', 'user_marked'])
-                DropdownMenuItem(value: r, child: Text(_exclusionReasonLabel(r))),
+                DropdownMenuItem(
+                  value: r,
+                  child: Text(_exclusionReasonLabel(r)),
+                ),
             ],
             onChanged: (v) {
               if (v != null) setState(() => _exclusionReason = v);
             },
           ),
           const SizedBox(height: AppSpacing.sm),
+          // Hai nút luôn một hàng, chia đều bề ngang; chữ tự co nhỏ khi màn hẹp thay vì tràn
           Row(
             children: [
-              AsyncActionBuilder(
-                onPressed: _exclusionBusy ? null : () => _submitExclusion(true),
-                builder: (_, onTap, running) => OutlinedButton(
-                  key: const ValueKey('exclude-transaction-button'),
-                  onPressed: onTap,
-                  child: running ? const ButtonLoadingIndicator() : const Text('Loại khỏi dự báo'),
+              Expanded(
+                child: AsyncActionBuilder(
+                  onPressed: _exclusionBusy
+                      ? null
+                      : () => _submitExclusion(true),
+                  builder: (_, onTap, running) => OutlinedButton(
+                    key: const ValueKey('exclude-transaction-button'),
+                    onPressed: onTap,
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                    child: running
+                        ? const ButtonLoadingIndicator()
+                        : const FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text('Loại khỏi dự báo', maxLines: 1),
+                          ),
+                  ),
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
-              AsyncActionBuilder(
-                onPressed: _exclusionBusy ? null : () => _submitExclusion(false),
-                builder: (_, onTap, running) => OutlinedButton(
-                  key: const ValueKey('include-transaction-button'),
-                  onPressed: onTap,
-                  child: running ? const ButtonLoadingIndicator() : const Text('Đưa lại vào dự báo'),
+              Expanded(
+                child: AsyncActionBuilder(
+                  onPressed: _exclusionBusy
+                      ? null
+                      : () => _submitExclusion(false),
+                  builder: (_, onTap, running) => OutlinedButton(
+                    key: const ValueKey('include-transaction-button'),
+                    onPressed: onTap,
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                    child: running
+                        ? const ButtonLoadingIndicator()
+                        : const FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text('Đưa lại vào dự báo', maxLines: 1),
+                          ),
+                  ),
                 ),
               ),
             ],
@@ -326,7 +420,9 @@ class _ForecastSettingsScreenState extends ConsumerState<ForecastSettingsScreen>
                 result.excludeFromForecast
                     ? 'Đã loại khỏi dự báo (${_exclusionReasonLabel(result.reason ?? '')}).'
                     : 'Đã đưa lại vào dự báo.',
-                style: AppTypography.caption(context).copyWith(fontWeight: FontWeight.w600),
+                style: AppTypography.caption(
+                  context,
+                ).copyWith(fontWeight: FontWeight.w600),
               ),
             ),
         ],
@@ -345,10 +441,17 @@ class _ForecastSettingsScreenState extends ConsumerState<ForecastSettingsScreen>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(errorMessage(e), style: AppTypography.caption(context).copyWith(color: AppColors.danger)),
+              Text(
+                errorMessage(e),
+                style: AppTypography.caption(
+                  context,
+                ).copyWith(color: AppColors.danger),
+              ),
               const SizedBox(height: AppSpacing.sm),
               TextButton(
-                onPressed: () => ref.read(forecastSettingsControllerProvider.notifier).load(),
+                onPressed: () => ref
+                    .read(forecastSettingsControllerProvider.notifier)
+                    .load(),
                 child: const Text('Thử lại'),
               ),
             ],
@@ -372,7 +475,9 @@ class _ForecastSettingsScreenState extends ConsumerState<ForecastSettingsScreen>
                 builder: (_, onTap, running) => ElevatedButton(
                   key: const ValueKey('forecast-settings-save'),
                   onPressed: onTap,
-                  child: running ? const ButtonLoadingIndicator() : const Text('Lưu cài đặt'),
+                  child: running
+                      ? const ButtonLoadingIndicator()
+                      : const Text('Lưu cài đặt'),
                 ),
               ),
               const SizedBox(height: AppSpacing.lg),

@@ -239,13 +239,13 @@ class _GoalFormScreenState extends ConsumerState<GoalFormScreen> {
                                     () => _feasibilityChecked = false,
                                   ),
                                   style: GlassTypography.displayHero().copyWith(
-                                    fontSize: 28,
+                                    fontSize: 26,
                                   ),
                                   decoration: _bareDecoration(
                                     '0',
                                     hintStyle: GlassTypography.displayHero(
                                       color: GlassColors.textMuted,
-                                    ).copyWith(fontSize: 28),
+                                    ).copyWith(fontSize: 26),
                                   ),
                                 ),
                               ),

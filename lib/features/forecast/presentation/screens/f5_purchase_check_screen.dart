@@ -217,7 +217,7 @@ class _F5PurchaseCheckScreenState extends ConsumerState<F5PurchaseCheckScreen> {
             controller: _amountController,
             keyboardType: TextInputType.number,
             inputFormatters: [ThousandsSeparatorInputFormatter()],
-            style: GlassTypography.displayHero().copyWith(fontSize: 28),
+            style: GlassTypography.displayHero().copyWith(fontSize: 26),
             decoration: InputDecoration(
               hintText: '0',
               suffixText: 'đ',

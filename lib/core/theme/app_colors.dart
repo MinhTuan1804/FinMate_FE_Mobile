@@ -110,6 +110,21 @@ class AppColors {
     Color(0xFFFBBF24), // Soft Amber
   ];
 
+  /// Nhãn pastel (Figma E3: thẻ sở thích ở Bộ nhớ AI, nhãn gói đăng ký) — tông nhạt của Serene Sky (#7CA9D6)
+  /// và Dusty Rose (#E8B2C4). Mỗi cặp nền/chữ đạt tương phản AA; giữ cùng màu ở cả hai chế độ sáng/tối.
+  static const Color pillSkyBg = Color(0xFFCFE5FF);
+  static const Color pillSkyFg = Color(0xFF001D33);
+  static const Color pillSkyStrongBg = Color(0xFFA3D0FF);
+  static const Color pillSkyStrongFg = Color(0xFF295982);
+  static const Color pillSkyDot = Color(0xFF33628B);
+  static const Color pillRoseBg = Color(0xFFFFD9E4);
+  static const Color pillRoseFg = Color(0xFF31101E);
+  static const Color pillRoseDot = Color(0xFF633B4A);
+  static const Color pillNeutralBg = Color(0xFFE6EEFF);
+  static const Color pillNeutralFg = Color(0xFF0D1C2E);
+  static const Color pillNeutralDot = Color(0xFF45464C);
+  static const Color dividerSoft = Color(0x99D5E3FC);
+
   // ===========================================================================
   // 5. CAMERA OVERLAY TOKENS (Luôn giữ độ tương phản cao trên luồng video camera)
   // ===========================================================================
