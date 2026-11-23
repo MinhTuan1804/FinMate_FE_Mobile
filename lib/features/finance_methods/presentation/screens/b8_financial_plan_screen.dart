@@ -5,6 +5,7 @@ import 'package:finmate/core/format/money.dart';
 import 'package:finmate/core/network/api_exceptions.dart';
 import 'package:finmate/core/theme/glass/glass_colors.dart';
 import 'package:finmate/core/theme/glass/glass_typography.dart';
+import 'package:finmate/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:finmate/features/finance_methods/domain/financial_plan.dart';
 import 'package:finmate/features/finance_methods/presentation/controllers/financial_plan_controller.dart';
 import 'package:finmate/features/forecast/data/forecast_repository.dart';
@@ -80,7 +81,11 @@ class _FinancialPlanScreenState extends ConsumerState<FinancialPlanScreen> {
         body: SafeArea(
           child: async.when(
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => _PlanError(error: e, onRetry: () => ref.invalidate(financialPlanDraftProvider)),
+            error: (e, _) => _PlanError(
+              error: e,
+              onRetry: () => ref.invalidate(financialPlanDraftProvider),
+              onIncomeSaved: () => ref.invalidate(financialPlanDraftProvider),
+            ),
             data: (plan) => Column(
               children: [
                 Expanded(child: _planBody(plan)),
@@ -153,7 +158,7 @@ class _FinancialPlanScreenState extends ConsumerState<FinancialPlanScreen> {
           const SizedBox(height: 12),
           _WarningNote(
             key: ValueKey('plan-warning-${warning.split(':').first}'),
-            text: financialPlanWarningText(warning, plan.groups),
+            text: financialPlanWarningText(warning, plan),
             strong: warning == 'deficit',
           ),
         ],
@@ -247,25 +252,87 @@ class _LimitRow extends StatelessWidget {
   }
 }
 
-/// Lỗi tải bản nháp: thiếu thu nhập hoặc chưa chọn cách quản lý thì chỉ đường để bổ sung; lỗi khác thì cho thử lại.
+/// Lỗi tải bản nháp: thiếu thu nhập thì cho nhập ngay tại đây (lưu vào hồ sơ rồi tải lại kế hoạch); chưa chọn cách quản lý thì chỉ đường;
+/// lỗi khác thì cho thử lại.
+/// Nhập thu nhập hằng tháng ngay trên màn kế hoạch. Lưu qua PATCH /users/me (cùng chỗ màn hồ sơ lưu), không bắt làm lại khảo sát.
+class _IncomeForm extends ConsumerStatefulWidget {
+  final VoidCallback onSaved;
+
+  const _IncomeForm({required this.onSaved});
+
+  @override
+  ConsumerState<_IncomeForm> createState() => _IncomeFormState();
+}
+
+class _IncomeFormState extends ConsumerState<_IncomeForm> {
+  final _controller = TextEditingController();
+  bool _saving = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final income = parseAmountInput(_controller.text);
+    final messenger = ScaffoldMessenger.of(context);
+    if (income == null) {
+      messenger.showSnackBar(const SnackBar(content: Text('Hãy nhập một số tiền lớn hơn 0.')));
+      return;
+    }
+    setState(() => _saving = true);
+    try {
+      final repository = ref.read(authRepositoryProvider);
+      final me = await repository.getMe();
+      await repository.updateProfile(displayName: me.displayName, monthlyIncomeCents: income.toInt());
+      widget.onSaved();
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(errorMessage(e)), backgroundColor: GlassColors.danger));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(24),
+      children: [
+        Text('Cần biết thu nhập hằng tháng của bạn để lập kế hoạch.', style: GlassTypography.bodyMd()),
+        const SizedBox(height: 16),
+        GlassTextField(
+          key: const ValueKey('plan-income'),
+          controller: _controller,
+          label: 'Mỗi tháng bạn thực nhận khoảng bao nhiêu?',
+          hintText: 'Ví dụ: 10.000.000',
+          keyboardType: TextInputType.number,
+          inputFormatters: [ThousandsSeparatorInputFormatter()],
+        ),
+        const SizedBox(height: 16),
+        GlassPrimaryButton(
+          key: const ValueKey('plan-save-income'),
+          label: 'Lưu và lập kế hoạch',
+          loading: _saving,
+          onPressed: _saving ? null : _save,
+        ),
+      ],
+    );
+  }
+}
+
 class _PlanError extends StatelessWidget {
   final Object error;
   final VoidCallback onRetry;
+  final VoidCallback onIncomeSaved;
 
-  const _PlanError({required this.error, required this.onRetry});
+  const _PlanError({required this.error, required this.onRetry, required this.onIncomeSaved});
 
   @override
   Widget build(BuildContext context) {
     final code = error is ApiException ? (error as ApiException).code : null;
+    if (code == 'FINANCE_PLAN_NO_INCOME') return _IncomeForm(onSaved: onIncomeSaved);
     final (message, action) = switch (code) {
-      'FINANCE_PLAN_NO_INCOME' => (
-          'Cần biết thu nhập hằng tháng của bạn để lập kế hoạch.',
-          GlassPrimaryButton(
-            key: const ValueKey('plan-enter-income'),
-            label: 'Nhập thu nhập',
-            onPressed: () => context.push('/survey'),
-          ),
-        ),
       'FINANCE_PLAN_NO_ACTIVE_METHOD' => (
           'Hãy chọn một cách quản lý tài chính trước.',
           GlassPrimaryButton(

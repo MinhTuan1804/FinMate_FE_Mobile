@@ -29,6 +29,7 @@ Map<String, dynamic> _draft({int fixedOther = 0, List<String> warnings = const [
         'saveTargetVnd': 2000000,
         'savingsBalanceVnd': null,
         'warnings': warnings,
+        'warningTexts': {'deficit': 'Chữ thâm hụt từ cấu hình', 'below_save_target': 'Chữ để dành từ cấu hình'},
         'groups': [
           {'key': 'needs_pct', 'label': 'Nhu cầu', 'kind': 'spend', 'pct': 50, 'capVnd': 4500000},
           {'key': 'goals_pct', 'label': 'Mục tiêu', 'kind': 'save', 'pct': 20, 'capVnd': null},
@@ -49,14 +50,25 @@ Map<String, dynamic> _error(String code) => {
       'error': {'code': code, 'message': 'Lỗi', 'details': null},
     };
 
-Future<RouteAdapter> _pump(WidgetTester tester, {Map<String, dynamic>? draft, int status = 200}) async {
+Future<RouteAdapter> _pump(WidgetTester tester, {Map<String, dynamic>? draft, int status = 200, bool incomeFixesIt = false}) async {
   tester.view.physicalSize = const Size(800, 3000);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
+  var incomeSaved = false;
   final adapter = RouteAdapter((o) {
     if (o.path.contains('/categories/apply')) {
       return respondJson({'success': true, 'data': [], 'error': null, 'meta': null});
     }
+    if (o.path.contains('/users/me')) {
+      if (o.method == 'PATCH') incomeSaved = true;
+      return respondJson({
+        'success': true,
+        'error': null,
+        'meta': null,
+        'data': {'id': 'u1', 'email': 'a@b.c', 'displayName': 'Tuấn', 'monthlyIncomeCents': incomeSaved ? 10000000 : null},
+      });
+    }
+    if (incomeFixesIt && incomeSaved) return respondJson(_draft());
     return respondJson(draft ?? _draft(), status: status);
   });
   final router = GoRouter(initialLocation: '/plan', routes: [
@@ -100,20 +112,28 @@ void main() {
       expect(find.text('6.000.000 ₫'), findsOneWidget);
     });
 
-    testWidgets('thâm hụt: hiện lời khuyên ổn định dòng tiền, không hiện mục tiêu để dành', (tester) async {
+    testWidgets('thâm hụt: hiện lời khuyên (chữ từ cấu hình backend), không hiện mục tiêu để dành', (tester) async {
       await _pump(tester, draft: _draft(fixedOther: 6500000, warnings: ['deficit']));
 
       expect(find.byKey(const ValueKey('plan-warning-deficit')), findsOneWidget);
+      expect(find.text('Chữ thâm hụt từ cấu hình'), findsOneWidget);
       expect(find.byKey(const ValueKey('plan-save-target')), findsNothing);
     });
 
-    testWidgets('chưa có thu nhập: mời nhập thu nhập, bấm thì mở khảo sát', (tester) async {
-      await _pump(tester, draft: _error('FINANCE_PLAN_NO_INCOME'), status: 422);
+    testWidgets('chưa có thu nhập: nhập ngay trên màn, lưu vào hồ sơ rồi kế hoạch tải lại', (tester) async {
+      final adapter = await _pump(tester, draft: _error('FINANCE_PLAN_NO_INCOME'), status: 422, incomeFixesIt: true);
 
-      await tester.tap(find.byKey(const ValueKey('plan-enter-income')));
+      await tester.enterText(
+        find.descendant(of: find.byKey(const ValueKey('plan-income')), matching: find.byType(TextFormField)),
+        '10000000',
+      );
+      await tester.tap(find.byKey(const ValueKey('plan-save-income')));
       await tester.pumpAndSettle();
 
-      expect(find.text('survey'), findsOneWidget);
+      final patch = adapter.to('/users/me').where((r) => r.method == 'PATCH').single;
+      final body = (patch.data is String ? jsonDecode(patch.data as String) : patch.data) as Map<String, dynamic>;
+      expect(body, {'displayName': 'Tuấn', 'monthlyIncomeCents': 10000000});
+      expect(find.byKey(const ValueKey('plan-surplus')), findsOneWidget, reason: 'kế hoạch tải lại sau khi có thu nhập');
     });
 
     testWidgets('Áp dụng gửi các dòng hạn mức > 0 rồi sang màn cách quản lý', (tester) async {

@@ -58,6 +58,9 @@ class FinancialPlanEntity {
   final List<FinancialPlanGroupEntity> groups;
   final List<String> warnings;
 
+  /// Chữ cảnh báo theo mã, admin sửa trong cấu hình hệ thống; có cả mã app tự tính lại khi sửa hạn mức.
+  final Map<String, String> warningTexts;
+
   const FinancialPlanEntity({
     required this.methodCode,
     required this.incomeVnd,
@@ -68,6 +71,7 @@ class FinancialPlanEntity {
     required this.categories,
     required this.groups,
     required this.warnings,
+    this.warningTexts = const {},
   });
 
   factory FinancialPlanEntity.fromJson(Map<String, dynamic> json) => FinancialPlanEntity(
@@ -80,6 +84,7 @@ class FinancialPlanEntity {
         categories: (json['categories'] as List).map((e) => FinancialPlanLineEntity.fromJson(e as Map<String, dynamic>)).toList(),
         groups: (json['groups'] as List).map((e) => FinancialPlanGroupEntity.fromJson(e as Map<String, dynamic>)).toList(),
         warnings: (json['warnings'] as List).cast<String>(),
+        warningTexts: (json['warningTexts'] as Map<String, dynamic>? ?? const {}).map((k, v) => MapEntry(k, v as String)),
       );
 }
 
@@ -90,8 +95,12 @@ int planSurplus(FinancialPlanEntity plan, Map<String, int> limits) =>
     plan.fixedOtherVnd -
     plan.categories.fold<int>(0, (sum, line) => sum + (limits[line.slug] ?? line.limitVnd));
 
-/// Chữ hiển thị của mã cảnh báo backend trả về. Một bảng duy nhất, không rải chuỗi trong widget.
-String financialPlanWarningText(String code, List<FinancialPlanGroupEntity> groups) {
+/// Chữ hiển thị của một mã cảnh báo: ưu tiên chữ backend gửi (cấu hình hệ thống, admin sửa được);
+/// bảng dưới chỉ là dự phòng khi backend cũ chưa gửi `warningTexts`.
+String financialPlanWarningText(String code, FinancialPlanEntity plan) =>
+    plan.warningTexts[code] ?? _fallbackWarningText(code, plan.groups);
+
+String _fallbackWarningText(String code, List<FinancialPlanGroupEntity> groups) {
   const fixedPrefix = 'fixed_exceeds_group:';
   if (code.startsWith(fixedPrefix)) {
     final key = code.substring(fixedPrefix.length);
