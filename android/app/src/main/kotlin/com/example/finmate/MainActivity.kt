@@ -6,19 +6,15 @@ import android.util.Log
 import androidx.glance.appwidget.updateAll
 import androidx.lifecycle.lifecycleScope
 import com.example.finmate.notifications.NotificationChannelHandler
-import com.example.finmate.widgets.DetailPrefs
 import com.example.finmate.widgets.DetailSync
 import com.example.finmate.widgets.DetailWidget
 import com.example.finmate.widgets.DetailWidgetReceiver
-import com.example.finmate.widgets.OverviewPrefs
 import com.example.finmate.widgets.OverviewSync
 import com.example.finmate.widgets.OverviewWidget
 import com.example.finmate.widgets.OverviewWidgetReceiver
-import com.example.finmate.widgets.SafeSpendPrefs
 import com.example.finmate.widgets.SafeSpendSync
 import com.example.finmate.widgets.SafeSpendWidget
 import com.example.finmate.widgets.SafeSpendWidgetReceiver
-import com.example.finmate.widgets.WidgetQuickFlash
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -71,9 +67,6 @@ class MainActivity : FlutterActivity() {
                 lifecycleScope.launch(Dispatchers.IO) {
                     try {
                         val ok = SafeSpendSync.refresh(this@MainActivity)
-                        // Thử nghiệm: đẩy thẳng bản RemoteViews cổ điển (không qua Glance Session) NGAY
-                        // sau khi có dữ liệu mới — xem WidgetQuickFlash.kt để biết lý do + điều kiện bỏ.
-                        SafeSpendPrefs.read(this@MainActivity)?.let { WidgetQuickFlash.flashW1(this@MainActivity, it) }
                         SafeSpendWidget().updateAll(this@MainActivity)
                         Log.d(TAG_WIDGET_SYNC, "W1 refresh ok=$ok, updateAll done")
                     } catch (e: Exception) {
@@ -83,7 +76,6 @@ class MainActivity : FlutterActivity() {
                 lifecycleScope.launch(Dispatchers.IO) {
                     try {
                         val ok = OverviewSync.refresh(this@MainActivity)
-                        OverviewPrefs.read(this@MainActivity)?.let { WidgetQuickFlash.flashW2(this@MainActivity, it) }
                         OverviewWidget().updateAll(this@MainActivity)
                         Log.d(TAG_WIDGET_SYNC, "W2 refresh ok=$ok, updateAll done")
                     } catch (e: Exception) {
@@ -93,7 +85,6 @@ class MainActivity : FlutterActivity() {
                 lifecycleScope.launch(Dispatchers.IO) {
                     try {
                         val ok = DetailSync.refresh(this@MainActivity)
-                        DetailPrefs.read(this@MainActivity)?.let { WidgetQuickFlash.flashDetail(this@MainActivity, it) }
                         DetailWidget().updateAll(this@MainActivity)
                         Log.d(TAG_WIDGET_SYNC, "4x4 refresh ok=$ok, updateAll done")
                     } catch (e: Exception) {
