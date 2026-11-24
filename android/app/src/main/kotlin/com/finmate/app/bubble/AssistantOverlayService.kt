@@ -98,8 +98,9 @@ class AssistantOverlayService : Service() {
             y = (screen.heightPixels * 0.3f).toInt()
         }
         val view = ImageView(this).apply {
-            setImageResource(R.mipmap.ic_launcher)
-            scaleType = ImageView.ScaleType.CENTER_CROP
+            // Không dùng icon ứng dụng (vẫn là logo Flutter mặc định): bong bóng có nhận diện riêng của trợ lý.
+            setImageResource(R.drawable.bg_assistant_bubble)
+            scaleType = ImageView.ScaleType.FIT_XY
             contentDescription = "Mở FinMate AI"
             outlineProvider = object : ViewOutlineProvider() {
                 override fun getOutline(view: View, outline: Outline) = outline.setOval(0, 0, view.width, view.height)

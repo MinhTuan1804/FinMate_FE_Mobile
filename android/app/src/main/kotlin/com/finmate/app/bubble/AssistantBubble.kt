@@ -7,6 +7,11 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.LinearGradient
+import android.graphics.Paint
+import android.graphics.Shader
 import android.os.Build
 import android.provider.Settings
 import androidx.core.app.NotificationCompat
@@ -78,12 +83,38 @@ object AssistantBubble {
             .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
+    /**
+     * Icon của trợ lý cho bong bóng hội thoại, Person và shortcut: cùng kiểu với bong bóng nổi (nền chuyển màu + sparkles trắng).
+     * Vẽ thành ảnh adaptive để hệ thống tự cắt tròn đúng mép; icon đặt gọn trong vùng an toàn ở giữa.
+     */
+    private fun assistantIcon(context: Context): IconCompat {
+        val px = 216
+        val bitmap = Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            shader = LinearGradient(
+                0f, 0f, px.toFloat(), px.toFloat(),
+                ContextCompat.getColor(context, R.color.assistant_bubble_start),
+                ContextCompat.getColor(context, R.color.assistant_bubble_end),
+                Shader.TileMode.CLAMP,
+            )
+        }
+        canvas.drawRect(0f, 0f, px.toFloat(), px.toFloat(), paint)
+        ContextCompat.getDrawable(context, R.drawable.ic_sparkles_on_ink)?.let { sparkles ->
+            val size = (px * 0.36f).toInt()
+            val offset = (px - size) / 2
+            sparkles.setBounds(offset, offset, offset + size, offset + size)
+            sparkles.draw(canvas)
+        }
+        return IconCompat.createWithAdaptiveBitmap(bitmap)
+    }
+
     /** Đăng (hoặc cập nhật) thông báo hội thoại mang bong bóng. Trả false nếu thiếu quyền thông báo. */
     fun show(context: Context): Boolean {
         if (!isSupported() || !hasNotificationPermission(context)) return false
         ensureChannel(context)
 
-        val icon = IconCompat.createWithResource(context, R.mipmap.ic_launcher)
+        val icon = assistantIcon(context)
         val ai = Person.Builder().setName("FinMate AI").setIcon(icon).setKey(SHORTCUT_ID).setImportant(true).build()
 
         ShortcutManagerCompat.pushDynamicShortcut(
