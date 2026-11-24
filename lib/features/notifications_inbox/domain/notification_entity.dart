@@ -8,7 +8,9 @@ enum NotificationInboxTab {
   const NotificationInboxTab(this.apiValue);
 }
 
-/// [type] nguyên văn BE: BudgetThreshold|BalanceChange|AnomalyDetected|RecurringBillDue|ForecastReady|GoalMilestone.
+/// [type] nguyên văn BE: BudgetThreshold|BalanceChange|AnomalyDetected|RecurringBillDue|ForecastReady|GoalMilestone|
+/// TransactionReview|ForecastAlert|General. [data]: data của push gốc (null nếu mục không đến từ push) — bấm vào dùng cùng
+/// routeForPush như khi bấm push.
 class UserNotificationEntity {
   final String id;
   final String type;
@@ -18,6 +20,7 @@ class UserNotificationEntity {
   final String? relatedEntityId;
   final DateTime createdAt;
   final DateTime? readAt;
+  final Map<String, String>? data;
 
   const UserNotificationEntity({
     required this.id,
@@ -28,12 +31,16 @@ class UserNotificationEntity {
     required this.relatedEntityId,
     required this.createdAt,
     required this.readAt,
+    this.data,
   });
 
   bool get isUnread => readAt == null;
 
-  /// Khớp cách BE chia tab: 'movement' = BalanceChange/GoalMilestone, còn lại là 'ai_alert'.
-  bool get isMovementType => type == 'BalanceChange' || type == 'GoalMilestone';
+  /// Khớp cách BE chia tab 'movement' (UserNotificationService.MovementTypes).
+  bool get isMovementType => type == 'BalanceChange' || type == 'GoalMilestone' || type == 'TransactionReview';
+
+  /// Tab 'ai_alert' (UserNotificationService.AiAlertTypes). 'General' (khoản vay, hỗ trợ...) chỉ ở tab Tất cả.
+  bool get isAiAlertType => !isMovementType && type != 'General';
 
   UserNotificationEntity markAsRead(DateTime at) => UserNotificationEntity(
         id: id,
@@ -44,6 +51,7 @@ class UserNotificationEntity {
         relatedEntityId: relatedEntityId,
         createdAt: createdAt,
         readAt: at,
+        data: data,
       );
 
   factory UserNotificationEntity.fromJson(Map<String, dynamic> json) => UserNotificationEntity(
@@ -55,6 +63,7 @@ class UserNotificationEntity {
         relatedEntityId: json['relatedEntityId'] as String?,
         createdAt: DateTime.parse(json['createdAt'] as String).toLocal(),
         readAt: json['readAt'] == null ? null : DateTime.parse(json['readAt'] as String).toLocal(),
+        data: (json['data'] as Map<String, dynamic>?)?.map((k, v) => MapEntry(k, v.toString())),
       );
 }
 

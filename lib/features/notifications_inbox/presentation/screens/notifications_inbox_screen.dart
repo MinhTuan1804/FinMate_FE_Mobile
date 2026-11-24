@@ -5,15 +5,19 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:finmate/core/network/api_exceptions.dart';
 import 'package:finmate/core/theme/glass/glass_colors.dart';
 import 'package:finmate/core/theme/glass/glass_typography.dart';
+import 'package:finmate/features/devices/data/push_messaging.dart';
 import 'package:finmate/features/notifications_inbox/domain/notification_entity.dart';
 import 'package:finmate/features/notifications_inbox/presentation/controllers/notifications_inbox_controller.dart';
 import 'package:finmate/shared/widgets/glass/glass_background.dart';
 import 'package:finmate/shared/widgets/glass/glass_buttons.dart';
 import 'package:finmate/shared/widgets/glass/glass_filter_chip.dart';
+import 'package:finmate/features/transactions/presentation/controllers/transaction_controller.dart';
 import 'package:finmate/shared/widgets/glass/glass_notification_card.dart';
 
 (IconData, Color) _iconForType(String type) => switch (type) {
       'BalanceChange' => (LucideIcons.arrowLeftRight, GlassColors.accentSkyBlue),
+      'TransactionReview' => (LucideIcons.clipboardCheck, GlassColors.warning),
+      'ForecastAlert' => (LucideIcons.chartLine, GlassColors.warning),
       'GoalMilestone' => (LucideIcons.target, GlassColors.success),
       'BudgetThreshold' => (LucideIcons.triangleAlert, GlassColors.warning),
       'AnomalyDetected' => (LucideIcons.sparkles, GlassColors.accentDustyRose),
@@ -84,14 +88,14 @@ class NotificationsInboxScreen extends ConsumerWidget {
                 ),
               ),
             ),
-            data: (page) => _buildBody(context, controller, page),
+            data: (page) => _buildBody(context, ref, controller, page),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildBody(BuildContext context, NotificationsInboxController controller, NotificationInboxPage page) {
+  Widget _buildBody(BuildContext context, WidgetRef ref, NotificationsInboxController controller, NotificationInboxPage page) {
     final grouped = <String, List<UserNotificationEntity>>{};
     for (final item in page.items) {
       grouped.putIfAbsent(_dateGroupLabel(item.createdAt), () => []).add(item);
@@ -177,6 +181,16 @@ class NotificationsInboxScreen extends ConsumerWidget {
                         unread: item.isUnread,
                         onTap: () {
                           controller.markRead(item.id);
+                          // Mục đến từ push: mở đúng màn như khi bấm push; mục cũ không có data: theo loại.
+                          final data = item.data;
+                          if (data != null && data.isNotEmpty) {
+                            final (path, extra) = routeForPush(data);
+                            context.push(path, extra: extra);
+                            if (data['type'] == 'transaction_review') {
+                              ref.read(transactionControllerProvider.notifier).setDraftsOnly(true);
+                            }
+                            return;
+                          }
                           final path = routeForInboxType(item.type);
                           if (path != null) context.push(path);
                         },

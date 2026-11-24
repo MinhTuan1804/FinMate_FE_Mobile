@@ -143,7 +143,7 @@ Future<void> _openFrom(Ref ref, RemoteMessage message) async {
   }
 }
 
-@visibleForTesting
+/// Dùng chung cho bấm push và bấm mục hộp thư đến từ push (NotificationsInboxScreen).
 (String, Object?) routeForPush(Map<String, dynamic> data) {
   final groupId = data['groupId'] as String?;
   final ticketId = data['ticketId'] as String?;
