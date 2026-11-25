@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:finmate/core/format/money.dart';
 import 'package:finmate/core/network/api_exceptions.dart';
@@ -76,6 +77,7 @@ class _CreateTransactionBottomSheetState
   String? _categoryId;
   String? _accountId;
   String? _toAccountId;
+  DateTime _date = DateTime.now();
   bool _isSaving = false;
   String? _classicError;
 
@@ -104,6 +106,20 @@ class _CreateTransactionBottomSheetState
       return selected;
     }
     return accounts[math.min(fallbackIndex, accounts.length - 1)].id;
+  }
+
+  /// Cùng khoảng cho phép với màn Chuyển tiền nội bộ (transfer_screen.dart._pickDate),
+  /// để đồng bộ quy tắc chọn ngày giao dịch trong toàn app.
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _date,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now().add(const Duration(days: 1)),
+    );
+    if (picked != null && mounted) {
+      setState(() => _date = DateTime(picked.year, picked.month, picked.day, _date.hour, _date.minute, _date.second));
+    }
   }
 
   Future<void> _handleClassicSave(List<FinancialAccount> accounts) async {
@@ -144,7 +160,7 @@ class _CreateTransactionBottomSheetState
           fromAccountId: from,
           toAccountId: to,
           description: description.isEmpty ? 'Chuyển tiền nội bộ' : description,
-          date: DateTime.now(),
+          date: _date,
         );
       } else {
         await controller.createTransaction(
@@ -153,7 +169,7 @@ class _CreateTransactionBottomSheetState
           amountCents: amount,
           type: _type,
           description: description,
-          date: DateTime.now(),
+          date: _date,
         );
       }
       navigator.pop();
@@ -171,35 +187,10 @@ class _CreateTransactionBottomSheetState
   }
 
   Future<void> _createWallet() async {
-    final balanceController = TextEditingController(text: '0');
     final balance = await showDialog<BigInt>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Tạo ví tiền mặt'),
-        content: TextField(
-          controller: balanceController,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: 'Số dư hiện có (VNĐ)'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Hủy'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final text = balanceController.text.trim();
-              final value = text.isEmpty
-                  ? BigInt.zero
-                  : parseAmountInput(text, allowZero: true);
-              if (value != null) Navigator.pop(ctx, value);
-            },
-            child: const Text('Tạo ví'),
-          ),
-        ],
-      ),
+      builder: (_) => const _CreateWalletDialog(),
     );
-    balanceController.dispose();
     if (balance == null || !mounted) return;
 
     try {
@@ -496,6 +487,22 @@ class _CreateTransactionBottomSheetState
             ),
           ),
           const SizedBox(height: 16),
+          InkWell(
+            key: const ValueKey('classic-date'),
+            borderRadius: AppSpacing.roundedMedium,
+            onTap: _pickDate,
+            child: InputDecorator(
+              decoration: const InputDecoration(
+                labelText: 'Ngày giao dịch',
+                prefixIcon: Icon(LucideIcons.calendar, size: 20),
+              ),
+              child: Text(
+                DateFormat('dd/MM/yyyy').format(_date),
+                style: AppTypography.body(context),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
           if (_type == TransactionType.transfer) ...[
             _accountDropdown(
               label: 'Từ tài khoản',
@@ -579,6 +586,54 @@ class _CreateTransactionBottomSheetState
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Dialog tạo ví tiền mặt — TextEditingController do CHÍNH State của dialog sở hữu, chỉ dispose khi
+/// State này bị gỡ khỏi cây widget (sau khi hiệu ứng đóng của AlertDialog chạy xong). Cùng pattern/
+/// lý do với `_RenameAccountDialog` ở `financial_accounts_screen.dart` — xem comment ở đó để biết
+/// đầy đủ lý do (crash "TextEditingController used after being disposed" nếu dispose ngay khi
+/// `showDialog` trả về trong lúc dialog còn đang animate đóng).
+class _CreateWalletDialog extends StatefulWidget {
+  const _CreateWalletDialog();
+
+  @override
+  State<_CreateWalletDialog> createState() => _CreateWalletDialogState();
+}
+
+class _CreateWalletDialogState extends State<_CreateWalletDialog> {
+  final TextEditingController _balanceController = TextEditingController(text: '0');
+
+  @override
+  void dispose() {
+    _balanceController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Tạo ví tiền mặt'),
+      content: TextField(
+        controller: _balanceController,
+        keyboardType: TextInputType.number,
+        decoration: const InputDecoration(labelText: 'Số dư hiện có (VNĐ)'),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Hủy'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            final text = _balanceController.text.trim();
+            final value = text.isEmpty ? BigInt.zero : parseAmountInput(text, allowZero: true);
+            if (value != null) Navigator.pop(context, value);
+          },
+          child: const Text('Tạo ví'),
+        ),
+      ],
     );
   }
 }

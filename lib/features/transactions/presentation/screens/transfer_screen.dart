@@ -171,13 +171,23 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
     }
 
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        title: const Text('Chuyển tiền nội bộ'),
+        actions: [
+          IconButton(
+            tooltip: 'Quy tắc chuyển',
+            icon: const Icon(LucideIcons.info),
+            onPressed: _showRules,
+          ),
+        ],
+      ),
       body: AmbientGlassBackground(
         child: SafeArea(
           child: Form(
             key: _formKey,
             child: Column(
               children: [
-                _header(context),
                 Expanded(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
@@ -249,41 +259,6 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
           ),
         ],
       );
-
-  Widget _header(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-      child: Row(
-        children: [
-          LiquidGlassIconButton(
-            icon: LucideIcons.arrowLeft,
-            tooltip: 'Quay lại',
-            iconSize: 18,
-            onPressed: () => context.pop(),
-          ),
-          Expanded(
-            child: Text(
-              'Chuyển tiền nội bộ',
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppTypography.bodyLarge(context).copyWith(
-                fontSize: 17,
-                fontWeight: FontWeight.w600,
-                letterSpacing: -0.4,
-              ),
-            ),
-          ),
-          LiquidGlassIconButton(
-            icon: LucideIcons.info,
-            tooltip: 'Quy tắc chuyển',
-            iconSize: 18,
-            onPressed: _showRules,
-          ),
-        ],
-      ),
-    );
-  }
 
   /// Hai ví nguồn/đích nối nhau, nút hoán đổi ở giữa
   Widget _walletsCard(BuildContext context, List<FinancialAccount> accounts) {

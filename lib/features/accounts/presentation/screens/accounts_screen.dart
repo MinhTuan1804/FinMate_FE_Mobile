@@ -15,17 +15,9 @@ class AccountsScreen extends ConsumerWidget {
   const AccountsScreen({super.key});
 
   Future<void> _rename(BuildContext context, WidgetRef ref, FinancialAccount account) async {
-    final controller = TextEditingController(text: account.name);
     final newName = await showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Đổi tên tài khoản'),
-        content: TextField(controller: controller, autofocus: true, decoration: const InputDecoration(labelText: 'Tên hiển thị')),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
-          TextButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: const Text('Lưu')),
-        ],
-      ),
+      builder: (_) => _RenameAccountDialog(initialName: account.name),
     );
     if (newName == null || newName.isEmpty || !context.mounted) return;
     final messenger = ScaffoldMessenger.of(context);
@@ -174,6 +166,41 @@ class AccountsScreen extends ConsumerWidget {
           );
         },
       ),
+    );
+  }
+}
+
+/// Dialog đổi tên tài khoản — TextEditingController do CHÍNH State của dialog sở hữu, chỉ dispose
+/// khi State này bị gỡ khỏi cây widget (sau khi hiệu ứng đóng của AlertDialog chạy xong). Cùng
+/// pattern/lý do với `_RenameAccountDialog` trong `financial_accounts_screen.dart` — xem comment ở
+/// đó để biết đầy đủ lý do (crash "TextEditingController used after being disposed" nếu dispose
+/// ngay khi `showDialog` trả về trong lúc dialog còn đang animate đóng).
+class _RenameAccountDialog extends StatefulWidget {
+  final String initialName;
+  const _RenameAccountDialog({required this.initialName});
+
+  @override
+  State<_RenameAccountDialog> createState() => _RenameAccountDialogState();
+}
+
+class _RenameAccountDialogState extends State<_RenameAccountDialog> {
+  late final TextEditingController _controller = TextEditingController(text: widget.initialName);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Đổi tên tài khoản'),
+      content: TextField(controller: _controller, autofocus: true, decoration: const InputDecoration(labelText: 'Tên hiển thị')),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Hủy')),
+        TextButton(onPressed: () => Navigator.pop(context, _controller.text.trim()), child: const Text('Lưu')),
+      ],
     );
   }
 }

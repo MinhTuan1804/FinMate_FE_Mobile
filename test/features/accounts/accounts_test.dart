@@ -242,6 +242,35 @@ void main() {
       expect(adapter.requests.where((r) => r.method == 'GET'), hasLength(2));
     });
 
+    test('rename thành công nhưng tải lại danh sách lỗi: ném AccountsReloadFailedException và GIỮ NGUYÊN danh sách cũ', () async {
+      var patches = 0;
+      var gets = 0;
+      final adapter = RouteAdapter((o) {
+        if (o.method == 'PATCH') {
+          patches++;
+          final updated = {...(fixtureData('accounts') as List)[0] as Map<String, dynamic>, 'accountName': 'Tên mới'};
+          return respondJson({'success': true, 'data': updated});
+        }
+        gets++;
+        if (gets == 1) return respondFixture('accounts');
+        return throwNetworkDown(o);
+      });
+      final container = build(adapter);
+      container.listen(accountsControllerProvider, (_, __) {});
+      await pumpEventQueue();
+      final before = container.read(accountsControllerProvider).value;
+
+      await expectLater(
+        container.read(accountsControllerProvider.notifier).rename('78b154c6-c8d8-4b6d-9367-981772ce5382', 'Tên mới'),
+        throwsA(isA<AccountsReloadFailedException>()),
+      );
+
+      expect(patches, 1);
+      // Danh sách CŨ vẫn còn nguyên — không bị đẩy vào AsyncValue.error dù reload sau rename lỗi.
+      expect(container.read(accountsControllerProvider).value, before);
+      expect(container.read(accountsControllerProvider).hasError, isFalse);
+    });
+
     test('getBalance trả thẳng kết quả từ repository, không tải lại danh sách', () async {
       var gets = 0;
       final adapter = RouteAdapter((o) {

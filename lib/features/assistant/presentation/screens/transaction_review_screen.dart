@@ -437,11 +437,27 @@ class _TransactionReviewScreenState
     return PopScope(
       canPop: !_isSaving,
       child: Scaffold(
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          automaticallyImplyLeading: false,
+          leading: IconButton(
+            tooltip: 'Quay lại',
+            icon: const Icon(LucideIcons.arrowLeft),
+            onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
+          ),
+          title: const Text('Xác nhận giao dịch AI'),
+          actions: [
+            IconButton(
+              tooltip: 'Trợ giúp',
+              icon: const Icon(LucideIcons.circleHelp),
+              onPressed: _showHelp,
+            ),
+          ],
+        ),
         body: AmbientGlassBackground(
           child: SafeArea(
             child: Column(
               children: [
-                _buildHeader(context),
                 Expanded(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
@@ -510,41 +526,6 @@ class _TransactionReviewScreenState
           ),
         ],
       );
-
-  Widget _buildHeader(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-      child: Row(
-        children: [
-          LiquidGlassIconButton(
-            icon: LucideIcons.arrowLeft,
-            tooltip: 'Quay lại',
-            iconSize: 18,
-            onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
-          ),
-          Expanded(
-            child: Text(
-              'Xác nhận giao dịch AI',
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppTypography.bodyLarge(context).copyWith(
-                fontSize: 17,
-                fontWeight: FontWeight.w600,
-                letterSpacing: -0.4,
-              ),
-            ),
-          ),
-          LiquidGlassIconButton(
-            icon: LucideIcons.circleHelp,
-            tooltip: 'Trợ giúp',
-            iconSize: 18,
-            onPressed: _showHelp,
-          ),
-        ],
-      ),
-    );
-  }
 
   void _showHelp() {
     showDialog<void>(

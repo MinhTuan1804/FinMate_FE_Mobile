@@ -223,10 +223,13 @@ class _F4AlertsScreenState extends ConsumerState<F4AlertsScreen> {
           const SizedBox(height: 6),
           Text(alert.body, style: GlassTypography.bodyMd()),
           const SizedBox(height: 12),
-          Row(
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 4,
+            runSpacing: 0,
             children: [
               Text('Phản hồi độ chính xác:', style: GlassTypography.bodySm()),
-              const SizedBox(width: 8),
+              const SizedBox(width: 4),
               TextButton(
                 onPressed: () => _notAvailableYet('Phản hồi "Hữu ích"'),
                 child: Text('Hữu ích', style: GlassTypography.bodySm(color: GlassColors.textMuted)),

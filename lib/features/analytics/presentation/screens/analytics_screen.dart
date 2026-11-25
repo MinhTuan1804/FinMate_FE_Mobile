@@ -11,7 +11,6 @@ import 'package:finmate/core/theme/glass/glass_typography.dart';
 import 'package:finmate/features/analytics/data/reports_repository.dart';
 import 'package:finmate/features/analytics/domain/report_models.dart';
 import 'package:finmate/features/analytics/presentation/reports_providers.dart';
-import 'package:finmate/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:finmate/features/categories/presentation/category_icons.dart';
 import 'package:finmate/shared/widgets/glass/glass_background.dart';
 import 'package:finmate/shared/widgets/glass/glass_badge.dart';
@@ -59,11 +58,13 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final user = ref.watch(authControllerProvider).value;
-
     return GlassBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          title: const Text('Phân tích'),
+        ),
         body: SafeArea(
           child: RefreshIndicator(
             onRefresh: () async {
@@ -78,8 +79,6 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
               children: [
-                _buildHeader(context, user?.displayName),
-                const SizedBox(height: 20),
                 Text('TỔNG QUAN TÀI CHÍNH', style: GlassTypography.labelCaps()),
                 const SizedBox(height: 4),
                 Text('Phân tích tài chính', style: GlassTypography.headlineLg()),
@@ -117,34 +116,6 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
       case 3:
         break; // đang ở Phân tích
     }
-  }
-
-  Widget _buildHeader(BuildContext context, String? displayName) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Xin chào,', style: GlassTypography.bodyMd()),
-            const SizedBox(height: 2),
-            Text(displayName ?? 'Bạn của FinMate', style: GlassTypography.headlineMd()),
-          ],
-        ),
-        Row(
-          children: [
-            IconButton(
-              icon: Icon(LucideIcons.bell, size: 22, color: GlassColors.textPrimary),
-              onPressed: () => context.push('/notifications'),
-            ),
-            IconButton(
-              icon: Icon(LucideIcons.circleUser, size: 24, color: GlassColors.textPrimary),
-              onPressed: () => context.push('/profile'),
-            ),
-          ],
-        ),
-      ],
-    );
   }
 
   Widget _buildPeriodSelector(BuildContext context) {

@@ -265,6 +265,19 @@ class TransactionController
     ]);
   }
 
+  /// Xoá vĩnh viễn một giao dịch: gọi API trước, chỉ gỡ khỏi state/báo đổi dữ liệu khi server xoá
+  /// thành công, để lỗi (nếu có) được ném lên cho màn gọi xử lý thay vì báo thành công giả.
+  Future<void> deleteTransaction(String id) async {
+    await repository.deleteTransaction(id);
+    if (!mounted) return;
+    state = AsyncValue.data(
+      (state.value ?? const <TransactionEntity>[])
+          .where((t) => t.id != id)
+          .toList(),
+    );
+    await onDataChanged?.call();
+  }
+
   Future<void> transferInternal({
     required BigInt amountCents,
     required String fromAccountId,

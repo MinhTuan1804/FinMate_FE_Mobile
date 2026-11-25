@@ -69,6 +69,34 @@ void main() {
     expect(adapter.requests.where((r) => r.method == 'DELETE').single.path, '/api/v1/financial-accounts/78b154c6-c8d8-4b6d-9367-981772ce5382');
   });
 
+  testWidgets('đổi tên: bấm Lưu rồi dialog đóng KHÔNG crash "TextEditingController used after being disposed" (regression)', (tester) async {
+    final adapter = RouteAdapter((o) {
+      if (o.method == 'PATCH') {
+        final updated = {...(fixtureData('accounts') as List)[0] as Map<String, dynamic>, 'accountName': 'Tên mới'};
+        return respondJson({'success': true, 'data': updated});
+      }
+      return respondFixture('accounts');
+    });
+    await pump(tester, adapter);
+
+    await tester.tap(find.byKey(const ValueKey('menu-78b154c6-c8d8-4b6d-9367-981772ce5382')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Đổi tên'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Tên mới');
+    await tester.tap(find.widgetWithText(FilledButton, 'Lưu'));
+    // CỐ Ý không pumpAndSettle ngay — bơm từng khung hình nhỏ ngay sau khi Navigator.pop() trả về,
+    // đúng lúc AlertDialog còn đang chạy hiệu ứng đóng (fade/scale out) và TextField vẫn còn mounted.
+    // Đây chính là khung thời gian mà controller bị dispose sớm (trước khi sửa) sẽ crash.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 16));
+    await tester.pump(const Duration(milliseconds: 16));
+    expect(tester.takeException(), isNull);
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(adapter.requests.where((r) => r.method == 'PATCH').single.data, {'accountName': 'Tên mới'});
+  });
+
   testWidgets('lỗi tải hiện thông điệp và Thử lại', (tester) async {
     var fail = true;
     final adapter = RouteAdapter((o) {

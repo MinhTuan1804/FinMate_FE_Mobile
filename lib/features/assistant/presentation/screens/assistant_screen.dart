@@ -257,13 +257,11 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
         messages.length + sendingOffset + (messages.isEmpty ? 0 : 1);
 
     return Scaffold(
+      appBar: _buildAppBar(context),
       body: AmbientGlassBackground(
-        // top: false để nền header phủ lên tận mép trên (sau thanh trạng thái); header tự cộng phần đệm này
         child: SafeArea(
-          top: false,
           child: Column(
             children: [
-              _buildHeader(context),
               Expanded(
                 child: messages.isEmpty && !state.isSending
                     ? _buildEmpty(context)
@@ -360,113 +358,82 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
     border: Border.all(color: AppColors.glassBorder(context)),
   );
 
-  Widget _buildHeader(BuildContext context) {
-    final canPop = Navigator.of(context).canPop();
+  AppBar _buildAppBar(BuildContext context) {
     final secondary = AppTypography.caption(context);
-    return Container(
-      padding: EdgeInsets.fromLTRB(
-        16,
-        8 + MediaQuery.paddingOf(context).top,
-        16,
-        8,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.surface(context).withValues(alpha: 0.88),
-        border: Border(
-          bottom: BorderSide(color: AppColors.glassBorder(context)),
-        ),
-      ),
-      child: Row(
+    return AppBar(
+      backgroundColor: Colors.transparent,
+      titleSpacing: 0,
+      title: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          if (canPop)
-            LiquidGlassIconButton(
-              icon: LucideIcons.arrowLeft,
-              tooltip: 'Quay lại',
-              size: 40,
-              iconSize: 18,
-              onPressed: () => Navigator.of(context).maybePop(),
-            )
-          else
-            const SizedBox(width: AppSpacing.minTouchTarget),
-          Expanded(
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _buildAvatar(context),
-                  const SizedBox(width: 10),
-                  Flexible(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Flexible(
-                              child: Text(
-                                'FinMate AI',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: AppTypography.bodyLarge(context)
-                                    .copyWith(
-                                      fontSize: 17,
-                                      fontWeight: FontWeight.w700,
-                                      letterSpacing: -0.4,
-                                      height: 1.3,
-                                    ),
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            ExcludeSemantics(
-                              child: Icon(
-                                LucideIcons.badgeCheck,
-                                size: 15,
-                                color: AppColors.slateOn(context),
-                              ),
-                            ),
-                          ],
+          _buildAvatar(context),
+          const SizedBox(width: 10),
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        'FinMate AI',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.bodyLarge(context).copyWith(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.4,
+                          height: 1.3,
                         ),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: 6,
-                              height: 6,
-                              decoration: const BoxDecoration(
-                                color: AppColors.safe,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            Flexible(
-                              child: Text(
-                                'Đang trực tuyến • Trợ lý tài chính',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: secondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                      ),
                     ),
-                  ),
-                ],
-              ),
+                    const SizedBox(width: 4),
+                    ExcludeSemantics(
+                      child: Icon(
+                        LucideIcons.badgeCheck,
+                        size: 15,
+                        color: AppColors.slateOn(context),
+                      ),
+                    ),
+                  ],
+                ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: const BoxDecoration(
+                        color: AppColors.safe,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        'Đang trực tuyến • Trợ lý tài chính',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: secondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ),
-          LiquidGlassIconButton(
-            key: const ValueKey('open-ai-memory'),
-            icon: LucideIcons.ellipsisVertical,
-            tooltip: 'Bộ nhớ AI',
-            size: 40,
-            iconSize: 18,
-            onPressed: () => context.push('/assistant/memory'),
           ),
         ],
       ),
+      actions: [
+        IconButton(
+          key: const ValueKey('open-ai-memory'),
+          tooltip: 'Bộ nhớ AI',
+          icon: const Icon(LucideIcons.ellipsisVertical),
+          onPressed: () => context.push('/assistant/memory'),
+        ),
+      ],
     );
   }
 

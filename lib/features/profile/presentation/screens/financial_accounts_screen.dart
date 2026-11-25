@@ -34,25 +34,20 @@ class _FinancialAccountsScreenState extends ConsumerState<FinancialAccountsScree
     try {
       await action();
       _toast(success);
+    } on AccountsReloadFailedException {
+      // Hành động (đổi tên/bật-tắt/xóa) đã thành công ở BE — chỉ việc tải lại danh sách sau đó bị
+      // lỗi, không phải lỗi của chính hành động. Báo rõ cả 2 vế, không đẩy cả màn vào trạng thái lỗi.
+      _toast('$success Nhưng không tải lại được danh sách — kéo để làm mới.', error: true);
     } on Object catch (e) {
       _toast(errorMessage(e), error: true);
     }
   }
 
   Future<void> _rename(FinancialAccount a) async {
-    final controller = TextEditingController(text: a.name);
     final name = await showDialog<String>(
       context: context,
-      builder: (dialog) => AlertDialog(
-        title: const Text('Đổi tên tài khoản'),
-        content: TextField(controller: controller, autofocus: true, decoration: const InputDecoration(labelText: 'Tên gợi nhớ')),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(dialog), child: const Text('Hủy')),
-          FilledButton(onPressed: () => Navigator.pop(dialog, controller.text.trim()), child: const Text('Lưu')),
-        ],
-      ),
+      builder: (_) => _RenameAccountDialog(initialName: a.name),
     );
-    controller.dispose();
     if (name == null || name.isEmpty || name == a.name || !mounted) return;
     await _run(() => ref.read(accountsControllerProvider.notifier).rename(a.id, name), 'Đã đổi tên tài khoản.');
   }
@@ -317,6 +312,41 @@ class _FinancialAccountsScreenState extends ConsumerState<FinancialAccountsScree
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Dialog đổi tên tài khoản — TextEditingController do CHÍNH State của dialog sở hữu, chỉ dispose
+/// khi State này bị gỡ khỏi cây widget (sau khi hiệu ứng đóng của AlertDialog chạy xong). Trước
+/// đây controller được tạo ở màn cha và `dispose()` ngay sau khi `await showDialog` trả về — lúc đó
+/// TextField bên trong vẫn còn đang animate ra (dialog đang transition đóng), dispose sớm làm crash
+/// "A TextEditingController was used after being disposed."
+class _RenameAccountDialog extends StatefulWidget {
+  final String initialName;
+  const _RenameAccountDialog({required this.initialName});
+
+  @override
+  State<_RenameAccountDialog> createState() => _RenameAccountDialogState();
+}
+
+class _RenameAccountDialogState extends State<_RenameAccountDialog> {
+  late final TextEditingController _controller = TextEditingController(text: widget.initialName);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Đổi tên tài khoản'),
+      content: TextField(controller: _controller, autofocus: true, decoration: const InputDecoration(labelText: 'Tên gợi nhớ')),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Hủy')),
+        FilledButton(onPressed: () => Navigator.pop(context, _controller.text.trim()), child: const Text('Lưu')),
+      ],
     );
   }
 }

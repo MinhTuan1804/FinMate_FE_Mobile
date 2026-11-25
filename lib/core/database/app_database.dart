@@ -88,6 +88,9 @@ class AppDatabase extends _$AppDatabase {
   Future<int> deleteTransactionByClientRequestId(String clientRequestId) =>
       (delete(localTransactions)..where((t) => t.clientRequestId.equals(clientRequestId))).go();
 
+  Future<int> deleteTransactionById(String id) =>
+      (delete(localTransactions)..where((t) => t.id.equals(id))).go();
+
   /// Đánh dấu giao dịch không thể đồng bộ (server từ chối quá số lần cho phép)
   Future<int> markSyncFailed(String clientRequestId) =>
       (update(localTransactions)..where((t) => t.clientRequestId.equals(clientRequestId)))

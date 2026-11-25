@@ -45,13 +45,20 @@ class HomeScreen extends ConsumerWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Xin chào,', style: GlassTypography.bodyMd()),
-                        const SizedBox(height: 2),
-                        Text(user?.displayName ?? 'Bạn của FinMate', style: GlassTypography.headlineLg()),
-                      ],
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Xin chào,', style: GlassTypography.bodyMd()),
+                          const SizedBox(height: 2),
+                          Text(
+                            user?.displayName ?? 'Bạn của FinMate',
+                            style: GlassTypography.headlineLg(),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
                     ),
                     Row(
                       children: [

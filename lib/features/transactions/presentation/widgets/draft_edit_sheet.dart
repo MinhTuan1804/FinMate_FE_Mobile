@@ -15,8 +15,9 @@ import 'package:finmate/features/categories/presentation/category_icons.dart';
 import 'package:finmate/features/transactions/domain/entities/transaction_entity.dart';
 import 'package:finmate/features/transactions/presentation/controllers/transaction_controller.dart';
 
-/// Sửa một nháp rồi xác nhận ngay: `saveDraft` (PATCH) và `confirmDraft`.
-/// Đóng sheet và trả `true` khi cả hai thành công.
+/// Sửa một giao dịch: luôn `saveDraft` (PATCH). Nếu [draft] còn là nháp thì xác nhận luôn bằng
+/// `confirmDraft`; nếu đã Confirmed thì chỉ PATCH, không gọi confirm (BE từ chối confirm với giao
+/// dịch không còn là nháp). Đóng sheet và trả `true` khi thành công.
 class DraftEditSheet extends ConsumerStatefulWidget {
   final TransactionEntity draft;
 
@@ -79,6 +80,7 @@ class _DraftEditSheetState extends ConsumerState<DraftEditSheet> {
     final navigator = Navigator.of(context);
     final controller = ref.read(transactionControllerProvider.notifier);
     final merchant = _merchant.text.trim();
+    final isDraft = widget.draft.status == TransactionStatus.draft;
     setState(() {
       _saving = true;
       _error = null;
@@ -96,13 +98,15 @@ class _DraftEditSheetState extends ConsumerState<DraftEditSheet> {
         description: _note.text.trim(),
       );
       saved = true;
-      await controller.confirmDraft(widget.draft.id);
+      // Giao dịch đã xác nhận trước đó chỉ cần PATCH lại các trường, không gọi confirm nữa
+      // (confirm chỉ hợp lệ cho nháp, BE từ chối với giao dịch đã Confirmed).
+      if (isDraft) await controller.confirmDraft(widget.draft.id);
       if (!mounted) return;
       navigator.pop(true);
     } catch (e) {
       if (mounted) {
         setState(
-          () => _error = saved
+          () => _error = saved && isDraft
               ? 'Đã lưu chỉnh sửa nhưng chưa xác nhận được: ${errorMessage(e)}'
               : errorMessage(e),
         );
@@ -146,7 +150,9 @@ class _DraftEditSheetState extends ConsumerState<DraftEditSheet> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Text(
-                        'Sửa giao dịch chờ duyệt',
+                        widget.draft.status == TransactionStatus.draft
+                            ? 'Sửa giao dịch chờ duyệt'
+                            : 'Sửa giao dịch',
                         style: AppTypography.h3(context),
                       ),
                       const SizedBox(height: AppSpacing.lg),
@@ -288,7 +294,11 @@ class _DraftEditSheetState extends ConsumerState<DraftEditSheet> {
                                   color: AppColors.onPrimaryAction(context),
                                 ),
                               )
-                            : const Text('Lưu & xác nhận'),
+                            : Text(
+                                widget.draft.status == TransactionStatus.draft
+                                    ? 'Lưu & xác nhận'
+                                    : 'Lưu thay đổi',
+                              ),
                       ),
                       const SizedBox(height: AppSpacing.sm),
                       TextButton(

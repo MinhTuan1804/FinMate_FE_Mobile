@@ -290,6 +290,13 @@ class TransactionRepository {
     await apiClient.delete('$_transactionsPath/$id/group');
   }
 
+  /// Xoá vĩnh viễn một giao dịch (DELETE); BE tự khôi phục số dư/ngân sách liên quan. Cần mạng:
+  /// không xếp hàng đồng bộ, lỗi được ném thẳng để người dùng biết việc xoá chưa thành công.
+  Future<void> deleteTransaction(String id) async {
+    await apiClient.delete('$_transactionsPath/$id');
+    await database.deleteTransactionById(id);
+  }
+
   Future<TransactionEntity> _submit(
     TransactionEntity entity,
     String endpoint,

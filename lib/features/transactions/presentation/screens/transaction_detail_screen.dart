@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:finmate/core/network/api_exceptions.dart';
 import 'package:finmate/core/theme/app_colors.dart';
 import 'package:finmate/core/theme/app_spacing.dart';
 import 'package:finmate/core/theme/app_typography.dart';
@@ -59,8 +60,12 @@ class _TransactionDetailScreenState
       ),
     );
 
-    if (confirmed == true && mounted) {
-      ref.read(transactionControllerProvider.notifier).loadTransactions();
+    if (confirmed != true || !mounted) return;
+    try {
+      await ref
+          .read(transactionControllerProvider.notifier)
+          .deleteTransaction(_tx.id);
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Đã xóa giao dịch thành công'),
@@ -68,6 +73,15 @@ class _TransactionDetailScreenState
         ),
       );
       context.pop();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Không thể xóa giao dịch: ${errorMessage(e)}'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 
@@ -106,42 +120,21 @@ class _TransactionDetailScreenState
     final isDraft = _tx.status == TransactionStatus.draft;
 
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        title: const Text('Chi tiết giao dịch'),
+        actions: [
+          IconButton(
+            tooltip: 'Xóa',
+            icon: const Icon(LucideIcons.trash2),
+            onPressed: _handleDelete,
+          ),
+        ],
+      ),
       body: AmbientGlassBackground(
         child: SafeArea(
           child: Column(
             children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-                child: Row(
-                  children: [
-                    LiquidGlassIconButton(
-                      icon: LucideIcons.arrowLeft,
-                      tooltip: 'Quay lại',
-                      iconSize: 18,
-                      onPressed: () => context.pop(),
-                    ),
-                    Expanded(
-                      child: Text(
-                        'Chi tiết giao dịch',
-                        textAlign: TextAlign.center,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTypography.bodyLarge(context).copyWith(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: -0.4,
-                        ),
-                      ),
-                    ),
-                    LiquidGlassIconButton(
-                      icon: LucideIcons.trash2,
-                      tooltip: 'Xóa',
-                      iconSize: 18,
-                      onPressed: _handleDelete,
-                    ),
-                  ],
-                ),
-              ),
               Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
