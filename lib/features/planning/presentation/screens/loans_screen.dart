@@ -167,7 +167,8 @@ class _LoansScreenState extends ConsumerState<LoansScreen> {
   }
 
   List<Widget> _content(BuildContext context, List<LoanItem> filtered) {
-    final total = filtered.fold(BigInt.zero, (sum, l) => sum + l.remainingCents);
+    // Khoản đã xoá nợ (written_off) có thể còn remainingCents > 0 nhưng không còn "cần trả"/"cần thu hồi".
+    final total = filtered.fold(BigInt.zero, (sum, l) => sum + (l.isClosed ? BigInt.zero : l.remainingCents));
     return [
       ZenvestHeroDeck(
         peekBadgeText: _selectedTab == 0 ? 'DEBT' : 'LOAN',
@@ -223,7 +224,7 @@ class _LoansScreenState extends ConsumerState<LoansScreen> {
 
   Widget _loanCard(BuildContext context, LoanItem loan) {
     final progress = loan.principalCents == BigInt.zero ? 0.0 : (loan.paidCents.toDouble() / loan.principalCents.toDouble()).clamp(0.0, 1.0);
-    final done = loan.remainingCents == BigInt.zero;
+    final done = loan.isClosed || loan.remainingCents == BigInt.zero;
     return Padding(
       key: ValueKey('loan-${loan.id}'),
       padding: const EdgeInsets.only(bottom: 14),
@@ -620,10 +621,13 @@ class _RepayDialogState extends State<_RepayDialog> {
 
   void _submit() {
     final amount = parseAmountInput(_amount.text);
+    // Khoản có lãi suất: BE cho trả vượt gốc còn lại nếu phần vượt là lãi (±ngưỡng dung sai, S1)
+    // — chặn ở đây theo totalDueCents (gốc + lãi tạm tính) để không chặn nhầm người trả kèm lãi.
+    final cap = widget.loan.totalDueCents;
     if (amount == null) {
       setState(() => _error = 'Nhập số tiền lớn hơn 0.');
-    } else if (amount > widget.loan.remainingCents) {
-      setState(() => _error = 'Vượt quá số còn lại (${formatVnd(widget.loan.remainingCents)}).');
+    } else if (amount > cap) {
+      setState(() => _error = 'Vượt quá số còn lại (${formatVnd(cap)}).');
     } else {
       Navigator.pop(context, _RepayInput(amount, _accountId));
     }

@@ -21,6 +21,10 @@ class LoanItem {
   /// Lãi tạm tính (lãi đơn trên dư nợ gốc, chỉ để tham khảo); [totalDueCents] = còn lại + lãi tạm tính
   final BigInt? accruedInterestCents;
 
+  /// `open` | `settled` | `written_off` (BE Phase 90). Khoản `written_off` có thể còn `remainingCents > 0`
+  /// — không được coi là "đã xong" chỉ bằng cách so `remainingCents` với 0, phải đọc trường này.
+  final String status;
+
   const LoanItem({
     required this.id,
     required this.type,
@@ -33,9 +37,14 @@ class LoanItem {
     this.dueDate,
     this.startDate,
     this.accruedInterestCents,
+    this.status = 'open',
   });
 
   BigInt get totalDueCents => remainingCents + (accruedInterestCents ?? BigInt.zero);
+
+  /// Đã trả xong (`settled`) hoặc chủ động xoá nợ (`written_off`); không chỉ dựa vào `remainingCents == 0`
+  /// vì một khoản xoá nợ có thể còn hiện số dư chưa trả.
+  bool get isClosed => status == 'settled' || status == 'written_off';
 
   factory LoanItem.fromJson(Map<String, dynamic> json) => LoanItem(
         id: json['id'] as String,
@@ -49,6 +58,7 @@ class LoanItem {
         dueDate: json['dueDate'] == null ? null : DateTime.tryParse(json['dueDate'] as String),
         startDate: json['startDate'] == null ? null : DateTime.tryParse(json['startDate'] as String),
         accruedInterestCents: parseCents(json['accruedInterestCents']),
+        status: json['status'] as String? ?? 'open',
       );
 }
 
