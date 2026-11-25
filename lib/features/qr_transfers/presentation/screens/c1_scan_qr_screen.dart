@@ -1,31 +1,65 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:finmate/core/permissions/permission_service.dart';
+import 'package:finmate/features/groups/domain/join_link.dart';
 import 'package:finmate/features/qr_transfers/domain/vietqr_payload.dart';
+import 'package:finmate/shared/widgets/permission_prompt.dart';
 
 /// C1 — Quét QR. Camera thật (mobile_scanner), đèn pin (nút ở góc trên) và chọn ảnh từ thư viện để giải mã.
+/// Cũng nhận QR mời vào nhóm (`https://finmate.app/join/<mã>`): mở thẳng màn xem trước lời mời.
 /// Quét hoá đơn là luồng riêng (D4) nên không nằm ở màn này.
-class C1ScanQrScreen extends StatefulWidget {
+class C1ScanQrScreen extends ConsumerStatefulWidget {
   const C1ScanQrScreen({super.key});
 
   @override
-  State<C1ScanQrScreen> createState() => _C1ScanQrScreenState();
+  ConsumerState<C1ScanQrScreen> createState() => _C1ScanQrScreenState();
 }
 
-class _C1ScanQrScreenState extends State<C1ScanQrScreen> {
+class _C1ScanQrScreenState extends ConsumerState<C1ScanQrScreen> with WidgetsBindingObserver {
   final MobileScannerController _controller = MobileScannerController(detectionSpeed: DetectionSpeed.noDuplicates);
   final ImagePicker _imagePicker = ImagePicker();
   bool _torchOn = false;
   bool _handled = false;
 
+  /// null = đang kiểm tra quyền camera. Chưa cấp thì không dựng camera mà hiện khối giải thích + nút cấp quyền / mở Cài đặt.
+  PermissionState? _camera;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _checkCamera(askIfNeeded: true);
+  }
+
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _controller.dispose();
     super.dispose();
+  }
+
+  /// Người dùng vừa bật quyền trong Cài đặt rồi quay lại app: kiểm tra lại để vào thẳng chế độ quét.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _camera != PermissionState.granted) _checkCamera();
+  }
+
+  Future<void> _checkCamera({bool askIfNeeded = false}) async {
+    final service = ref.read(permissionServiceProvider);
+    var state = await service.status(AppPermission.camera);
+    if (state == PermissionState.denied && askIfNeeded) state = await service.request(AppPermission.camera);
+    if (mounted) setState(() => _camera = state);
+  }
+
+  Future<void> _requestCamera() async {
+    final state = await ref.read(permissionServiceProvider).request(AppPermission.camera);
+    if (mounted) setState(() => _camera = state);
   }
 
   Future<void> _toggleTorch() async {
@@ -36,6 +70,11 @@ class _C1ScanQrScreenState extends State<C1ScanQrScreen> {
   void _handleRawValue(String? raw) {
     if (raw == null || raw.isEmpty || _handled) return;
     _handled = true;
+    final joinCode = parseGroupJoinLink(raw);
+    if (joinCode != null) {
+      context.push('/accept-invitation', extra: joinCode).then((_) => _resumeScanning());
+      return;
+    }
     final payload = parseVietQrPayload(raw);
     context.push(
       '/qr-transfers/confirm',
@@ -46,7 +85,20 @@ class _C1ScanQrScreenState extends State<C1ScanQrScreen> {
         'amountCents': payload.amountCents,
         'message': payload.message,
       },
-    ).then((_) => _handled = false);
+    ).then((_) => _resumeScanning());
+  }
+
+  /// Quay lại từ màn khác: cho quét tiếp. Chế độ noDuplicates không báo lại cùng một mã đang nằm trong khung hình,
+  /// nên phải khởi động lại camera thì lần quét sau mới được nhận.
+  Future<void> _resumeScanning() async {
+    _handled = false;
+    if (!mounted) return;
+    try {
+      await _controller.stop();
+      await _controller.start();
+    } catch (_) {
+      // Camera không khởi động lại được thì thôi: người dùng vẫn thoát và mở lại màn quét được.
+    }
   }
 
   void _onDetect(BarcodeCapture capture) {
@@ -69,6 +121,24 @@ class _C1ScanQrScreenState extends State<C1ScanQrScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final camera = _camera;
+    if (camera != PermissionState.granted) {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0, foregroundColor: Colors.white, leading: BackButton(onPressed: () => context.pop())),
+        body: camera == null
+            ? const Center(child: CircularProgressIndicator())
+            : PermissionPrompt(
+                dark: true,
+                icon: LucideIcons.camera,
+                title: 'Cần quyền camera để quét QR',
+                message: 'FinMate dùng camera để quét mã QR chuyển khoản và mã mời vào nhóm. Hãy bật quyền này nếu muốn dùng chức năng quét.',
+                state: camera,
+                onRequest: _requestCamera,
+                onOpenSettings: () => ref.read(permissionServiceProvider).openSettings(),
+              ),
+      );
+    }
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
@@ -167,7 +237,7 @@ class _C1ScanQrScreenState extends State<C1ScanQrScreen> {
               const SizedBox(height: 20),
               _glassPill(
                 padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                child: const Text(
+                child: Text(
                   'Căn chỉnh mã VietQR, VNPAY hoặc FinMate vào khung',
                   style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
                   textAlign: TextAlign.center,
@@ -202,7 +272,7 @@ class _C1ScanQrScreenState extends State<C1ScanQrScreen> {
         children: [
           _glassPill(child: Icon(icon, color: Colors.white, size: 22)),
           const SizedBox(height: 6),
-          Text(label, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500)),
+          Text(label, style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500)),
         ],
       ),
     );

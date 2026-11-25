@@ -58,7 +58,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       await ref.read(authControllerProvider.notifier).register(email, password, name);
       if (mounted) {
         // Chuyển sang màn hình xác thực OTP (BR-02)
-        context.push('/verify-otp', extra: email);
+        // Thay màn đăng ký: tài khoản đã được tạo, quay lại từ màn OTP không được về lại form đã nộp.
+        context.pushReplacement('/verify-otp', extra: email);
       }
     } catch (e) {
       if (mounted) {
@@ -214,7 +215,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         Expanded(
                           child: Text(
                             'FinMate cam kết Zero-Credential: Không bao giờ yêu cầu hay lưu trữ mật khẩu ngân hàng.',
-                            style: GlassTypography.bodySm().copyWith(fontSize: 11),
+                            style: GlassTypography.bodySm().copyWith(fontSize: 12),
                           ),
                         ),
                       ],

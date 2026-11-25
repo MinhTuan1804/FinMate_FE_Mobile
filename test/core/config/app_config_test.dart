@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -62,9 +61,7 @@ void main() {
       expect(config.appVersion.forceUpdate, isTrue);
       expect(config.features.chatAi, isFalse);
       expect(config.features.billScan, isTrue);  // thiếu trường nghĩa là còn bật
-      expect(config.theme.primaryColor, const Color(0xFF2E7D6B));
       expect(config.theme.fontFamily, 'Be Vietnam Pro');
-      expect(config.theme.textScale, 1.2);
       expect(config.theme.logoUrl, 'https://cdn.example.com/logo.png');
     });
 
@@ -77,19 +74,13 @@ void main() {
         final config = AppConfig.fromJson(broken);
         expect(config.maintenance.enabled, isFalse);
         expect(config.appVersion.forceUpdate, isFalse);
-        expect(config.theme.primaryColor, isNull);
-        expect(config.theme.textScale, 1.0);
+        expect(config.theme.fontFamily, isNull);
+        expect(config.theme.logoUrl, isNull);
       }
     });
 
-    test('màu sai, cỡ chữ ngoài khoảng và logo không phải https bị loại', () {
-      final theme = ThemeConfig.fromJson({'primaryColor': 'red', 'backgroundColor': '#FFF', 'textScale': 9, 'logoUrl': 'http://cdn.example.com/logo.png'});
-
-      expect(theme.primaryColor, isNull);
-      expect(theme.backgroundColor, isNull);
-      expect(theme.textScale, ThemeConfig.maxTextScale);
-      expect(theme.logoUrl, isNull);
-      expect(ThemeConfig.fromJson({'textScale': 0.1}).textScale, ThemeConfig.minTextScale);
+    test('logo không phải https bị loại', () {
+      expect(ThemeConfig.fromJson({'logoUrl': 'http://cdn.example.com/logo.png'}).logoUrl, isNull);
     });
   });
 
@@ -193,16 +184,18 @@ void main() {
   group('AppTheme.applyConfig', () {
     setUp(() => GoogleFonts.config.allowRuntimeFetching = false);
 
-    test('đổi màu chủ đạo, nền và thanh điều hướng của theme', () {
-      final themed = AppTheme.applyConfig(
-        AppTheme.darkTheme,
-        const ThemeConfig(primaryColor: Color(0xFFFFD54F), backgroundColor: Color(0xFF101010), navBarColor: Color(0xFF202020)),
-      );
+    test('server cũ còn gửi màu/cỡ chữ: admin không đè lên màu theo thiết kế và chế độ tối người dùng chọn', () {
+      final config = ThemeConfig.fromJson({'primaryColor': '#FFD54F', 'backgroundColor': '#FFFFFF', 'textScale': 1.4});
+      final themed = AppTheme.applyConfig(AppTheme.darkTheme, config);
 
-      expect(themed.colorScheme.primary, const Color(0xFFFFD54F));
-      expect(themed.colorScheme.onPrimary, Colors.black);  // chữ trên nền vàng sáng phải tối
-      expect(themed.scaffoldBackgroundColor, const Color(0xFF101010));
-      expect(themed.bottomNavigationBarTheme.backgroundColor, const Color(0xFF202020));
+      expect(themed.colorScheme.primary, AppTheme.darkTheme.colorScheme.primary);
+      expect(themed.scaffoldBackgroundColor, AppTheme.darkTheme.scaffoldBackgroundColor);
+    });
+
+    test('font đóng gói sẵn admin chọn dùng bản trong app', () {
+      final themed = AppTheme.applyConfig(AppTheme.lightTheme, const ThemeConfig(fontFamily: 'Inter'));
+
+      expect(themed.textTheme.bodyMedium!.fontFamily, 'Inter');
     });
 
     test('cấu hình trống giữ nguyên theme', () {

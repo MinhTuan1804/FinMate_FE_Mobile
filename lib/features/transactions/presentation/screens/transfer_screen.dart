@@ -12,6 +12,7 @@ import 'package:finmate/core/widgets/glass/liquid_glass.dart';
 import 'package:finmate/features/accounts/domain/financial_account.dart';
 import 'package:finmate/features/accounts/presentation/controllers/accounts_controller.dart';
 import 'package:finmate/features/transactions/presentation/controllers/transaction_controller.dart';
+import 'package:finmate/core/widgets/async_action_builder.dart';
 
 /// "1250000" -> "1.250.000" (chỉ giữ chữ số)
 String _groupThousands(String raw) => raw
@@ -393,7 +394,7 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
                           const SizedBox(width: 8),
                           Text(
                             formatVnd(acc.balanceCents),
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontWeight: FontWeight.w500,
                               fontSize: 13,
                             ),
@@ -436,7 +437,7 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
                   onChanged: (_) => setState(() {}),
                   style: AppTypography.tabular(
                     AppTypography.h1(context).copyWith(
-                      fontSize: 30,
+                      fontSize: 32,
                       height: 1.25,
                       letterSpacing: -0.75,
                     ),
@@ -625,13 +626,14 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
               width: 32,
               height: 32,
               decoration: BoxDecoration(
-                color: enough ? AppColors.slateOn(context) : AppColors.warning,
+                color: (enough ? AppColors.slateOn(context) : AppColors.warning).withValues(alpha: 0.18),
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 enough ? LucideIcons.sparkles : LucideIcons.triangleAlert,
                 size: 16,
-                color: Colors.white,
+                // Icon cùng màu nền nhạt: tương phản đủ ở cả sáng lẫn tối (trước là chữ trắng trên nền xanh nhạt ở giao diện tối).
+                color: enough ? AppColors.slateOn(context) : AppColors.warning,
               ),
             ),
             const SizedBox(width: 12),
@@ -642,7 +644,7 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
                   Text(
                     'FINMATE THÔNG MINH',
                     style: AppTypography.caption(context).copyWith(
-                      fontSize: 11,
+                      fontSize: 12,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 0.55,
                       color: AppColors.slateOn(context),
@@ -672,31 +674,34 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          ElevatedButton(
+          AsyncActionBuilder(
             onPressed: _isLoading ? null : _handleSubmit,
-            style: ElevatedButton.styleFrom(
-              minimumSize: const Size.fromHeight(52),
-              shape: const StadiumBorder(),
-              backgroundColor: AppColors.primaryAction(context),
-              foregroundColor: AppColors.onPrimaryAction(context),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Flexible(
-                  child: Text(
-                    _isLoading ? 'Đang xử lý...' : 'Xác nhận chuyển ví',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
+            builder: (_, onTap, running) => ElevatedButton(
+              onPressed: onTap,
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size.fromHeight(52),
+                shape: const StadiumBorder(),
+                backgroundColor: AppColors.primaryAction(context),
+                foregroundColor: AppColors.onPrimaryAction(context),
+              ),
+              child: running ? const ButtonLoadingIndicator() : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Flexible(
+                    child: Text(
+                      _isLoading ? 'Đang xử lý...' : 'Xác nhận chuyển ví',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                const Icon(LucideIcons.arrowRight, size: 16),
-              ],
+                  const SizedBox(width: 8),
+                  const Icon(LucideIcons.arrowRight, size: 16),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 4),
@@ -706,7 +711,7 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
               minimumSize: const Size.fromHeight(44),
               foregroundColor: AppColors.textSecondary(context),
             ),
-            child: const Text(
+            child: Text(
               'Hủy bỏ',
               style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
             ),

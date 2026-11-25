@@ -1,5 +1,3 @@
-import 'package:flutter/painting.dart';
-
 /// Cấu hình hệ thống do admin đặt, app tải từ `GET /api/v1/app-config`. Mọi trường đọc "khoan dung": thiếu hoặc sai kiểu thì dùng mặc định,
 /// để một cấu hình hỏng ở server không bao giờ làm app không mở được.
 class MaintenanceConfig {
@@ -64,29 +62,20 @@ class FeatureConfig {
       );
 }
 
-/// Giao diện: `null` nghĩa là "giữ mặc định có sẵn trong app".
+/// Giao diện do admin đặt: chỉ thương hiệu (font chữ, logo); `null` nghĩa là "giữ mặc định có sẵn trong app".
+/// Màu, sáng/tối và cỡ chữ không nhận từ admin: màu do thiết kế Liquid Glass, sáng/tối và cỡ chữ do người dùng
+/// tự chọn trong Giao diện & Hiển thị (lưu trên máy), nên admin không bao giờ đè lên lựa chọn của người dùng.
 class ThemeConfig {
-  const ThemeConfig({this.primaryColor, this.backgroundColor, this.navBarColor, this.fontFamily, this.textScale = 1.0, this.logoUrl});
+  const ThemeConfig({this.fontFamily, this.logoUrl});
 
-  static const double minTextScale = 0.8;
-  static const double maxTextScale = 1.5;
-
-  final Color? primaryColor;
-  final Color? backgroundColor;
-  final Color? navBarColor;
+  /// Font cho mọi chữ (tên trên Google Fonts); null = Be Vietnam Pro đóng gói sẵn. Số tiền luôn dùng Inter.
   final String? fontFamily;
-  final double textScale;
   final String? logoUrl;
 
   factory ThemeConfig.fromJson(Map<String, dynamic> json) {
-    final scale = json['textScale'];
     final logo = _text(json['logoUrl']);
     return ThemeConfig(
-      primaryColor: _color(json['primaryColor']),
-      backgroundColor: _color(json['backgroundColor']),
-      navBarColor: _color(json['navBarColor']),
       fontFamily: _text(json['fontFamily']),
-      textScale: scale is num ? scale.toDouble().clamp(minTextScale, maxTextScale) : 1.0,
       logoUrl: logo != null && logo.startsWith('https://') ? logo : null,  // chỉ nhận https: không tải ảnh qua kết nối không mã hóa
     );
   }
@@ -168,11 +157,4 @@ String? _text(Object? value) {
   if (value is! String) return null;
   final trimmed = value.trim();
   return trimmed.isEmpty ? null : trimmed;
-}
-
-final RegExp _hex = RegExp(r'^#[0-9A-Fa-f]{6}$');
-
-Color? _color(Object? value) {
-  if (value is! String || !_hex.hasMatch(value)) return null;
-  return Color(0xFF000000 | int.parse(value.substring(1), radix: 16));
 }

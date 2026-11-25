@@ -31,7 +31,7 @@ void main() {
       final adapter = RouteAdapter((o) => respondJson({'success': true, 'data': {'groupId': 'g1'}}));
       final repo = GroupInvitationsRepository(apiClient: testApiClient(adapter));
 
-      final groupId = await repo.accept('tok-123');
+      final groupId = await repo.accept(token: 'tok-123');
 
       final req = adapter.requests.single;
       expect(req.method, 'POST');

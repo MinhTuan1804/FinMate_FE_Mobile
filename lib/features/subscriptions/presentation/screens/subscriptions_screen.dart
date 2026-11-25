@@ -4,6 +4,7 @@ import 'package:finmate/core/network/api_exceptions.dart';
 import 'package:finmate/core/theme/app_colors.dart';
 import 'package:finmate/core/theme/app_spacing.dart';
 import 'package:finmate/features/subscriptions/presentation/controllers/subscriptions_controller.dart';
+import 'package:finmate/core/widgets/async_action_builder.dart';
 
 String _cycleLabel(String c) => switch (c) {
       'Monthly' => 'Theo tháng',
@@ -174,10 +175,7 @@ class _WebSessionButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return OutlinedButton.icon(
-      key: const ValueKey('create-web-session'),
-      icon: const Icon(Icons.open_in_browser),
-      label: const Text('Tạo liên kết mua/gia hạn gói'),
+    return AsyncActionBuilder(
       onPressed: () async {
         final createWebSession = ref.read(webSessionActionProvider);
         try {
@@ -198,6 +196,12 @@ class _WebSessionButton extends ConsumerWidget {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errorMessage(e))));
         }
       },
+      builder: (_, onTap, running) => OutlinedButton.icon(
+        key: const ValueKey('create-web-session'),
+        icon: running ? const ButtonLoadingIndicator(size: 16) : const Icon(Icons.open_in_browser),
+        label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Tạo liên kết mua/gia hạn gói', maxLines: 1)),
+        onPressed: onTap,
+      ),
     );
   }
 }

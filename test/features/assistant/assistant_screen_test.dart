@@ -6,6 +6,7 @@ import 'package:finmate/core/format/money.dart';
 import 'package:finmate/features/accounts/domain/financial_account.dart';
 import 'package:finmate/features/accounts/presentation/controllers/accounts_controller.dart';
 import 'package:finmate/features/assistant/data/assistant_repository.dart';
+import 'package:finmate/features/assistant/data/receipt_image_source.dart';
 import 'package:finmate/features/assistant/domain/assistant_models.dart';
 import 'package:finmate/features/assistant/presentation/controllers/assistant_controller.dart';
 import 'package:finmate/features/assistant/presentation/screens/assistant_screen.dart';
@@ -15,6 +16,7 @@ import 'package:finmate/features/auth/presentation/controllers/auth_controller.d
 import 'package:finmate/features/categories/domain/category.dart';
 import 'package:finmate/features/categories/presentation/categories_provider.dart';
 import '../../fixtures/fixture.dart';
+import '../../fixtures/fakes.dart';
 import '../auth/consent_fakes.dart';
 
 class _MockAccounts extends StateNotifier<AsyncValue<List<FinancialAccount>>> implements AccountsController {
@@ -39,6 +41,19 @@ class _TestAssistant extends AssistantController {
 
   @override
   Future<void> retry(int errorMessageId) async => retried.add(errorMessageId);
+
+  // Bản giả không quét thật: chỉ ghi lại và dựng trạng thái "đang quét" cho màn hình
+  final List<List<String>> scanBatches = [];
+  @override
+  Future<void> scanReceipts(List<String> paths) async {
+    if (paths.isEmpty) return;
+    scanBatches.add(paths);
+    state = AssistantState(
+      messages: [for (var i = 0; i < paths.length; i++) ImageNote(i, paths[i])],
+      pendingScans: paths.length,
+      selectedAccountId: state.selectedAccountId,
+    );
+  }
 }
 
 final _accounts = (fixtureData('accounts') as List).map((e) => FinancialAccount.fromJson(e as Map<String, dynamic>)).toList();
@@ -51,7 +66,7 @@ void main() {
 
   setUp(() => assistant = _TestAssistant());
 
-  Future<void> pumpChat(WidgetTester tester, {Widget? home, GoRouter? router}) async {
+  Future<void> pumpChat(WidgetTester tester, {Widget? home, GoRouter? router, ReceiptImageSource? images}) async {
     tester.view.physicalSize = const Size(800, 2000);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -62,6 +77,7 @@ void main() {
       assistantControllerProvider.overrideWith((ref) => assistant),
       accountsControllerProvider.overrideWith((ref) => _MockAccounts(AsyncValue.data(_accounts))),
       categoriesProvider.overrideWith((ref) async => _categories),
+      if (images != null) receiptImageSourceProvider.overrideWithValue(images),
     ];
     await tester.pumpWidget(ProviderScope(
       overrides: overrides,
@@ -270,5 +286,40 @@ void main() {
 
     expect(find.textContaining('Hóa đơn tách thành'), findsNothing);
     expect(find.text('Giao dịch cần xác nhận'), findsOneWidget);
+  });
+
+  group('chọn nhiều ảnh hoá đơn từ thư viện', () {
+    Future<void> pickGallery(WidgetTester tester) async {
+      await tester.tap(find.byKey(const ValueKey('scan-button')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Chọn ảnh từ thư viện'));
+      await tester.pump();
+    }
+
+    testWidgets('2 ảnh: hai bong bóng ảnh, chữ "Đang đọc 2 hóa đơn...", ô nhập không khóa', (tester) async {
+      await pumpChat(tester, images: FakeImageSource(galleryPaths: ['a.jpg', 'b.jpg']));
+      await pickGallery(tester);
+
+      expect(assistant.scanBatches, [['a.jpg', 'b.jpg']]);
+      expect(assistant.state.messages.whereType<ImageNote>(), hasLength(2));
+      expect(find.text('Đang đọc 2 hóa đơn...'), findsOneWidget);
+      expect(tester.widget<TextField>(find.byType(TextField)).enabled, isNot(false));
+    });
+
+    testWidgets('1 ảnh: "Đang đọc hóa đơn..."', (tester) async {
+      await pumpChat(tester, images: FakeImageSource(galleryPaths: ['a.jpg']));
+      await pickGallery(tester);
+
+      expect(find.text('Đang đọc hóa đơn...'), findsOneWidget);
+    });
+
+    testWidgets('thư viện trả rỗng: không thêm gì', (tester) async {
+      await pumpChat(tester, images: FakeImageSource());
+      await pickGallery(tester);
+
+      expect(assistant.scanBatches, isEmpty);
+      expect(assistant.state.messages, isEmpty);
+      expect(find.textContaining('Đang đọc'), findsNothing);
+    });
   });
 }

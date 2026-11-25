@@ -106,15 +106,15 @@ void main() {
       expect(find.textContaining('• Tiền nhà: 4.000.000 ₫'), findsOneWidget); // nguyên nhân chính
 
       expect(find.text('Số tiền có thể chi'), findsOneWidget);
-      expect(find.textContaining('Có thể chi: 500.000 ₫'), findsOneWidget);
+      expect(tester.widget<Text>(find.byKey(const ValueKey('spendable-amount'))).data, '500.000 ₫');
       expect(find.text('Du lịch hè: để dành 300.000 ₫'), findsOneWidget);
     });
 
     testWidgets('thiếu tiền (shortfall) hiện màu cảnh báo và không hiện số/ngày', (tester) async {
       await _pump(tester, _adapter(spendableFixture: 'spendable_shortfall'));
 
-      expect(find.textContaining('Thiếu 3.000.000 ₫'), findsOneWidget);
-      expect(find.textContaining('/ ngày'), findsNothing);
+      expect(tester.widget<Text>(find.byKey(const ValueKey('spendable-amount'))).data, '3.000.000 ₫');
+      expect(find.byKey(const ValueKey('spendable-per-day')), findsNothing);
     });
 
     testWidgets('thử kịch bản: nhập khoản chi giả định, xem kết quả mới, có thể xem lại dự báo gốc', (tester) async {
@@ -431,6 +431,8 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
+      await tester.ensureVisible(find.byKey(const ValueKey('goal-scenario-button')));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('goal-scenario-button')));
       await tester.pumpAndSettle();
 

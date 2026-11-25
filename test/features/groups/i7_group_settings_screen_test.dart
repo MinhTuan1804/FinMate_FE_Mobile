@@ -209,4 +209,95 @@ void main() {
     expect(find.textContaining('12.850.000'), findsOneWidget);
     expect(find.byKey(const ValueKey('create-fund')), findsNothing);
   });
+
+  Map<String, dynamic> settingsJson({int? closingDay = 5, num? approval, bool weekly = false}) => {
+        'closingDay': closingDay,
+        'debtSettlementMethod': 'AiOptimized',
+        'requireApprovalAboveCents': approval,
+        'notifyOnNewTransaction': true,
+        'weeklySummary': weekly,
+        'weeklySummaryDay': 1,
+        'weeklySummaryTime': '09:00',
+        'alertsEnabled': true,
+      };
+
+  RouteAdapter withSettings(Map<String, dynamic> settings, {Map<String, dynamic>? group}) => RouteAdapter((o) {
+        if (o.path.endsWith('/settings')) return respondJson({'success': true, 'data': o.method == 'PUT' ? o.data : settings});
+        if (o.path.contains('/funds')) return respondFixture('group_funds');
+        if (o.path == '/api/v1/groups') return respondFixture('groups');
+        return respondJson({'success': true, 'data': group ?? (fixtureData('groups') as List)[0]});
+      });
+
+  testWidgets('hiện cài đặt thật từ server: ngày chốt sổ, phương thức cấn trừ, ngưỡng duyệt', (tester) async {
+    await pumpScreen(tester, withSettings(settingsJson(approval: 5000000)));
+
+    expect(find.text('Ngày 5'), findsOneWidget);
+    expect(find.text('Tự động tối ưu'), findsOneWidget);
+    expect(find.textContaining('Từ 5.000.000'), findsOneWidget);
+  });
+
+  testWidgets('bật báo cáo tuần: gửi PUT thay toàn bộ cài đặt với weeklySummary true', (tester) async {
+    final adapter = withSettings(settingsJson());
+    await pumpScreen(tester, adapter);
+
+    await tester.ensureVisible(find.byKey(const ValueKey('weekly-summary')));
+    await tester.tap(find.byKey(const ValueKey('weekly-summary')));
+    await tester.pumpAndSettle();
+
+    final put = adapter.requests.firstWhere((r) => r.method == 'PUT' && r.path.endsWith('/settings'));
+    expect(put.data, {
+      'closingDay': 5,
+      'debtSettlementMethod': 'AiOptimized',
+      'requireApprovalAboveCents': null,
+      'notifyOnNewTransaction': true,
+      'weeklySummary': true,
+      'weeklySummaryDay': 1,
+      'weeklySummaryTime': '09:00',
+    });
+  });
+
+  testWidgets('chọn "Cuối tháng" cho ngày chốt sổ: gửi closingDay null', (tester) async {
+    final adapter = withSettings(settingsJson());
+    await pumpScreen(tester, adapter);
+
+    await tester.ensureVisible(find.byKey(const ValueKey('closing-day')));
+    await tester.tap(find.byKey(const ValueKey('closing-day')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cuối tháng').last);
+    await tester.pumpAndSettle();
+
+    final put = adapter.requests.firstWhere((r) => r.method == 'PUT' && r.path.endsWith('/settings'));
+    expect((put.data as Map)['closingDay'], isNull);
+  });
+
+  testWidgets('bật duyệt khoản lớn: nhập ngưỡng rồi gửi requireApprovalAboveCents', (tester) async {
+    final adapter = withSettings(settingsJson());
+    await pumpScreen(tester, adapter);
+
+    await tester.ensureVisible(find.byKey(const ValueKey('require-approval')));
+    await tester.tap(find.byKey(const ValueKey('require-approval')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const ValueKey('approval-amount')), '5000000');
+    await tester.tap(find.byKey(const ValueKey('approval-save')));
+    await tester.pumpAndSettle();
+
+    final put = adapter.requests.firstWhere((r) => r.method == 'PUT' && r.path.endsWith('/settings'));
+    expect((put.data as Map)['requireApprovalAboveCents'], 5000000);
+  });
+
+  testWidgets('thành viên thường: xem được cài đặt nhưng công tắc bị khóa, có ghi chú chỉ chủ nhóm đổi được', (tester) async {
+    final memberGroup = {...(fixtureData('groups') as List)[1] as Map<String, dynamic>};
+    await pumpScreen(tester, withSettings(settingsJson(), group: memberGroup), groupId: 'g2');
+
+    final tile = tester.widget<SwitchListTile>(find.byKey(const ValueKey('weekly-summary')));
+    expect(tile.onChanged, isNull);
+    expect(find.text('Chỉ chủ nhóm mới đổi được các cài đặt này.'), findsOneWidget);
+  });
+
+  testWidgets('hiện dòng "Danh mục hoạt động" theo loại nhóm', (tester) async {
+    await pumpScreen(tester, settingsAdapter());
+
+    expect(find.byKey(const ValueKey('group-type-row')), findsOneWidget);
+    expect(find.text('Danh mục hoạt động'), findsOneWidget);
+  });
 }

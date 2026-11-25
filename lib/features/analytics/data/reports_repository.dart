@@ -41,6 +41,26 @@ class ReportsRepository {
     var spent = BigInt.zero;
     var income = BigInt.zero;
     var count = 0;
+    for (final day in await getTimelineDays(from: from, to: to)) {
+      spent += day.totalSpentCents;
+      income += day.totalIncomeCents;
+      count += day.transactionCount;
+    }
+
+    return MonthlySummary(
+      totalSpentCents: spent,
+      totalIncomeCents: income,
+      netCents: income - spent,
+      prevMonthSpentCents: BigInt.zero,
+      transactionCount: count,
+      changePercent: null,
+    );
+  }
+
+  /// Các ngày có giao dịch trong [from]..[to] (GET /reports/timeline, phân trang theo cursor).
+  /// Ngày không có giao dịch không có trong kết quả — nơi dùng tự coi là 0.
+  Future<List<TimelineDaySummary>> getTimelineDays({required DateTime from, required DateTime to}) async {
+    final days = <TimelineDaySummary>[];
     String? cursor;
 
     do {
@@ -55,22 +75,11 @@ class ReportsRepository {
         fromJsonT: (json) => (json as List).map((e) => TimelineDaySummary.fromJson(e as Map<String, dynamic>)).toList(),
       );
 
-      for (final day in response.data ?? const <TimelineDaySummary>[]) {
-        spent += day.totalSpentCents;
-        income += day.totalIncomeCents;
-        count += day.transactionCount;
-      }
+      days.addAll(response.data ?? const <TimelineDaySummary>[]);
       cursor = response.meta?.nextCursor;
     } while (cursor != null);
 
-    return MonthlySummary(
-      totalSpentCents: spent,
-      totalIncomeCents: income,
-      netCents: income - spent,
-      prevMonthSpentCents: BigInt.zero,
-      transactionCount: count,
-      changePercent: null,
-    );
+    return days;
   }
 
   Future<Forecast> getForecast() async {

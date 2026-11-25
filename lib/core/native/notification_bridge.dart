@@ -12,7 +12,7 @@ class NativeRefreshResult {
 /// Mọi phương thức nuốt MissingPluginException (iOS/test không có kênh) và trả mặc định an toàn.
 class NotificationBridge {
   NotificationBridge({MethodChannel? channel})
-      : _channel = channel ?? const MethodChannel('com.example.finmate/notifications');
+      : _channel = channel ?? const MethodChannel('com.finmate.app/notifications');
 
   final MethodChannel _channel;
 

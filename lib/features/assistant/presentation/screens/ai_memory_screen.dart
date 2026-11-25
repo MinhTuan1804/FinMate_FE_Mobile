@@ -10,38 +10,39 @@ import 'package:finmate/core/theme/app_typography.dart';
 import 'package:finmate/core/widgets/glass/liquid_glass.dart';
 import 'package:finmate/features/assistant/data/agent_memory_repository.dart';
 import 'package:finmate/features/assistant/domain/agent_memory.dart';
+import 'package:finmate/core/widgets/async_action_builder.dart';
 
-/// Màu nhãn của từng sở thích theo Figma E3 (nền nhãn, chữ nhãn, chấm). Không có token tương đương trong AppColors.
+/// Màu nhãn của từng sở thích theo Figma E3 (nền nhãn, chữ nhãn, chấm), lấy từ token pill* trong AppColors.
 typedef _PillStyle = ({Color bg, Color fg, Color dot});
 
 const _pillStyles = <String, _PillStyle>{
   'preferred_method': (
-    bg: Color(0xFFCFE5FF),
-    fg: Color(0xFF001D33),
-    dot: Color(0xFF33628B),
+    bg: AppColors.pillSkyBg,
+    fg: AppColors.pillSkyFg,
+    dot: AppColors.pillSkyDot,
   ),
   'eating_out_weekends': (
-    bg: Color(0xFFFFD9E4),
-    fg: Color(0xFF31101E),
-    dot: Color(0xFF633B4A),
+    bg: AppColors.pillRoseBg,
+    fg: AppColors.pillRoseFg,
+    dot: AppColors.pillRoseDot,
   ),
   'notification_quiet_hours': (
-    bg: Color(0xFFA3D0FF),
-    fg: Color(0xFF295982),
-    dot: Color(0xFF33628B),
+    bg: AppColors.pillSkyStrongBg,
+    fg: AppColors.pillSkyStrongFg,
+    dot: AppColors.pillSkyDot,
   ),
   'communication_tone': (
-    bg: Color(0xFFE6EEFF),
-    fg: Color(0xFF0D1C2E),
-    dot: Color(0xFF45464C),
+    bg: AppColors.pillNeutralBg,
+    fg: AppColors.pillNeutralFg,
+    dot: AppColors.pillNeutralDot,
   ),
 };
 const _fallbackPill = (
-  bg: Color(0xFFE6EEFF),
-  fg: Color(0xFF0D1C2E),
-  dot: Color(0xFF45464C),
+  bg: AppColors.pillNeutralBg,
+  fg: AppColors.pillNeutralFg,
+  dot: AppColors.pillNeutralDot,
 );
-const _dividerColor = Color(0x99D5E3FC);
+const _dividerColor = AppColors.dividerSoft;
 
 /// Màn E3: Bộ nhớ AI (khớp Figma). BE chỉ cho đặt 4 sở thích ([agentMemorySlots]); người dùng xem, sửa, xóa từng mục hoặc xóa hết.
 /// Ô tìm kiếm lọc trên 4 sở thích; chip Tất cả/Đã đặt/Chưa đặt thay cho tab Thu nhập/Chi tiêu/Quy tắc vì BE chưa phân loại.
@@ -197,16 +198,19 @@ class _AiMemoryScreenState extends ConsumerState<AiMemoryScreen> {
           if (hasAny)
             Tooltip(
               message: 'Xóa toàn bộ',
-              child: TextButton.icon(
+              child: AsyncActionBuilder(
                 onPressed: () => _clearAll(context, ref),
-                icon: const Icon(
-                  LucideIcons.trash2,
-                  size: 14,
-                  color: AppColors.danger,
-                ),
-                label: const Text(
-                  'Xóa tất cả',
-                  style: TextStyle(color: AppColors.danger, fontSize: 12),
+                builder: (_, onTap, running) => TextButton.icon(
+                  onPressed: onTap,
+                  icon: running ? const ButtonLoadingIndicator(size: 16) : const Icon(
+                    LucideIcons.trash2,
+                    size: 14,
+                    color: AppColors.danger,
+                  ),
+                  label: Text(
+                    'Xóa tất cả',
+                    style: TextStyle(color: AppColors.danger, fontSize: 12),
+                  ),
                 ),
               ),
             ),
@@ -382,13 +386,13 @@ class _AiMemoryScreenState extends ConsumerState<AiMemoryScreen> {
             width: 40,
             height: 40,
             decoration: const BoxDecoration(
-              color: Color(0xFFA3D0FF),
+              color: AppColors.pillSkyStrongBg,
               shape: BoxShape.circle,
             ),
             child: const Icon(
               LucideIcons.brain,
               size: 20,
-              color: Color(0xFF0D1C2E),
+              color: AppColors.pillNeutralFg,
             ),
           ),
           const SizedBox(width: 12),
@@ -400,7 +404,7 @@ class _AiMemoryScreenState extends ConsumerState<AiMemoryScreen> {
                   'Tự động học & ghi nhớ',
                   style: AppTypography.h2(
                     context,
-                  ).copyWith(fontSize: 17, fontWeight: FontWeight.w600),
+                  ).copyWith(fontSize: 18, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -409,7 +413,7 @@ class _AiMemoryScreenState extends ConsumerState<AiMemoryScreen> {
                       : 'AI chỉ dùng những gì bạn đặt ở đây. Bạn có toàn quyền sửa hoặc xóa.',
                   style: AppTypography.caption(
                     context,
-                  ).copyWith(fontSize: 12.5),
+                  ).copyWith(fontSize: 13),
                 ),
               ],
             ),
@@ -434,6 +438,7 @@ class _AiMemoryScreenState extends ConsumerState<AiMemoryScreen> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: LiquidGlassCard(
+        variant: LiquidGlassVariant.subtle, // dòng trong list: không blur từng item
         padding: const EdgeInsets.fromLTRB(16, 14, 8, 6),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -547,14 +552,14 @@ class _AiMemoryScreenState extends ConsumerState<AiMemoryScreen> {
     return OutlinedButton.icon(
       onPressed: onPressed,
       icon: const Icon(LucideIcons.circlePlus, size: 18),
-      label: const Text('Thêm ghi nhớ'),
+      label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Thêm ghi nhớ', maxLines: 1)),
       style: OutlinedButton.styleFrom(
         minimumSize: const Size.fromHeight(56),
         shape: const StadiumBorder(),
         backgroundColor: AppColors.inset(context, 0.8),
         foregroundColor: AppColors.textPrimary(context),
         side: BorderSide(color: AppColors.insetBorder(context)),
-        textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+        textStyle: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
       ),
     );
   }

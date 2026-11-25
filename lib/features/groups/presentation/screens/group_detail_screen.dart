@@ -14,13 +14,15 @@ import 'package:finmate/features/groups/data/group_funds_repository.dart';
 import 'package:finmate/features/groups/domain/group.dart';
 import 'package:finmate/features/groups/domain/group_fund.dart';
 import 'package:finmate/features/groups/presentation/controllers/groups_controller.dart';
+import 'package:finmate/features/groups/presentation/screens/split_bill_widgets.dart';
 import 'package:finmate/features/transactions/domain/entities/transaction_entity.dart';
 import 'package:finmate/shared/widgets/glass/glass_background.dart';
 import 'package:finmate/shared/widgets/glass/glass_badge.dart';
 import 'package:finmate/shared/widgets/glass/glass_card.dart';
 import 'package:finmate/shared/widgets/glass/glass_progress_bar.dart';
+import 'package:finmate/core/widgets/cursor_pager.dart';
 
-enum _DetailTab { transactions, budgets, goals, fund }
+enum _DetailTab { transactions, budgets, goals, fund, bills }
 
 /// I3 — Chi tiết nhóm (Stitch `i3_group_detail`). Hero card là quỹ chung thật (Phase 85), KHÔNG
 /// phải banner "nợ"/cấn trừ (xem quyết định phạm vi Luồng 8a — hệ thống thật là 1 sổ quỹ chung, không
@@ -55,23 +57,40 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
     return GlassBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
+        floatingActionButton: switch (groupAsync.valueOrNull) {
+          final g? when g.isSplitBill && (g.isOwner || g.myPermissions.contains(GroupPermission.shareTransactions)) =>
+            FloatingActionButton.extended(
+              key: const ValueKey('fab-new-bill'),
+              onPressed: () => context.push('/group-bill-new', extra: widget.groupId),
+              backgroundColor: GlassColors.ink,
+              foregroundColor: GlassColors.onInk,
+              icon: const Icon(LucideIcons.receiptText, size: 18),
+              label: const Text('Chia tiền bill mới'),
+            ),
+          _ => null,
+        },
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
           title: groupAsync.maybeWhen(
             data: (g) => GestureDetector(
               key: const ValueKey('go-members'),
-              onTap: () => context.push('/group-members', extra: widget.groupId),
+              onTap: () =>
+                  context.push('/group-members', extra: widget.groupId),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(g.name, style: GlassTypography.headlineSm()),
-                  Text('${g.memberCount} thành viên', style: GlassTypography.bodySm()),
+                  Text(
+                    '${g.memberCount} thành viên',
+                    style: GlassTypography.bodySm(),
+                  ),
                 ],
               ),
             ),
-            orElse: () => Text('Chi tiết nhóm', style: GlassTypography.headlineSm()),
+            orElse: () =>
+                Text('Chi tiết nhóm', style: GlassTypography.headlineSm()),
           ),
           actions: [
             groupAsync.maybeWhen(
@@ -79,8 +98,12 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
                   ? IconButton(
                       key: const ValueKey('invite-member'),
                       tooltip: 'Mời thành viên',
-                      icon: Icon(LucideIcons.userPlus, color: GlassColors.textPrimary),
-                      onPressed: () => context.push('/group-invite', extra: widget.groupId),
+                      icon: Icon(
+                        LucideIcons.userPlus,
+                        color: GlassColors.textPrimary,
+                      ),
+                      onPressed: () =>
+                          context.push('/group-invite', extra: widget.groupId),
                     )
                   : const SizedBox.shrink(),
               orElse: () => const SizedBox.shrink(),
@@ -89,8 +112,12 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
               data: (g) => IconButton(
                 key: const ValueKey('open-group-settings'),
                 tooltip: 'Cài đặt nhóm',
-                icon: Icon(LucideIcons.settings, color: GlassColors.textPrimary),
-                onPressed: () => context.push('/group-settings', extra: widget.groupId),
+                icon: Icon(
+                  LucideIcons.settings,
+                  color: GlassColors.textPrimary,
+                ),
+                onPressed: () =>
+                    context.push('/group-settings', extra: widget.groupId),
               ),
               orElse: () => const SizedBox.shrink(),
             ),
@@ -99,7 +126,12 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
         body: SafeArea(
           child: groupAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, __) => Center(child: Text(errorMessage(e), style: GlassTypography.bodyMd(color: GlassColors.danger))),
+            error: (e, __) => Center(
+              child: Text(
+                errorMessage(e),
+                style: GlassTypography.bodyMd(color: GlassColors.danger),
+              ),
+            ),
             data: (group) => RefreshIndicator(
               onRefresh: () async => _refreshDetail(ref),
               child: ListView(
@@ -107,14 +139,27 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
                 children: [
                   _HeroFundCard(groupId: widget.groupId),
                   const SizedBox(height: 20),
-                  _buildTabs(),
+                  if (group.isSplitBill) GroupDebtSuggestionsCard(groupId: widget.groupId, isOwner: group.isOwner),
+                  GroupApprovalsBanner(groupId: widget.groupId),
+                  _buildTabs(group.isSplitBill),
                   const SizedBox(height: 16),
                   switch (_tab) {
-                    _DetailTab.transactions => _TransactionsTab(groupId: widget.groupId),
+                    _DetailTab.transactions => _TransactionsTab(
+                      groupId: widget.groupId,
+                    ),
                     _DetailTab.budgets => _BudgetsTab(groupId: widget.groupId),
                     _DetailTab.goals => _GoalsTab(groupId: widget.groupId),
                     _DetailTab.fund => _FundTab(groupId: widget.groupId),
+                    _DetailTab.bills => GroupBillsTab(
+                      groupId: widget.groupId,
+                      // Nút tạo bill đã có dạng nút nổi ở cuối màn, trong tab chỉ còn danh sách.
+                      canShare: false,
+                    ),
                   },
+                  // Tab Quỹ chung đã liệt kê phần đã góp, không lặp lại.
+                  if (_tab != _DetailTab.fund) GroupContributionsStrip(groupId: widget.groupId),
+                  // Chừa chỗ cho nút nổi để không che hàng cuối.
+                  if (group.isSplitBill) const SizedBox(height: 72),
                 ],
               ),
             ),
@@ -124,7 +169,7 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
     );
   }
 
-  Widget _buildTabs() {
+  Widget _buildTabs(bool splitBill) {
     Widget chip(String label, _DetailTab tab) {
       final selected = _tab == tab;
       return Padding(
@@ -135,13 +180,17 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
-              color: selected ? GlassColors.ink : GlassColors.glassFill,
+              color: selected ? GlassColors.activeFill : GlassColors.glassFill,
               borderRadius: GlassRadius.roundedPill,
-              border: Border.all(color: selected ? GlassColors.ink : GlassColors.glassBorder),
+              border: Border.all(
+                color: selected ? GlassColors.activeBorder : GlassColors.glassBorder,
+              ),
             ),
             child: Text(
               label,
-              style: GlassTypography.bodyMd(color: selected ? Colors.white : GlassColors.textSecondary).copyWith(fontWeight: FontWeight.w600),
+              style: GlassTypography.bodyMd(
+                color: selected ? GlassColors.activeFg : GlassColors.textSecondary,
+              ).copyWith(fontWeight: FontWeight.w600),
             ),
           ),
         ),
@@ -153,6 +202,7 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
       child: ListView(
         scrollDirection: Axis.horizontal,
         children: [
+          if (splitBill) chip('Chia tiền', _DetailTab.bills),
           chip('Giao dịch', _DetailTab.transactions),
           chip('Ngân sách', _DetailTab.budgets),
           chip('Mục tiêu', _DetailTab.goals),
@@ -170,8 +220,13 @@ class _HeroFundCard extends ConsumerWidget {
   void _needFundFirst(BuildContext context) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text('Nhóm chưa có quỹ chung — tạo quỹ trước trong Cài đặt nhóm.'),
-        action: SnackBarAction(label: 'Cài đặt nhóm', onPressed: () => context.push('/group-settings', extra: groupId)),
+        content: const Text(
+          'Nhóm chưa có quỹ chung — tạo quỹ trước trong Cài đặt nhóm.',
+        ),
+        action: SnackBarAction(
+          label: 'Cài đặt nhóm',
+          onPressed: () => context.push('/group-settings', extra: groupId),
+        ),
       ),
     );
   }
@@ -180,9 +235,14 @@ class _HeroFundCard extends ConsumerWidget {
     ref.invalidate(groupFundsProvider(groupId));
     ref.invalidate(groupFundSummaryProvider((groupId, fundId)));
     ref.invalidate(groupFundEntriesProvider((groupId, fundId)));
+    ref.read(groupsControllerProvider.notifier).load(silent: true);   // thẻ nhóm ở danh sách cũng hiện số dư quỹ
   }
 
-  Future<void> _contribute(BuildContext context, WidgetRef ref, String fundId) async {
+  Future<void> _contribute(
+    BuildContext context,
+    WidgetRef ref,
+    String fundId,
+  ) async {
     final input = await showModalBottomSheet<_FundEntryInput>(
       context: context,
       isScrollControlled: true,
@@ -192,7 +252,9 @@ class _HeroFundCard extends ConsumerWidget {
     if (input == null || !context.mounted) return;
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await ref.read(groupFundsRepositoryProvider).createEntry(
+      await ref
+          .read(groupFundsRepositoryProvider)
+          .createEntry(
             groupId: groupId,
             fundId: fundId,
             kind: GroupFundEntryKind.contribution,
@@ -202,18 +264,33 @@ class _HeroFundCard extends ConsumerWidget {
       _refreshFund(ref, fundId);
       messenger.showSnackBar(const SnackBar(content: Text('Đã nạp quỹ nhóm')));
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text(errorMessage(e)), backgroundColor: GlassColors.danger));
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(errorMessage(e)),
+          backgroundColor: GlassColors.danger,
+        ),
+      );
     }
   }
 
-  Future<void> _recordExpense(BuildContext context, WidgetRef ref, String fundId) async {
+  Future<void> _recordExpense(
+    BuildContext context,
+    WidgetRef ref,
+    String fundId,
+  ) async {
     final List<Category> categories;
     final List<GroupCategoryEntity> groupCategories;
     try {
       categories = await ref.read(categoriesProvider.future);
       groupCategories = await ref.read(groupCategoriesProvider(groupId).future);
     } catch (e) {
-      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errorMessage(e)), backgroundColor: GlassColors.danger));
+      if (context.mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage(e)),
+            backgroundColor: GlassColors.danger,
+          ),
+        );
       return;
     }
     if (!context.mounted) return;
@@ -221,12 +298,17 @@ class _HeroFundCard extends ConsumerWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _RecordExpenseSheet(categories: categories, groupCategories: groupCategories),
+      builder: (_) => _RecordExpenseSheet(
+        categories: categories,
+        groupCategories: groupCategories,
+      ),
     );
     if (input == null || !context.mounted) return;
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await ref.read(groupFundsRepositoryProvider).createEntry(
+      final entry = await ref
+          .read(groupFundsRepositoryProvider)
+          .createEntry(
             groupId: groupId,
             fundId: fundId,
             kind: GroupFundEntryKind.expense,
@@ -237,9 +319,23 @@ class _HeroFundCard extends ConsumerWidget {
             note: input.note,
           );
       _refreshFund(ref, fundId);
-      messenger.showSnackBar(const SnackBar(content: Text('Đã ghi khoản chi từ quỹ')));
+      ref.invalidate(groupApprovalsProvider(groupId));
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            entry == null
+                ? 'Khoản chi đã gửi, chờ chủ nhóm duyệt (chưa trừ quỹ)'
+                : 'Đã ghi khoản chi từ quỹ',
+          ),
+        ),
+      );
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text(errorMessage(e)), backgroundColor: GlassColors.danger));
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(errorMessage(e)),
+          backgroundColor: GlassColors.danger,
+        ),
+      );
     }
   }
 
@@ -258,9 +354,19 @@ class _HeroFundCard extends ConsumerWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('QUỸ CHUNG KHẢ DỤNG', style: GlassTypography.labelCaps(color: GlassColors.accentSkyBlue)),
+              Text(
+                'QUỸ CHUNG KHẢ DỤNG',
+                style: GlassTypography.labelCaps(
+                  color: GlassColors.accentSkyBlue,
+                ),
+              ),
               fundAsync.maybeWhen(
-                data: (f) => f == null ? const SizedBox.shrink() : GlassBadge(text: 'Đang hoạt động', color: GlassColors.success),
+                data: (f) => f == null
+                    ? const SizedBox.shrink()
+                    : GlassBadge(
+                        text: 'Đang hoạt động',
+                        color: GlassColors.success,
+                      ),
                 orElse: () => const SizedBox.shrink(),
               ),
             ],
@@ -270,8 +376,18 @@ class _HeroFundCard extends ConsumerWidget {
             loading: () => Text('…', style: GlassTypography.displayHero()),
             error: (_, __) => Text('—', style: GlassTypography.displayHero()),
             data: (fund) => fund == null
-                ? Text('Nhóm chưa có quỹ chung nào.', style: GlassTypography.bodyMd())
-                : Text(fund.formattedBalance, style: GlassTypography.displayHero(color: fund.isNegative ? GlassColors.danger : GlassColors.textPrimary)),
+                ? Text(
+                    'Nhóm chưa có quỹ chung nào.',
+                    style: GlassTypography.bodyMd(),
+                  )
+                : Text(
+                    fund.formattedBalance,
+                    style: GlassTypography.displayHero(
+                      color: fund.isNegative
+                          ? GlassColors.danger
+                          : GlassColors.textPrimary,
+                    ),
+                  ),
           ),
           budgetsAsync.maybeWhen(
             data: (budgets) {
@@ -296,14 +412,26 @@ class _HeroFundCard extends ConsumerWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Đã chi tháng này: ${total.formattedSpent}', style: GlassTypography.bodySm()),
-                        Text('${total.percentUsed}%', style: GlassTypography.bodySm()),
+                        Text(
+                          'Đã chi tháng này: ${total.formattedSpent}',
+                          style: GlassTypography.bodySm(),
+                        ),
+                        Text(
+                          '${total.percentUsed}%',
+                          style: GlassTypography.bodySm(),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 6),
-                    GlassProgressBar(percent: total.percentUsed.toDouble(), state: state),
+                    GlassProgressBar(
+                      percent: total.percentUsed.toDouble(),
+                      state: state,
+                    ),
                     const SizedBox(height: 2),
-                    Text('Hạn mức ${total.formattedLimit}', style: GlassTypography.bodySm()),
+                    Text(
+                      'Hạn mức ${total.formattedLimit}',
+                      style: GlassTypography.bodySm(),
+                    ),
                   ],
                 ),
               );
@@ -314,20 +442,32 @@ class _HeroFundCard extends ConsumerWidget {
           Row(
             children: [
               Expanded(
-                child: OutlinedButton.icon(
+                child: FilledButton.icon(
                   key: const ValueKey('fund-contribute'),
-                  onPressed: () => fundId == null ? _needFundFirst(context) : _contribute(context, ref, fundId),
+                  onPressed: () => fundId == null
+                      ? _needFundFirst(context)
+                      : _contribute(context, ref, fundId),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: GlassColors.ink,
+                    foregroundColor: GlassColors.onInk,
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                  ),
                   icon: const Icon(LucideIcons.plusCircle, size: 16),
-                  label: const Text('Nạp quỹ nhóm'),
+                  // Một dòng, tự thu nhỏ chữ khi hẹp thay vì xuống hàng.
+                  label: FittedBox(fit: BoxFit.scaleDown, child: Text('Nạp quỹ nhóm', maxLines: 1)),
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: OutlinedButton.icon(
                   key: const ValueKey('fund-record-expense'),
-                  onPressed: () => fundId == null ? _needFundFirst(context) : _recordExpense(context, ref, fundId),
+                  onPressed: () => fundId == null
+                      ? _needFundFirst(context)
+                      : _recordExpense(context, ref, fundId),
+                  style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 10)),
                   icon: const Icon(LucideIcons.receipt, size: 16),
-                  label: const Text('Ghi khoản chi'),
+                  // Một dòng, tự thu nhỏ chữ khi hẹp thay vì xuống hàng.
+                  label: FittedBox(fit: BoxFit.scaleDown, child: Text('Ghi khoản chi', maxLines: 1)),
                 ),
               ),
             ],
@@ -344,7 +484,13 @@ class _FundEntryInput {
   final String? categoryId;
   final String? groupCategoryId;
   final String? merchantName;
-  const _FundEntryInput({required this.amountCents, this.note, this.categoryId, this.groupCategoryId, this.merchantName});
+  const _FundEntryInput({
+    required this.amountCents,
+    this.note,
+    this.categoryId,
+    this.groupCategoryId,
+    this.merchantName,
+  });
 }
 
 /// Khung chung cho 2 sheet "Nạp quỹ nhóm"/"Ghi khoản chi" — cùng phong cách bottom sheet kính (glass)
@@ -357,28 +503,32 @@ class _FundEntrySheetScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: SafeArea(
+        // GlassCard làm mờ nội dung phía sau; chỉ tô màu bán trong suốt thì chữ của màn dưới xuyên qua sheet.
         child: Container(
           margin: const EdgeInsets.all(12),
-          padding: const EdgeInsets.all(16),
-          constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.85),
-          decoration: BoxDecoration(
-            color: GlassColors.glassFillModal,
-            borderRadius: GlassRadius.roundedCardLarge,
-            border: Border.all(color: GlassColors.glassBorderModal),
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.85,
           ),
-          child: Material(
-            type: MaterialType.transparency,
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(title, style: GlassTypography.headlineSm()),
-                  const SizedBox(height: 16),
-                  ...children,
-                ],
+          child: GlassCard(
+            level: 3,
+            padding: const EdgeInsets.all(16),
+            borderRadius: GlassRadius.roundedCardLarge,
+            child: Material(
+              type: MaterialType.transparency,
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(title, style: GlassTypography.headlineSm()),
+                    const SizedBox(height: 16),
+                    ...children,
+                  ],
+                ),
               ),
             ),
           ),
@@ -413,7 +563,13 @@ class _ContributeFundSheetState extends State<_ContributeFundSheet> {
       setState(() => _amountError = 'Nhập số tiền hợp lệ');
       return;
     }
-    Navigator.pop(context, _FundEntryInput(amountCents: amount, note: _note.text.trim().isEmpty ? null : _note.text.trim()));
+    Navigator.pop(
+      context,
+      _FundEntryInput(
+        amountCents: amount,
+        note: _note.text.trim().isEmpty ? null : _note.text.trim(),
+      ),
+    );
   }
 
   @override
@@ -421,22 +577,36 @@ class _ContributeFundSheetState extends State<_ContributeFundSheet> {
     return _FundEntrySheetScaffold(
       title: 'Nạp quỹ nhóm',
       children: [
-        Text('Số tiền', style: GlassTypography.bodySm(color: GlassColors.textSecondary)),
+        Text(
+          'Số tiền',
+          style: GlassTypography.bodySm(color: GlassColors.textSecondary),
+        ),
         const SizedBox(height: 8),
         TextField(
           key: const ValueKey('contribute-amount'),
           controller: _amount,
           keyboardType: TextInputType.number,
           inputFormatters: [ThousandsSeparatorInputFormatter()],
-          decoration: InputDecoration(hintText: '0', suffixText: '₫', errorText: _amountError),
+          decoration: InputDecoration(
+            hintText: '0',
+            suffixText: '₫',
+            errorText: _amountError,
+          ),
           onChanged: (_) {
             if (_amountError != null) setState(() => _amountError = null);
           },
         ),
         const SizedBox(height: 12),
-        Text('Ghi chú (không bắt buộc)', style: GlassTypography.bodySm(color: GlassColors.textSecondary)),
+        Text(
+          'Ghi chú (không bắt buộc)',
+          style: GlassTypography.bodySm(color: GlassColors.textSecondary),
+        ),
         const SizedBox(height: 8),
-        TextField(key: const ValueKey('contribute-note'), controller: _note, decoration: const InputDecoration(hintText: 'Vd: góp quỹ tháng 11')),
+        TextField(
+          key: const ValueKey('contribute-note'),
+          controller: _note,
+          decoration: const InputDecoration(hintText: 'Vd: góp quỹ tháng 11'),
+        ),
         const SizedBox(height: 20),
         SizedBox(
           width: double.infinity,
@@ -446,8 +616,10 @@ class _ContributeFundSheetState extends State<_ContributeFundSheet> {
             onPressed: _submit,
             style: ElevatedButton.styleFrom(
               backgroundColor: GlassColors.ink,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: GlassRadius.roundedPill),
+              foregroundColor: GlassColors.onInk,
+              shape: RoundedRectangleBorder(
+                borderRadius: GlassRadius.roundedPill,
+              ),
             ),
             child: Text('Nạp quỹ', style: GlassTypography.buttonText()),
           ),
@@ -462,7 +634,10 @@ class _ContributeFundSheetState extends State<_ContributeFundSheet> {
 class _RecordExpenseSheet extends StatefulWidget {
   final List<Category> categories;
   final List<GroupCategoryEntity> groupCategories;
-  const _RecordExpenseSheet({required this.categories, required this.groupCategories});
+  const _RecordExpenseSheet({
+    required this.categories,
+    required this.groupCategories,
+  });
 
   @override
   State<_RecordExpenseSheet> createState() => _RecordExpenseSheetState();
@@ -490,7 +665,9 @@ class _RecordExpenseSheetState extends State<_RecordExpenseSheet> {
 
   void _submit() {
     final amount = parseAmountInput(_amount.text);
-    final categoryOk = _target == _ExpenseCategoryTarget.system ? _categoryId != null : _groupCategoryId != null;
+    final categoryOk = _target == _ExpenseCategoryTarget.system
+        ? _categoryId != null
+        : _groupCategoryId != null;
     setState(() {
       _amountError = amount == null ? 'Nhập số tiền hợp lệ' : null;
       _categoryError = categoryOk ? null : 'Chọn danh mục';
@@ -500,9 +677,15 @@ class _RecordExpenseSheetState extends State<_RecordExpenseSheet> {
       context,
       _FundEntryInput(
         amountCents: amount,
-        categoryId: _target == _ExpenseCategoryTarget.system ? _categoryId : null,
-        groupCategoryId: _target == _ExpenseCategoryTarget.group ? _groupCategoryId : null,
-        merchantName: _merchant.text.trim().isEmpty ? null : _merchant.text.trim(),
+        categoryId: _target == _ExpenseCategoryTarget.system
+            ? _categoryId
+            : null,
+        groupCategoryId: _target == _ExpenseCategoryTarget.group
+            ? _groupCategoryId
+            : null,
+        merchantName: _merchant.text.trim().isEmpty
+            ? null
+            : _merchant.text.trim(),
         note: _note.text.trim().isEmpty ? null : _note.text.trim(),
       ),
     );
@@ -513,26 +696,42 @@ class _RecordExpenseSheetState extends State<_RecordExpenseSheet> {
     return _FundEntrySheetScaffold(
       title: 'Ghi khoản chi từ quỹ',
       children: [
-        Text('Số tiền', style: GlassTypography.bodySm(color: GlassColors.textSecondary)),
+        Text(
+          'Số tiền',
+          style: GlassTypography.bodySm(color: GlassColors.textSecondary),
+        ),
         const SizedBox(height: 8),
         TextField(
           key: const ValueKey('expense-amount'),
           controller: _amount,
           keyboardType: TextInputType.number,
           inputFormatters: [ThousandsSeparatorInputFormatter()],
-          decoration: InputDecoration(hintText: '0', suffixText: '₫', errorText: _amountError),
+          decoration: InputDecoration(
+            hintText: '0',
+            suffixText: '₫',
+            errorText: _amountError,
+          ),
           onChanged: (_) {
             if (_amountError != null) setState(() => _amountError = null);
           },
         ),
         const SizedBox(height: 12),
-        Text('Danh mục', style: GlassTypography.bodySm(color: GlassColors.textSecondary)),
+        Text(
+          'Danh mục',
+          style: GlassTypography.bodySm(color: GlassColors.textSecondary),
+        ),
         const SizedBox(height: 8),
         SegmentedButton<_ExpenseCategoryTarget>(
           key: const ValueKey('expense-category-target'),
           segments: const [
-            ButtonSegment(value: _ExpenseCategoryTarget.system, label: Text('Hệ thống')),
-            ButtonSegment(value: _ExpenseCategoryTarget.group, label: Text('Của nhóm')),
+            ButtonSegment(
+              value: _ExpenseCategoryTarget.system,
+              label: Text('Hệ thống'),
+            ),
+            ButtonSegment(
+              value: _ExpenseCategoryTarget.group,
+              label: Text('Của nhóm'),
+            ),
           ],
           selected: {_target},
           onSelectionChanged: (s) => setState(() {
@@ -545,8 +744,13 @@ class _RecordExpenseSheetState extends State<_RecordExpenseSheet> {
           DropdownButtonFormField<String>(
             key: const ValueKey('expense-category-system'),
             initialValue: _categoryId,
-            decoration: InputDecoration(hintText: 'Chọn danh mục hệ thống', errorText: _categoryError),
-            items: widget.categories.map((c) => DropdownMenuItem(value: c.id, child: Text(c.name))).toList(),
+            decoration: InputDecoration(
+              hintText: 'Chọn danh mục hệ thống',
+              errorText: _categoryError,
+            ),
+            items: widget.categories
+                .map((c) => DropdownMenuItem(value: c.id, child: Text(c.name)))
+                .toList(),
             onChanged: (v) => setState(() {
               _categoryId = v;
               _categoryError = null;
@@ -556,21 +760,40 @@ class _RecordExpenseSheetState extends State<_RecordExpenseSheet> {
           DropdownButtonFormField<String>(
             key: const ValueKey('expense-category-group'),
             initialValue: _groupCategoryId,
-            decoration: InputDecoration(hintText: 'Chọn danh mục của nhóm', errorText: _categoryError),
-            items: widget.groupCategories.map((c) => DropdownMenuItem(value: c.id, child: Text(c.name))).toList(),
+            decoration: InputDecoration(
+              hintText: 'Chọn danh mục của nhóm',
+              errorText: _categoryError,
+            ),
+            items: widget.groupCategories
+                .map((c) => DropdownMenuItem(value: c.id, child: Text(c.name)))
+                .toList(),
             onChanged: (v) => setState(() {
               _groupCategoryId = v;
               _categoryError = null;
             }),
           ),
         const SizedBox(height: 12),
-        Text('Chi cho (không bắt buộc)', style: GlassTypography.bodySm(color: GlassColors.textSecondary)),
+        Text(
+          'Chi cho (không bắt buộc)',
+          style: GlassTypography.bodySm(color: GlassColors.textSecondary),
+        ),
         const SizedBox(height: 8),
-        TextField(key: const ValueKey('expense-merchant'), controller: _merchant, decoration: const InputDecoration(hintText: 'Vd: Siêu thị WinMart')),
+        TextField(
+          key: const ValueKey('expense-merchant'),
+          controller: _merchant,
+          decoration: const InputDecoration(hintText: 'Vd: Siêu thị WinMart'),
+        ),
         const SizedBox(height: 12),
-        Text('Ghi chú (không bắt buộc)', style: GlassTypography.bodySm(color: GlassColors.textSecondary)),
+        Text(
+          'Ghi chú (không bắt buộc)',
+          style: GlassTypography.bodySm(color: GlassColors.textSecondary),
+        ),
         const SizedBox(height: 8),
-        TextField(key: const ValueKey('expense-note'), controller: _note, decoration: const InputDecoration(hintText: 'Ghi chú thêm')),
+        TextField(
+          key: const ValueKey('expense-note'),
+          controller: _note,
+          decoration: const InputDecoration(hintText: 'Ghi chú thêm'),
+        ),
         const SizedBox(height: 20),
         SizedBox(
           width: double.infinity,
@@ -580,8 +803,10 @@ class _RecordExpenseSheetState extends State<_RecordExpenseSheet> {
             onPressed: _submit,
             style: ElevatedButton.styleFrom(
               backgroundColor: GlassColors.ink,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: GlassRadius.roundedPill),
+              foregroundColor: GlassColors.onInk,
+              shape: RoundedRectangleBorder(
+                borderRadius: GlassRadius.roundedPill,
+              ),
             ),
             child: Text('Ghi khoản chi', style: GlassTypography.buttonText()),
           ),
@@ -599,36 +824,60 @@ class _TransactionsTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final transactionsAsync = ref.watch(groupTransactionsProvider(groupId));
     return transactionsAsync.when(
-      loading: () => const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator())),
-      error: (e, __) => Text(errorMessage(e), style: GlassTypography.bodyMd(color: GlassColors.danger)),
+      loading: () => const Padding(
+        padding: EdgeInsets.all(24),
+        child: Center(child: CircularProgressIndicator()),
+      ),
+      error: (e, __) => Text(
+        errorMessage(e),
+        style: GlassTypography.bodyMd(color: GlassColors.danger),
+      ),
       data: (list) {
-        if (list.isEmpty) return Text('Chưa có giao dịch nào được chia sẻ vào nhóm.', style: GlassTypography.bodyMd());
+        if (list.isEmpty)
+          return Text(
+            'Chưa có giao dịch nào được chia sẻ vào nhóm.',
+            style: GlassTypography.bodyMd(),
+          );
         return Column(
           children: list
-              .map((t) => Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: GlassCard(
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(t.merchantName ?? t.description ?? t.categoryName, style: GlassTypography.bodyMd(color: GlassColors.textPrimary)),
-                                Text('${t.memberName} · ${DateFormat('dd/MM').format(t.transactedAt)}', style: GlassTypography.bodySm()),
-                              ],
-                            ),
+              .map(
+                (t) => Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: GlassCard(
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                t.merchantName ??
+                                    t.description ??
+                                    t.categoryName,
+                                style: GlassTypography.bodyMd(
+                                  color: GlassColors.textPrimary,
+                                ),
+                              ),
+                              Text(
+                                '${t.memberName} · ${DateFormat('dd/MM').format(t.transactedAt)}',
+                                style: GlassTypography.bodySm(),
+                              ),
+                            ],
                           ),
-                          Text(
-                            t.formattedAmount,
-                            style: GlassTypography.labelNumeric(
-                              color: t.transactionType == TransactionType.income ? GlassColors.success : GlassColors.textPrimary,
-                            ),
+                        ),
+                        Text(
+                          t.formattedAmount,
+                          style: GlassTypography.labelNumeric(
+                            color: t.transactionType == TransactionType.income
+                                ? GlassColors.success
+                                : GlassColors.textPrimary,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                  ))
+                  ),
+                ),
+              )
               .toList(),
         );
       },
@@ -644,40 +893,69 @@ class _BudgetsTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final budgetsAsync = ref.watch(groupBudgetsProvider(groupId));
     return budgetsAsync.when(
-      loading: () => const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator())),
-      error: (e, __) => Text(errorMessage(e), style: GlassTypography.bodyMd(color: GlassColors.danger)),
+      loading: () => const Padding(
+        padding: EdgeInsets.all(24),
+        child: Center(child: CircularProgressIndicator()),
+      ),
+      error: (e, __) => Text(
+        errorMessage(e),
+        style: GlassTypography.bodyMd(color: GlassColors.danger),
+      ),
       data: (list) {
-        if (list.isEmpty) return Text('Nhóm chưa đặt ngân sách nào.', style: GlassTypography.bodyMd());
+        if (list.isEmpty)
+          return Text(
+            'Nhóm chưa đặt ngân sách nào.',
+            style: GlassTypography.bodyMd(),
+          );
         return Column(
           children: list
-              .map((b) => Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: GlassCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(b.isTotal ? 'Ngân sách tổng' : (b.categoryName ?? 'Danh mục'), style: GlassTypography.bodyMd(color: GlassColors.textPrimary)),
-                              Text('${b.percentUsed}%', style: GlassTypography.bodySm(color: b.isOverLimit ? GlassColors.danger : GlassColors.textMuted)),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          GlassProgressBar(
-                            percent: b.percentUsed.toDouble(),
-                            state: b.statusLevel == GroupBudgetStatusLevel.danger
-                                ? GlassProgressState.danger
-                                : b.statusLevel == GroupBudgetStatusLevel.warning
-                                    ? GlassProgressState.warning
-                                    : GlassProgressState.success,
-                          ),
-                          const SizedBox(height: 4),
-                          Text('${b.formattedSpent} / ${b.formattedLimit}', style: GlassTypography.bodySm()),
-                        ],
-                      ),
+              .map(
+                (b) => Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: GlassCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              b.isTotal
+                                  ? 'Ngân sách tổng'
+                                  : (b.categoryName ?? 'Danh mục'),
+                              style: GlassTypography.bodyMd(
+                                color: GlassColors.textPrimary,
+                              ),
+                            ),
+                            Text(
+                              '${b.percentUsed}%',
+                              style: GlassTypography.bodySm(
+                                color: b.isOverLimit
+                                    ? GlassColors.danger
+                                    : GlassColors.textMuted,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        GlassProgressBar(
+                          percent: b.percentUsed.toDouble(),
+                          state: b.statusLevel == GroupBudgetStatusLevel.danger
+                              ? GlassProgressState.danger
+                              : b.statusLevel == GroupBudgetStatusLevel.warning
+                              ? GlassProgressState.warning
+                              : GlassProgressState.success,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${b.formattedSpent} / ${b.formattedLimit}',
+                          style: GlassTypography.bodySm(),
+                        ),
+                      ],
                     ),
-                  ))
+                  ),
+                ),
+              )
               .toList(),
         );
       },
@@ -693,27 +971,52 @@ class _GoalsTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final goalsAsync = ref.watch(groupGoalsProvider(groupId));
     return goalsAsync.when(
-      loading: () => const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator())),
-      error: (e, __) => Text(errorMessage(e), style: GlassTypography.bodyMd(color: GlassColors.danger)),
+      loading: () => const Padding(
+        padding: EdgeInsets.all(24),
+        child: Center(child: CircularProgressIndicator()),
+      ),
+      error: (e, __) => Text(
+        errorMessage(e),
+        style: GlassTypography.bodyMd(color: GlassColors.danger),
+      ),
       data: (list) {
-        if (list.isEmpty) return Text('Nhóm chưa có mục tiêu nào.', style: GlassTypography.bodyMd());
+        if (list.isEmpty)
+          return Text(
+            'Nhóm chưa có mục tiêu nào.',
+            style: GlassTypography.bodyMd(),
+          );
         return Column(
           children: list
-              .map((g) => Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: GlassCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(g.title, style: GlassTypography.bodyMd(color: GlassColors.textPrimary)),
-                          const SizedBox(height: 8),
-                          GlassProgressBar(percent: g.progressPercentage, state: g.isCompleted ? GlassProgressState.success : GlassProgressState.normal),
-                          const SizedBox(height: 4),
-                          Text('${g.formattedCurrent} / ${g.formattedTarget}', style: GlassTypography.bodySm()),
-                        ],
-                      ),
+              .map(
+                (g) => Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: GlassCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          g.title,
+                          style: GlassTypography.bodyMd(
+                            color: GlassColors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        GlassProgressBar(
+                          percent: g.progressPercentage,
+                          state: g.isCompleted
+                              ? GlassProgressState.success
+                              : GlassProgressState.normal,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${g.formattedCurrent} / ${g.formattedTarget}',
+                          style: GlassTypography.bodySm(),
+                        ),
+                      ],
                     ),
-                  ))
+                  ),
+                ),
+              )
               .toList(),
         );
       },
@@ -729,18 +1032,28 @@ class _FundTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final fundAsync = ref.watch(groupPrimaryFundProvider(groupId));
     return fundAsync.when(
-      loading: () => const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator())),
-      error: (e, __) => Text(errorMessage(e), style: GlassTypography.bodyMd(color: GlassColors.danger)),
+      loading: () => const Padding(
+        padding: EdgeInsets.all(24),
+        child: Center(child: CircularProgressIndicator()),
+      ),
+      error: (e, __) => Text(
+        errorMessage(e),
+        style: GlassTypography.bodyMd(color: GlassColors.danger),
+      ),
       data: (fund) {
         if (fund == null) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Nhóm chưa có quỹ chung nào.', style: GlassTypography.bodyMd()),
+              Text(
+                'Nhóm chưa có quỹ chung nào.',
+                style: GlassTypography.bodyMd(),
+              ),
               const SizedBox(height: 8),
               OutlinedButton(
                 key: const ValueKey('fund-tab-go-settings'),
-                onPressed: () => context.push('/group-settings', extra: groupId),
+                onPressed: () =>
+                    context.push('/group-settings', extra: groupId),
                 child: const Text('Tạo quỹ chung trong Cài đặt nhóm'),
               ),
             ],
@@ -766,25 +1079,34 @@ class _FundEntriesAndSummary extends ConsumerWidget {
       children: [
         summaryAsync.maybeWhen(
           data: (summary) {
-            if (summary.contributionsByMember.isEmpty) return const SizedBox.shrink();
+            if (summary.contributionsByMember.isEmpty)
+              return const SizedBox.shrink();
             return Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: Row(
                 children: summary.contributionsByMember
-                    .map((m) => Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: GlassCard(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(m.memberName, style: GlassTypography.bodySm()),
-                                  Text('Đã góp: ${m.formattedAmount}', style: GlassTypography.labelNumeric()),
-                                ],
-                              ),
+                    .map(
+                      (m) => Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: GlassCard(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  m.memberName,
+                                  style: GlassTypography.bodySm(),
+                                ),
+                                Text(
+                                  'Đã góp: ${m.formattedAmount}',
+                                  style: GlassTypography.labelNumeric(),
+                                ),
+                              ],
                             ),
                           ),
-                        ))
+                        ),
+                      ),
+                    )
                     .toList(),
               ),
             );
@@ -795,34 +1117,59 @@ class _FundEntriesAndSummary extends ConsumerWidget {
         const SizedBox(height: 12),
         entriesAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, __) => Text(errorMessage(e), style: GlassTypography.bodyMd(color: GlassColors.danger)),
+          error: (e, __) => Text(
+            errorMessage(e),
+            style: GlassTypography.bodyMd(color: GlassColors.danger),
+          ),
           data: (entries) {
-            if (entries.isEmpty) return Text('Chưa có dòng quỹ nào.', style: GlassTypography.bodyMd());
+            if (entries.isEmpty)
+              return Text(
+                'Chưa có dòng quỹ nào.',
+                style: GlassTypography.bodyMd(),
+              );
             return Column(
-              children: entries
-                  .map((entry) => Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: GlassCard(
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(entry.merchantName ?? entry.categoryName ?? entry.kind.label, style: GlassTypography.bodyMd(color: GlassColors.textPrimary)),
-                                    Text('${entry.memberName} · ${DateFormat('dd/MM').format(entry.transactedAt)}', style: GlassTypography.bodySm()),
-                                  ],
-                                ),
+              children: [
+                ...entries
+                  .map(
+                    (entry) => Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: GlassCard(
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    entry.merchantName ??
+                                        entry.categoryName ??
+                                        entry.kind.label,
+                                    style: GlassTypography.bodyMd(
+                                      color: GlassColors.textPrimary,
+                                    ),
+                                  ),
+                                  Text(
+                                    '${entry.memberName} · ${DateFormat('dd/MM HH:mm').format(entry.transactedAt.toLocal())}',
+                                    style: GlassTypography.bodySm(),
+                                  ),
+                                ],
                               ),
-                              Text(
-                                '${entry.isCredit ? '+' : '-'}${entry.formattedAmount}',
-                                style: GlassTypography.labelNumeric(color: entry.isCredit ? GlassColors.success : GlassColors.textPrimary),
+                            ),
+                            Text(
+                              '${entry.isCredit ? '+' : '-'}${entry.formattedAmount}',
+                              style: GlassTypography.labelNumeric(
+                                color: entry.isCredit
+                                    ? GlassColors.success
+                                    : GlassColors.textPrimary,
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
-                      ))
-                  .toList(),
+                      ),
+                    ),
+                  ),
+                CursorPagerFooter(pager: ref.read(groupFundEntriesProvider((groupId, fundId)).notifier), auto: false),
+              ],
             );
           },
         ),
@@ -830,4 +1177,3 @@ class _FundEntriesAndSummary extends ConsumerWidget {
     );
   }
 }
-

@@ -45,7 +45,7 @@ class _Repo extends AssistantRepository {
   }
 
   @override
-  Future<ChatReply> chat(String text, {String? accountId, String? clientRequestId}) async {
+  Future<ChatReply> chat(String text, {String? accountId, String? clientRequestId, Map<String, dynamic>? itemContext}) async {
     chatted.add(text);
     return chatReply ?? ChatReply.fromJson(fixtureData('chat_summary') as Map<String, dynamic>);
   }

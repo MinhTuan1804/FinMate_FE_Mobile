@@ -897,7 +897,7 @@ class _GroupGoalDialogState extends State<_GroupGoalDialog> {
             key: const ValueKey('goal-deadline'),
             onPressed: _pickDeadline,
             icon: const Icon(LucideIcons.calendar, size: 16),
-            label: Text(_deadline == null ? 'Chọn hạn chót (tùy chọn)' : DateFormat('dd/MM/yyyy').format(_deadline!)),
+            label: FittedBox(fit: BoxFit.scaleDown, child: Text(_deadline == null ? 'Chọn hạn chót (tùy chọn)' : DateFormat('dd/MM/yyyy').format(_deadline!), maxLines: 1)),
           ),
         ],
       ),

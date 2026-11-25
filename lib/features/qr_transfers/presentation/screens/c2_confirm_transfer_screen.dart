@@ -17,6 +17,7 @@ import 'package:finmate/shared/widgets/glass/glass_background.dart';
 import 'package:finmate/shared/widgets/glass/glass_bottom_dock.dart';
 import 'package:finmate/shared/widgets/glass/glass_buttons.dart';
 import 'package:finmate/shared/widgets/glass/glass_card.dart';
+import 'package:finmate/core/widgets/async_action_builder.dart';
 
 /// C2 — Xác nhận chuyển khoản. Màn chỉ dùng trường BE thật sự hỗ trợ (POST /qr/transfers):
 /// KHÔNG có chọn tài khoản nguồn cụ thể kèm số dư, KHÔNG hiển thị phí chuyển khoản, KHÔNG có
@@ -143,6 +144,18 @@ class _C2ConfirmTransferScreenState extends ConsumerState<C2ConfirmTransferScree
       if (message.isNotEmpty) 'tn': message,
       'url': 'https://www.vietqr.io/deeplink',
     });
+
+    // VietQR chỉ điền sẵn được ở một số app (VCB chỉ mở app, không vào màn chuyển tiền): sao chép số tài khoản trước để người dùng dán, và nhắc số tiền/nội dung.
+    await Clipboard.setData(ClipboardData(text: account));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        duration: const Duration(seconds: 8),
+        content: Text(
+          'Đã sao chép số tài khoản. Nếu app ngân hàng chưa điền sẵn, hãy dán số tài khoản, nhập ${formatVnd(amount)}'
+          '${message.isEmpty ? '' : ' và nội dung "$message"'}.',
+        ),
+      ));
+    }
 
     try {
       final opened = await launchUrl(deepLink, mode: LaunchMode.externalApplication);
@@ -336,11 +349,14 @@ class _C2ConfirmTransferScreenState extends ConsumerState<C2ConfirmTransferScree
                             const SizedBox(height: 8),
                             Align(
                               alignment: Alignment.centerLeft,
-                              child: TextButton.icon(
-                                key: const ValueKey('c2-lookup-counterparty'),
+                              child: AsyncActionBuilder(
                                 onPressed: _lookingUp ? null : _lookupCounterparty,
-                                icon: const Icon(LucideIcons.search, size: 16),
-                                label: const Text('Tra cứu danh mục đã nhớ'),
+                                builder: (_, onTap, running) => TextButton.icon(
+                                  key: const ValueKey('c2-lookup-counterparty'),
+                                  onPressed: onTap,
+                                  icon: running ? const ButtonLoadingIndicator(size: 16) : const Icon(LucideIcons.search, size: 16),
+                                  label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Tra cứu danh mục đã nhớ', maxLines: 1)),
+                                ),
                               ),
                             ),
                             if (_lookupChecked)

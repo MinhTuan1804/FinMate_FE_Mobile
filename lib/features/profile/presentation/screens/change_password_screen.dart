@@ -251,7 +251,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
                       Expanded(
                         child: Text(
                           'Sau khi đổi mật khẩu, bạn sẽ được đăng xuất khỏi tất cả thiết bị và cần đăng nhập lại bằng mật khẩu mới.',
-                          style: AppTypography.caption(context).copyWith(fontSize: 12.5),
+                          style: AppTypography.caption(context).copyWith(fontSize: 13),
                         ),
                       ),
                     ],
@@ -286,7 +286,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
         children: [
           Icon(ok ? LucideIcons.circleCheck : LucideIcons.circleMinus, size: 16, color: ok ? AppColors.safe : AppColors.textMuted(context)),
           const SizedBox(width: 8),
-          Expanded(child: Text(text, style: AppTypography.caption(context).copyWith(fontSize: 12.5, color: ok ? AppColors.textPrimary(context) : AppColors.textMuted(context)))),
+          Expanded(child: Text(text, style: AppTypography.caption(context).copyWith(fontSize: 13, color: ok ? AppColors.textPrimary(context) : AppColors.textMuted(context)))),
         ],
       ),
     );

@@ -136,7 +136,7 @@ class _ReceiptScannerScreenState extends ConsumerState<ReceiptScannerScreen> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    const Flexible(
+                    Flexible(
                       child: Text(
                         'Quét hóa đơn AI',
                         maxLines: 1,
@@ -230,8 +230,14 @@ class _ReceiptScannerScreenState extends ConsumerState<ReceiptScannerScreen> {
                           ),
                         ),
                       )
-                    : Image.file(
-                        File(_imagePath!),
+                    : Image(
+                        // Khung xem trước rộng ~bề ngang màn hình: không giải mã nguyên ảnh 3000px.
+                        image: ResizeImage(
+                          FileImage(File(_imagePath!)),
+                          width: (MediaQuery.sizeOf(context).width * 1.5 * MediaQuery.devicePixelRatioOf(context)).round(),
+                          height: (MediaQuery.sizeOf(context).width * 1.5 * MediaQuery.devicePixelRatioOf(context)).round(),
+                          policy: ResizeImagePolicy.fit,
+                        ),
                         fit: BoxFit.cover,
                         errorBuilder: (_, __, ___) => const Center(
                           child: Icon(
@@ -265,7 +271,7 @@ class _ReceiptScannerScreenState extends ConsumerState<ReceiptScannerScreen> {
                                 color: AppColors.onCamera,
                               ),
                               const SizedBox(height: 16),
-                              const Text(
+                              Text(
                                 'AI đang đọc và phân tích hóa đơn...',
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
@@ -453,7 +459,7 @@ class _ReceiptScannerScreenState extends ConsumerState<ReceiptScannerScreen> {
             const SizedBox(height: 8),
             Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.onCamera,
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
@@ -604,7 +610,7 @@ class _ReceiptScannerScreenState extends ConsumerState<ReceiptScannerScreen> {
             Text(
               'TRÍCH XUẤT SƠ BỘ',
               style: secondary.copyWith(
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.8,
               ),
@@ -685,7 +691,7 @@ class _ReceiptScannerScreenState extends ConsumerState<ReceiptScannerScreen> {
             backgroundColor: AppColors.primaryAction(context),
             foregroundColor: AppColors.onPrimaryAction(context),
           ),
-          child: const Row(
+          child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Flexible(

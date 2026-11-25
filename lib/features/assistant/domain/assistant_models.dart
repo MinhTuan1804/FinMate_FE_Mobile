@@ -435,12 +435,16 @@ class GoalDraft {
   final DateTime? deadline;
   final String? deadlineText;
 
+  /// Hạn hoặc tên do AI đọc hộ vì luật không hiểu câu: app không tự tạo mục tiêu, để người dùng soát ngày rồi bấm tạo
+  final bool aiAssisted;
+
   const GoalDraft({
     required this.name,
     this.nameIsDefault = false,
     required this.targetCents,
     this.deadline,
     this.deadlineText,
+    this.aiAssisted = false,
   });
 
   factory GoalDraft.fromJson(Map<String, dynamic> json) {
@@ -455,6 +459,7 @@ class GoalDraft {
           ? null
           : DateTime.tryParse(deadline)?.toLocal(),
       deadlineText: json['deadlineText'] as String?,
+      aiAssisted: json['aiAssisted'] == true,
     );
   }
 
@@ -471,6 +476,7 @@ class GoalDraft {
     deadline: clearDeadline ? null : (deadline ?? this.deadline),
     // đổi hạn bằng tay thì cụm đã nói không còn đúng nữa
     deadlineText: clearDeadline || deadline != null ? null : deadlineText,
+    aiAssisted: aiAssisted,
   );
 
   /// Số tiền cần nạp mỗi tháng để kịp hạn (làm tròn lên, tối thiểu 1 tháng); null nếu không có hạn. Cùng công thức với `SavingsGoalEntity.requiredPerMonth`.
@@ -607,7 +613,97 @@ class PurchaseAssessment {
       );
 }
 
-enum ChatAction { saved, summary, reply, confirm, goal, purchase }
+/// Ngân sách / khoản định kỳ / khoản vay nợ mà AI đọc ra từ câu chat và đã ĐỦ thông tin: app tạo ngay (có nút "Hoàn tác"). Thiếu thông tin thì server không trả bản này mà hỏi lại.
+class ChatItemDraft {
+  static const budget = 'budget';
+  static const recurring = 'recurring';
+  static const loan = 'loan';
+
+  /// Ngân sách TỔNG của tháng, không gắn một nhóm chi
+  static const budgetTotal = 'budget_total';
+
+  /// Sửa/xóa theo tên mà câu không nói rõ loại: app tìm trong ngân sách, khoản định kỳ và khoản vay nợ
+  static const any = 'any';
+
+  /// budget | recurring | loan
+  final String kind;
+  final BigInt amountCents;
+
+  /// recurring: tên khoản; loan: tiêu đề ("Cho Bạn An vay")
+  final String? name;
+  final String? categorySlug;
+
+  /// recurring: weekly | monthly | yearly
+  final String? cadence;
+  final DateTime? nextDue;
+
+  /// loan: borrow (mình đi vay) | lend (mình cho vay)
+  final String? direction;
+  final String? counterparty;
+
+  /// update_named / delete_named: sửa / xóa một mục ĐÃ CÓ theo tên ([name]), không cần ngữ cảnh; app tìm mục khớp tên.
+  /// create | update (đổi số tiền việc vừa làm) | add (cộng thêm vào số tiền việc vừa làm) | delete (hủy việc vừa làm). Ba thao tác sau áp lên việc gần nhất của phiên này ([amountCents] là số mới / số cộng thêm / 0).
+  final String operation;
+
+  /// repay: khoản vay có sẵn khớp tên người (backend đã tìm), số còn lại của nó trước lần trả này, và ví ghi giao dịch của lần trả (null = chỉ giảm nợ)
+  final String? loanId;
+  final BigInt? remainingCents;
+  final String? accountId;
+
+  const ChatItemDraft({
+    required this.kind,
+    required this.amountCents,
+    this.name,
+    this.categorySlug,
+    this.cadence,
+    this.nextDue,
+    this.direction,
+    this.counterparty,
+    this.operation = 'create',
+    this.loanId,
+    this.remainingCents,
+    this.accountId,
+  });
+
+  ChatItemDraft withAmount(BigInt cents) => ChatItemDraft(
+    kind: kind,
+    amountCents: cents,
+    name: name,
+    categorySlug: categorySlug,
+    cadence: cadence,
+    nextDue: nextDue,
+    direction: direction,
+    counterparty: counterparty,
+  );
+
+  /// Việc vừa làm gửi kèm mỗi tin chat để server hiểu câu nối tiếp ("đổi thành 3 triệu", "xóa cái đó"). Chỉ số liệu có cấu trúc, không có chữ người dùng gõ.
+  Map<String, dynamic> toContextJson() => {
+    'kind': kind,
+    'amountCents': amountCents.toInt(),
+    if (name != null) 'name': name,
+    if (categorySlug != null) 'categorySlug': categorySlug,
+    if (cadence != null) 'cadence': cadence,
+    if (direction != null) 'direction': direction,
+    if (counterparty != null) 'counterparty': counterparty,
+  };
+
+  factory ChatItemDraft.fromJson(Map<String, dynamic> json) => ChatItemDraft(
+    kind: json['kind'] as String? ?? '',
+    amountCents: parseCents(json['amountCents']),
+    name: json['name'] as String?,
+    categorySlug: json['categorySlug'] as String?,
+    cadence: json['cadence'] as String?,
+    nextDue: _parseDate(json['nextDue']),
+    direction: json['direction'] as String?,
+    counterparty: json['counterparty'] as String?,
+    operation: json['operation'] as String? ?? 'create',
+    loanId: json['loanId'] as String?,
+    remainingCents: json['remainingCents'] == null ? null : parseCents(json['remainingCents']),
+    accountId: json['financialAccountId'] as String?,
+  );
+}
+
+enum ChatAction { saved, summary, reply, confirm, goal, purchase, item }
 
 /// Phản hồi của `POST /transactions/chat`
 class ChatReply {
@@ -627,6 +723,9 @@ class ChatReply {
   /// Khoản định mua khi [action] là [ChatAction.purchase]
   final PurchaseDraft? purchase;
 
+  /// Ngân sách / khoản định kỳ / vay nợ đủ thông tin khi [action] là [ChatAction.item]
+  final ChatItemDraft? item;
+
   const ChatReply({
     required this.action,
     this.intent,
@@ -637,6 +736,7 @@ class ChatReply {
     this.summary,
     this.goal,
     this.purchase,
+    this.item,
   });
 
   /// Phản hồi lạ hoặc thiếu dữ liệu tương ứng với `action` → trả lời văn bản chung, không ném
@@ -704,6 +804,17 @@ class ChatReply {
             intent: intent,
             replyText: replyText,
             purchase: draft,
+          );
+        case 'item':
+          final item = json['item'];
+          if (item is! Map<String, dynamic>) return generic();
+          final draft = ChatItemDraft.fromJson(item);
+          if (draft.kind.isEmpty || (draft.amountCents <= BigInt.zero && draft.operation != 'delete' && draft.operation != 'delete_named')) return generic();
+          return ChatReply(
+            action: ChatAction.item,
+            intent: intent,
+            replyText: replyText,
+            item: draft,
           );
         case 'reply':
           return ChatReply(

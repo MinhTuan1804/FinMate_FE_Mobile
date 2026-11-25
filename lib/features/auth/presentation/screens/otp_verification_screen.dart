@@ -10,6 +10,7 @@ import 'package:finmate/features/auth/presentation/controllers/auth_controller.d
 import 'package:finmate/shared/widgets/glass/glass_background.dart';
 import 'package:finmate/shared/widgets/glass/glass_buttons.dart';
 import 'package:finmate/shared/widgets/glass/glass_otp_input.dart';
+import 'package:finmate/core/widgets/async_action_builder.dart';
 
 class OtpVerificationScreen extends ConsumerStatefulWidget {
   final String email;
@@ -165,13 +166,16 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
 
                 const SizedBox(height: 20),
                 Center(
-                  child: TextButton(
+                  child: AsyncActionBuilder(
                     onPressed: _countdown == 0 ? _resend : null,
-                    child: Text(
-                      _countdown > 0 ? 'Gửi lại mã sau ${_countdown}s' : 'Gửi lại mã xác nhận',
-                      style: GlassTypography.bodyMd(
-                        color: _countdown == 0 ? GlassColors.slateAnchor : GlassColors.textMuted,
-                      ).copyWith(fontWeight: FontWeight.w600),
+                    builder: (_, onTap, running) => TextButton(
+                      onPressed: onTap,
+                      child: running ? const ButtonLoadingIndicator() : Text(
+                        _countdown > 0 ? 'Gửi lại mã sau ${_countdown}s' : 'Gửi lại mã xác nhận',
+                        style: GlassTypography.bodyMd(
+                          color: _countdown == 0 ? GlassColors.slateAnchor : GlassColors.textMuted,
+                        ).copyWith(fontWeight: FontWeight.w600),
+                      ),
                     ),
                   ),
                 ),

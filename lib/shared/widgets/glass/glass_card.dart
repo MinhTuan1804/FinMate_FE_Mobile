@@ -12,13 +12,7 @@ class GlassCard extends StatelessWidget {
   final EdgeInsetsGeometry padding;
   final BorderRadius? borderRadius;
 
-  const GlassCard({
-    super.key,
-    required this.child,
-    this.level = 1,
-    this.padding = const EdgeInsets.all(20),
-    this.borderRadius,
-  });
+  const GlassCard({super.key, required this.child, this.level = 1, this.padding = const EdgeInsets.all(20), this.borderRadius});
 
   @override
   Widget build(BuildContext context) {
@@ -32,32 +26,30 @@ class GlassCard extends StatelessWidget {
       _ => GlassColors.level1Shadow(),
     };
 
+    final surface = Container(
+      padding: padding,
+      decoration: BoxDecoration(
+        color: fill,
+        borderRadius: radius,
+        border: Border.all(color: border, width: 1),
+        gradient: level == 2
+            ? RadialGradient(
+                colors: [GlassColors.accentSkyBlue.withValues(alpha: 0.25), GlassColors.accentDustyRose.withValues(alpha: 0.0)],
+                center: Alignment.topLeft,
+                radius: 1.2,
+              )
+            : null,
+      ),
+      child: child,
+    );
+
     return Container(
       decoration: BoxDecoration(borderRadius: radius, boxShadow: [shadow]),
       child: ClipRRect(
         borderRadius: radius,
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: isModal ? 14 : 10, sigmaY: isModal ? 14 : 10),
-          child: Container(
-            padding: padding,
-            decoration: BoxDecoration(
-              color: fill,
-              borderRadius: radius,
-              border: Border.all(color: border, width: 1),
-              gradient: level == 2
-                  ? RadialGradient(
-                      colors: [
-                        GlassColors.accentSkyBlue.withValues(alpha: 0.25),
-                        GlassColors.accentDustyRose.withValues(alpha: 0.0),
-                      ],
-                      center: Alignment.topLeft,
-                      radius: 1.2,
-                    )
-                  : null,
-            ),
-            child: child,
-          ),
-        ),
+        // Chỉ modal mới blur: card thường nằm trên gradient mịn nên blur không thấy khác,
+        // mà mỗi BackdropFilter tốn một lượt saveLayer + blur mỗi frame khi cuộn list.
+        child: isModal ? BackdropFilter(filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14), child: surface) : surface,
       ),
     );
   }

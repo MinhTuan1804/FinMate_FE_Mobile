@@ -36,7 +36,13 @@ final periodSummaryProvider = FutureProvider.autoDispose.family<MonthlySummary, 
   return ref.watch(reportsRepositoryProvider).getPeriodSummary(from: range.$1, to: range.$2);
 });
 
-final categoryBreakdownProvider = FutureProvider<CategoryBreakdown>((ref) {
+/// Chi tiêu từng ngày có giao dịch trong khoảng — dữ liệu cho biểu đồ cột F1.
+final dailySpendingProvider = FutureProvider.autoDispose.family<List<TimelineDaySummary>, DateRange>((ref, range) {
+  if (ref.watch(currentUserIdProvider) == null) return const <TimelineDaySummary>[];
+  return ref.watch(reportsRepositoryProvider).getTimelineDays(from: range.$1, to: range.$2);
+});
+
+final categoryBreakdownProvider =FutureProvider<CategoryBreakdown>((ref) {
   if (ref.watch(currentUserIdProvider) == null) return CategoryBreakdown.empty;
   final now = DateTime.now();
   return ref.watch(reportsRepositoryProvider).getCategoryBreakdown(year: now.year, month: now.month);

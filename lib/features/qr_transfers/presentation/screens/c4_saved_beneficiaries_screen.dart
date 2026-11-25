@@ -151,7 +151,7 @@ class _BeneficiaryCard extends StatelessWidget {
                     },
                   ),
                   icon: const Icon(LucideIcons.send, size: 15),
-                  label: const Text('Chuyển tiền'),
+                  label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Chuyển tiền', maxLines: 1)),
                 ),
               ],
             ),

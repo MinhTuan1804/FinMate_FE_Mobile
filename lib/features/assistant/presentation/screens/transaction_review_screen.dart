@@ -440,9 +440,10 @@ class _TransactionReviewScreenState
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           automaticallyImplyLeading: false,
-          leading: IconButton(
+          leading: LiquidGlassIconButton(
+            icon: LucideIcons.arrowLeft,
             tooltip: 'Quay lại',
-            icon: const Icon(LucideIcons.arrowLeft),
+            iconSize: 18,
             onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
           ),
           title: const Text('Xác nhận giao dịch AI'),
@@ -792,7 +793,7 @@ class _TransactionReviewScreenState
                           ? 'GHI CHÚ'
                           : 'GHI CHÚ TỰ ĐỘNG',
                       style: AppTypography.caption(context).copyWith(
-                        fontSize: 11,
+                        fontSize: 12,
                         fontWeight: FontWeight.w600,
                         letterSpacing: 0.66,
                         color: AppColors.textMuted(context),
@@ -844,7 +845,7 @@ class _TransactionReviewScreenState
     final amountStyle = AppTypography.tabular(
       AppTypography.h1(
         context,
-      ).copyWith(fontSize: 30, height: 1.25, letterSpacing: -0.75),
+      ).copyWith(fontSize: 32, height: 1.25, letterSpacing: -0.75),
     );
     return Container(
       padding: const EdgeInsets.only(bottom: 16),
@@ -858,7 +859,7 @@ class _TransactionReviewScreenState
           Text(
             _isSplit ? 'TỔNG HÓA ĐƠN' : 'SỐ TIỀN TRÍCH XUẤT',
             style: AppTypography.caption(context).copyWith(
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: FontWeight.w600,
               letterSpacing: 0.55,
             ),
@@ -1057,7 +1058,7 @@ class _TransactionReviewScreenState
           const SizedBox(width: 6),
           Text(
             text,
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
           ),
         ],
       ),
@@ -1113,7 +1114,7 @@ class _TransactionReviewScreenState
                               : 'Lưu vào sổ giao dịch',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
                           ),
@@ -1255,7 +1256,7 @@ class _TransactionReviewScreenState
                       ? null
                       : () => _pickGroupCategory(g, categories),
                   icon: const Icon(LucideIcons.tag, size: 16),
-                  label: const Text('Đổi danh mục'),
+                  label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Đổi danh mục', maxLines: 1)),
                 ),
                 TextButton.icon(
                   onPressed: canSkip
@@ -1265,7 +1266,7 @@ class _TransactionReviewScreenState
                     g.skipped ? LucideIcons.undo2 : LucideIcons.ban,
                     size: 16,
                   ),
-                  label: Text(g.skipped ? 'Giữ lại' : 'Bỏ nhóm'),
+                  label: FittedBox(fit: BoxFit.scaleDown, child: Text(g.skipped ? 'Giữ lại' : 'Bỏ nhóm', maxLines: 1)),
                 ),
               ],
             ),
@@ -1304,11 +1305,15 @@ class _TransactionReviewScreenState
       child: DropdownButtonFormField<String>(
         key: ValueKey('acc-$role-$value-${accounts.length}'),
         initialValue: value,
-        isExpanded: false,
+        isExpanded: true,
+        alignment: AlignmentDirectional.centerEnd,
         style: AppTypography.bodyLarge(
           context,
         ).copyWith(fontWeight: FontWeight.w500, letterSpacing: -0.15),
-        icon: const Icon(LucideIcons.chevronDown, size: 16),
+        icon: const Padding(
+          padding: EdgeInsets.only(left: 4),
+          child: Icon(LucideIcons.chevronDown, size: 16),
+        ),
         decoration: InputDecoration(
           filled: false,
           isDense: true,
@@ -1316,7 +1321,7 @@ class _TransactionReviewScreenState
           enabledBorder: InputBorder.none,
           focusedBorder: InputBorder.none,
           disabledBorder: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(vertical: 12),
+          contentPadding: const EdgeInsets.fromLTRB(0, 12, 4, 12),
         ),
         items: accounts
             .map(

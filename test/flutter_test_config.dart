@@ -11,7 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// gộp nhánh `dev/tuan`. Đặt `null` ở đây một lần cho toàn bộ test suite, giống cách từng file test
 /// khác (vd `native_token_storage_test.dart`) đã làm riêng cho kênh của nó, để mọi test không cần
 /// tự biết/tự mock kênh này.
-const _widgetRefreshChannel = MethodChannel('com.example.finmate/widget_refresh');
+const _widgetRefreshChannel = MethodChannel('com.finmate.app/widget_refresh');
 
 /// Kênh của gói `home_widget` (đọc/ghi `pendingRoute` trong `NotificationCaptureScope.
 /// _consumePendingRoute`, xem `notification_capture_scope.dart`). Cùng lý do với kênh ở trên: không

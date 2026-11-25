@@ -4,7 +4,7 @@ import 'package:finmate/core/native/notification_bridge.dart';
 import 'package:finmate/core/network/native_token_storage.dart';
 import 'package:finmate/core/network/token_storage.dart';
 
-const _channel = MethodChannel('com.example.finmate/notifications');
+const _channel = MethodChannel('com.finmate.app/notifications');
 
 class _ThrowOnceClearStorage extends InMemoryTokenStorage {
   bool _thrown = false;

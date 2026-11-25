@@ -10,6 +10,7 @@ import 'package:finmate/core/theme/app_spacing.dart';
 import 'package:finmate/core/theme/app_typography.dart';
 import 'package:finmate/core/widgets/glass/liquid_glass.dart';
 import 'package:finmate/features/auth/presentation/controllers/auth_controller.dart';
+import 'package:finmate/core/widgets/async_action_builder.dart';
 
 /// Màn H2: Chỉnh sửa hồ sơ (theo Figma). Hồ sơ chỉ có tên hiển thị và thu nhập hàng tháng để sửa; email chỉ đọc.
 /// Ảnh đại diện, số điện thoại, đổi email và ngày nhận thu nhập trong Figma chưa có ở BE nên không hiển thị.
@@ -79,11 +80,14 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 12),
-            child: FilledButton(
-              key: const ValueKey('save-top'),
+            child: AsyncActionBuilder(
               onPressed: _isLoading ? null : _handleSave,
-              style: FilledButton.styleFrom(shape: const StadiumBorder(), visualDensity: VisualDensity.compact),
-              child: const Text('Lưu'),
+              builder: (_, onTap, running) => FilledButton(
+                key: const ValueKey('save-top'),
+                onPressed: onTap,
+                style: FilledButton.styleFrom(shape: const StadiumBorder(), visualDensity: VisualDensity.compact),
+                child: running ? const ButtonLoadingIndicator() : const Text('Lưu'),
+              ),
             ),
           ),
         ],
@@ -102,7 +106,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     backgroundColor: AppColors.secondary.withValues(alpha: 0.2),
                     child: Text(
                       shownName.isNotEmpty ? shownName[0].toUpperCase() : 'U',
-                      style: TextStyle(fontSize: 36, fontWeight: FontWeight.w800, color: AppColors.primaryAction(context)),
+                      style: TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: AppColors.primaryAction(context)),
                     ),
                   ),
                 ),
@@ -209,7 +213,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                               key: const ValueKey('income-field'),
                               controller: _incomeController,
                               keyboardType: TextInputType.number,
-                              style: AppTypography.tabular(AppTypography.displayBalance(context).copyWith(fontSize: 26, fontWeight: FontWeight.w800)),
+                              style: AppTypography.tabular(AppTypography.displayBalance(context).copyWith(fontSize: 26, fontWeight: FontWeight.w800, fontVariations: [FontVariation('wght', FontWeight.w800.value.toDouble())])),
                               decoration: InputDecoration(
                                 hintText: '15.000.000',
                                 suffix: Container(

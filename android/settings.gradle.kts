@@ -23,6 +23,8 @@ plugins {
     id("org.jetbrains.kotlin.android") version "2.3.20" apply false
     // Kotlin 2.x tách compiler Compose ra khỏi AGP; cần plugin này để build các màn Glance (Luồng 9 widgets).
     id("org.jetbrains.kotlin.plugin.compose") version "2.3.20" apply false
+    // Đọc android/app/google-services.json cho Firebase.
+    id("com.google.gms.google-services") version "4.4.4" apply false
 }
 
 include(":app")

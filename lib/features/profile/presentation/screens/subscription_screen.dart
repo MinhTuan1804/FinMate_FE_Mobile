@@ -150,15 +150,15 @@ class _CycleToggle extends ConsumerWidget {
                       label,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: selected ? AppColors.activeFg(context) : AppColors.textPrimary(context)),
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: selected ? AppColors.activeFg(context) : AppColors.textPrimary(context)),
                     ),
                   ),
                   if (badge != null) ...[
                     const SizedBox(width: 6),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                      decoration: BoxDecoration(color: const Color(0xFFFFD9E4), borderRadius: AppSpacing.roundedPill),
-                      child: Text(badge, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF31101E))),
+                      decoration: BoxDecoration(color: AppColors.pillRoseBg, borderRadius: AppSpacing.roundedPill),
+                      child: Text(badge, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.pillRoseFg)),
                     ),
                   ],
                 ],
@@ -277,7 +277,7 @@ class _UsageRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
         children: [
-          Expanded(child: Text(usage.name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
+          Expanded(child: Text(usage.name, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
           Text(text, style: AppTypography.caption(context)),
         ],
       ),
@@ -335,7 +335,7 @@ class _PlanCard extends StatelessWidget {
           ],
           const SizedBox(height: 12),
           if (plan.isFree)
-            Text('Miễn phí', style: AppTypography.displayBalance(context).copyWith(fontSize: 28, fontWeight: FontWeight.w800))
+            Text('Miễn phí', style: AppTypography.displayBalance(context).copyWith(fontSize: 26, fontWeight: FontWeight.w800, fontVariations: [FontVariation('wght', FontWeight.w800.value.toDouble())]))
           else if (amount == null)
             Text('Chưa có giá', style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w700))
           else
@@ -343,7 +343,7 @@ class _PlanCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.baseline,
               textBaseline: TextBaseline.alphabetic,
               children: [
-                Flexible(child: Text(formatVnd(amount), style: AppTypography.displayBalance(context).copyWith(fontSize: 28, fontWeight: FontWeight.w800))),
+                Flexible(child: Text(formatVnd(amount), style: AppTypography.displayBalance(context).copyWith(fontSize: 26, fontWeight: FontWeight.w800, fontVariations: [FontVariation('wght', FontWeight.w800.value.toDouble())]))),
                 const SizedBox(width: 6),
                 Text(unit, style: AppTypography.caption(context)),
               ],
@@ -359,7 +359,7 @@ class _PlanCard extends StatelessWidget {
                   Expanded(
                     child: Text(
                       f.monthlyLimit != null ? '${f.name} (${f.monthlyLimit} lần/tháng)' : f.name,
-                      style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600),
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                     ),
                   ),
                 ],

@@ -113,6 +113,16 @@ class MyMethodsScreen extends ConsumerWidget {
               onPressed: () => context.go('/home'),
             ),
             IconButton(
+              key: const ValueKey('open-financial-plan'),
+              tooltip: 'Kế hoạch tháng',
+              icon: Icon(
+                LucideIcons.calendarRange,
+                size: 20,
+                color: GlassColors.slateAnchor,
+              ),
+              onPressed: () => context.push('/finance-methods/plan'),
+            ),
+            IconButton(
               key: const ValueKey('open-alert-thresholds'),
               tooltip: 'Ngưỡng cảnh báo',
               icon: Icon(
@@ -266,7 +276,11 @@ class _ActiveMethodHero extends ConsumerWidget {
           const SizedBox(height: 12),
           Text('Phương pháp đang áp dụng', style: GlassTypography.bodySm()),
           const SizedBox(height: 2),
-          Text(active.method.name, style: GlassTypography.headlineMd()),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(active.method.name, maxLines: 1, style: GlassTypography.headlineMd()),
+          ),
           const SizedBox(height: 14),
           Container(height: 1, color: Colors.white.withValues(alpha: 0.5)),
           const SizedBox(height: 14),
@@ -726,7 +740,7 @@ class _StepsCard extends StatelessWidget {
                       '${i + 1}',
                       style: GlassTypography.labelCaps(
                         color: GlassColors.slateAnchor,
-                      ).copyWith(fontSize: 10),
+                      ).copyWith(fontSize: 12),
                     ),
                   ),
                   const SizedBox(width: 10),

@@ -18,14 +18,11 @@ import 'package:finmate/shared/widgets/glass/glass_background.dart';
 import 'package:finmate/shared/widgets/glass/glass_badge.dart';
 import 'package:finmate/shared/widgets/glass/glass_dialog.dart';
 import 'package:finmate/shared/widgets/glass/glass_card.dart';
+import 'package:finmate/core/widgets/async_action_builder.dart';
 
-/// I5 — Mời vào nhóm (Stitch `i5_invite_members`). BỎ "Mời trực tiếp" tìm theo FinMate ID/danh bạ
-/// (không có API tìm người dùng) và nhãn "HẠN 7 NGÀY" cứng (chỉ hiện hạn thật sau khi tạo lời mời) —
-/// xem quyết định phạm vi Luồng 8a. Link mời web thật (`finmate.app/join/...`) và quét QR tự mở app
-/// CHƯA làm được — app chưa có app-link/deep-link nào xử lý lời mời (quyết định 2026-11-16: để đợt
-/// sau). Đợt này: tạo lời mời qua `POST /groups/{id}/invitations`, hiện mã lời mời dưới dạng QR +
-/// text để Sao chép/Chia sẻ — người nhận tự dán mã vào màn "Nhập mã lời mời" (`/accept-invitation`,
-/// I6) đã có sẵn.
+/// I5 — Mời vào nhóm (Figma). Hai cách: mã/link/QR chung của nhóm (luôn hiện sẵn, không hết hạn, ai có mã đều vào với vai trò Thành viên;
+/// đặt lại hoặc tắt được) và lời mời qua email (chọn vai trò, có hạn, dùng một lần).
+/// Mời trực tiếp theo FinMate ID/email đã xác minh (`GET /users/search`) đã được gỡ khỏi màn này.
 class I5InviteMembersScreen extends ConsumerStatefulWidget {
   final String groupId;
   const I5InviteMembersScreen({super.key, required this.groupId});
@@ -36,37 +33,38 @@ class I5InviteMembersScreen extends ConsumerStatefulWidget {
 
 class _I5InviteMembersScreenState extends ConsumerState<I5InviteMembersScreen> {
   final _email = TextEditingController();
+  final _message = TextEditingController();
   GroupRole? _role;
   bool _submitting = false;
-  GroupInvitationEntity? _created;
 
   @override
   void dispose() {
     _email.dispose();
+    _message.dispose();
     super.dispose();
   }
 
   List<GroupRole> _invitableRoles(GroupRole myRole) =>
       GroupRole.values.where((r) => r.index > myRole.index).toList();
 
-  Future<void> _submit(GroupRole role) async {
-    setState(() => _submitting = true);
+  Future<void> _submitEmail(GroupRole role) async {
     final messenger = ScaffoldMessenger.of(context);
+    if (_email.text.trim().isEmpty) {
+      messenger.showSnackBar(const SnackBar(content: Text('Nhập email người cần mời.')));
+      return;
+    }
+    setState(() => _submitting = true);
     try {
-      final created = await ref.read(groupsRepositoryProvider).createInvitation(
+      await ref.read(groupsRepositoryProvider).createInvitation(
             groupId: widget.groupId,
-            email: _email.text.trim().isEmpty ? null : _email.text.trim(),
+            email: _email.text.trim(),
+            message: _message.text.trim(),
             role: role,
           );
       ref.invalidate(groupInvitationsProvider(widget.groupId));
       if (!mounted) return;
-      setState(() {
-        _created = created;
-        _submitting = false;
-      });
-      if (created.token == null) {
-        messenger.showSnackBar(const SnackBar(content: Text('Đã tạo lời mời, email sẽ được gửi')));
-      }
+      setState(() => _submitting = false);
+      messenger.showSnackBar(const SnackBar(content: Text('Đã tạo lời mời, email sẽ được gửi')));
     } catch (e) {
       if (!mounted) return;
       setState(() => _submitting = false);
@@ -89,6 +87,27 @@ class _I5InviteMembersScreenState extends ConsumerState<I5InviteMembersScreen> {
       await ref.read(groupsRepositoryProvider).revokeInvitation(groupId: widget.groupId, invitationId: invitation.id);
       ref.invalidate(groupInvitationsProvider(widget.groupId));
       messenger.showSnackBar(const SnackBar(content: Text('Đã hủy lời mời')));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(errorMessage(e)), backgroundColor: GlassColors.danger));
+    }
+  }
+
+  /// `DELETE /groups/{id}/invitations` thu hồi mọi lời mời đang chờ trong một lần và trả số đã thu hồi.
+  Future<void> _revokeAll(List<GroupInvitationEntity> invitations) async {
+    final confirmed = await GlassDialog.confirm(
+      context,
+      title: 'Thu hồi tất cả',
+      message: 'Hủy ${invitations.length} lời mời đang chờ? Các mã/link đã gửi sẽ không dùng được nữa.',
+      confirmLabel: 'Thu hồi',
+      cancelLabel: 'Không',
+      isDanger: true,
+    );
+    if (confirmed != true || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final revoked = await ref.read(groupsRepositoryProvider).revokeAllInvitations(widget.groupId);
+      ref.invalidate(groupInvitationsProvider(widget.groupId));
+      messenger.showSnackBar(SnackBar(content: Text('Đã thu hồi $revoked lời mời')));
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text(errorMessage(e)), backgroundColor: GlassColors.danger));
     }
@@ -147,34 +166,55 @@ class _I5InviteMembersScreenState extends ConsumerState<I5InviteMembersScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Vai trò khi tham gia', style: GlassTypography.headlineSm()),
+                          Text('Vai trò khi mời qua email', style: GlassTypography.headlineSm()),
+                          const SizedBox(height: 4),
+                          Text('Mã/link chung bên dưới luôn vào nhóm với vai trò Thành viên.', style: GlassTypography.bodySm(color: GlassColors.textMuted)),
                           const SizedBox(height: 12),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: invitableRoles
-                                .map((r) => ChoiceChip(
-                                      key: ValueKey('invite-role-${r.apiValue}'),
-                                      label: Text(r.label),
-                                      selected: _role == r,
-                                      onSelected: (_) => setState(() {
-                                        _role = r;
-                                        _created = null;
-                                      }),
-                                    ))
-                                .toList(),
+                          // Một hàng, chia đều bề rộng để 3 vai trò không xuống dòng; chữ tự thu nhỏ nếu hẹp.
+                          Row(
+                            children: [
+                              for (var i = 0; i < invitableRoles.length; i++) ...[
+                                if (i > 0) const SizedBox(width: 8),
+                                Expanded(
+                                  child: ChoiceChip(
+                                    key: ValueKey('invite-role-${invitableRoles[i].apiValue}'),
+                                    showCheckmark: false,
+                                    padding: EdgeInsets.zero,
+                                    label: SizedBox(
+                                      width: double.infinity,
+                                      child: FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        child: Text(
+                                          invitableRoles[i].label,
+                                          maxLines: 1,
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                            color: _role == invitableRoles[i] ? GlassColors.activeFg : GlassColors.textSecondary,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    selectedColor: GlassColors.activeFill,
+                                    selected: _role == invitableRoles[i],
+                                    onSelected: (_) => setState(() => _role = invitableRoles[i]),
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
                         ],
                       ),
                     ),
                     const SizedBox(height: 16),
+                    _JoinLinkCard(groupId: widget.groupId, groupName: group.name),
+                    const SizedBox(height: 16),
                     GlassCard(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Mời qua email (không bắt buộc)', style: GlassTypography.headlineSm()),
+                          Text('Mời qua email', style: GlassTypography.headlineSm()),
                           const SizedBox(height: 4),
-                          Text('Để trống để tạo mã lời mời dùng chung (QR/link).', style: GlassTypography.bodySm(color: GlassColors.textMuted)),
+                          Text('Người nhận sẽ nhận thư mời có liên kết tham gia.', style: GlassTypography.bodySm(color: GlassColors.textMuted)),
                           const SizedBox(height: 12),
                           TextField(
                             key: const ValueKey('invite-email'),
@@ -182,33 +222,46 @@ class _I5InviteMembersScreenState extends ConsumerState<I5InviteMembersScreen> {
                             keyboardType: TextInputType.emailAddress,
                             decoration: const InputDecoration(hintText: 'email@vidu.com'),
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 8),
+                          TextField(
+                            key: const ValueKey('invite-message'),
+                            controller: _message,
+                            maxLength: 200,
+                            decoration: const InputDecoration(hintText: 'Lời nhắn kèm theo (không bắt buộc)'),
+                          ),
+                          const SizedBox(height: 4),
                           SizedBox(
                             width: double.infinity,
                             height: 48,
-                            child: ElevatedButton(
-                              key: const ValueKey('submit-invite'),
-                              onPressed: _submitting || _role == null ? null : () => _submit(_role!),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: GlassColors.ink,
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(borderRadius: GlassRadius.roundedPill),
+                            child: AsyncActionBuilder(
+                              onPressed: _submitting || _role == null ? null : () => _submitEmail(_role!),
+                              builder: (_, onTap, running) => OutlinedButton(
+                                key: const ValueKey('submit-invite'),
+                                onPressed: onTap,
+                                child: running ? const ButtonLoadingIndicator() : const Text('Gửi lời mời qua email'),
                               ),
-                              child: _submitting
-                                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                                  : Text('Tạo lời mời', style: GlassTypography.buttonText()),
                             ),
                           ),
                         ],
                       ),
                     ),
-                    if (_created?.token != null) ...[
-                      const SizedBox(height: 16),
-                      _InviteCodeCard(groupName: group.name, invitation: _created!),
-                    ],
                   ],
                   const SizedBox(height: 20),
-                  Text('Lời mời đang chờ', style: GlassTypography.headlineSm()),
+                  Row(
+                    children: [
+                      Expanded(child: Text('Lời mời đang chờ', style: GlassTypography.headlineSm())),
+                      if ((invitationsAsync.valueOrNull?.length ?? 0) > 1)
+                        AsyncActionBuilder(
+                          onPressed: () => _revokeAll(invitationsAsync.value!),
+                          builder: (_, onTap, running) => TextButton.icon(
+                            key: const ValueKey('revoke-all-invitations'),
+                            onPressed: onTap,
+                            icon: running ? const ButtonLoadingIndicator(size: 16) : Icon(LucideIcons.unlink, size: 16, color: GlassColors.danger),
+                            label: Text('Thu hồi tất cả', style: TextStyle(color: GlassColors.danger)),
+                          ),
+                        ),
+                    ],
+                  ),
                   const SizedBox(height: 8),
                   invitationsAsync.when(
                     loading: () => const Center(child: CircularProgressIndicator()),
@@ -261,73 +314,145 @@ class _I5InviteMembersScreenState extends ConsumerState<I5InviteMembersScreen> {
   }
 }
 
-class _InviteCodeCard extends StatelessWidget {
+/// Mã/link/QR chung của nhóm: hiện sẵn ngay khi mở màn, không phải bấm tạo, không hết hạn, dùng nhiều lần.
+class _JoinLinkCard extends ConsumerWidget {
+  final String groupId;
   final String groupName;
-  final GroupInvitationEntity invitation;
-  const _InviteCodeCard({required this.groupName, required this.invitation});
+  const _JoinLinkCard({required this.groupId, required this.groupName});
+
+  Future<void> _reset(BuildContext context, WidgetRef ref) async {
+    final confirmed = await GlassDialog.confirm(
+      context,
+      title: 'Đặt lại mã',
+      message: 'Tạo mã mới và vô hiệu mã hiện tại? Link/QR đã chia sẻ trước đó sẽ không dùng được nữa.',
+      confirmLabel: 'Đặt lại',
+      cancelLabel: 'Không',
+      isDanger: true,
+    );
+    if (confirmed != true || !context.mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref.read(groupsRepositoryProvider).resetJoinLink(groupId);
+      ref.invalidate(groupJoinLinkProvider(groupId));
+      messenger.showSnackBar(const SnackBar(content: Text('Đã đặt lại mã')));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(errorMessage(e)), backgroundColor: GlassColors.danger));
+    }
+  }
+
+  Future<void> _setEnabled(BuildContext context, WidgetRef ref, bool enabled) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref.read(groupsRepositoryProvider).setJoinLinkEnabled(groupId, enabled);
+      ref.invalidate(groupJoinLinkProvider(groupId));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(errorMessage(e)), backgroundColor: GlassColors.danger));
+    }
+  }
 
   @override
-  Widget build(BuildContext context) {
-    final token = invitation.token!;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final linkAsync = ref.watch(groupJoinLinkProvider(groupId));
     return GlassCard(
+      key: const ValueKey('smart-link-card'),
       level: 2,
       borderRadius: GlassRadius.roundedCardLarge,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('MÃ LỜI MỜI', style: GlassTypography.labelCaps(color: GlassColors.accentSkyBlue)),
-              GlassBadge(text: 'Hết hạn ${DateFormat('dd/MM/yyyy').format(invitation.expiresAt)}'),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Center(
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: Colors.white, borderRadius: GlassRadius.roundedCard),
-              child: QrImageView(data: token, size: 180, backgroundColor: Colors.white),
+      child: linkAsync.when(
+        loading: () => const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator())),
+        error: (e, __) => Text(errorMessage(e), style: GlassTypography.bodyMd(color: GlassColors.danger)),
+        data: (link) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(LucideIcons.link, size: 18, color: GlassColors.accentSkyBlue),
+                const SizedBox(width: 8),
+                Expanded(child: Text('Mã & link tham gia nhóm', style: GlassTypography.headlineSm())),
+                const GlassBadge(text: 'Không hết hạn'),
+              ],
             ),
-          ),
-          const SizedBox(height: 8),
-          Center(child: Text('Dán mã này vào mục "Nhập mã lời mời" trong app FinMate', style: GlassTypography.bodySm(color: GlassColors.textMuted), textAlign: TextAlign.center)),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(color: GlassColors.secondarySurface, borderRadius: GlassRadius.roundedCard),
-            child: SelectableText(token, style: GlassTypography.bodyMd(color: GlassColors.textPrimary)),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  key: const ValueKey('copy-invite-code'),
-                  onPressed: () {
-                    Clipboard.setData(ClipboardData(text: token));
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đã sao chép mã lời mời')));
-                  },
-                  icon: const Icon(LucideIcons.copy, size: 16),
-                  label: const Text('Sao chép'),
+            const SizedBox(height: 4),
+            Text(
+              'Ai có mã hoặc link này đều tham gia được với vai trò ${link.role.label}. Dùng được nhiều lần.',
+              style: GlassTypography.bodySm(color: GlassColors.textMuted),
+            ),
+            const SizedBox(height: 12),
+            Center(
+              child: Opacity(
+                opacity: link.enabled ? 1 : 0.35,
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(color: Colors.white, borderRadius: GlassRadius.roundedCard),
+                  child: QrImageView(data: link.joinUrl, size: 180, backgroundColor: Colors.white),
                 ),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton.icon(
-                  key: const ValueKey('share-invite-code'),
-                  onPressed: () => Share.share(
-                    'Mời bạn tham gia nhóm "$groupName" trên FinMate.\n'
-                    'Mã lời mời: $token\n'
-                    'Mở app FinMate → "Nhập mã lời mời" → dán mã này để tham gia.',
+            ),
+            const SizedBox(height: 8),
+            Center(child: Text('Quét QR, mở link, hoặc dán vào mục "Nhập mã lời mời" trong app FinMate', style: GlassTypography.bodySm(color: GlassColors.textMuted), textAlign: TextAlign.center)),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(color: GlassColors.secondarySurface, borderRadius: GlassRadius.roundedCard),
+              child: SelectableText(link.joinUrl, style: GlassTypography.bodyMd(color: GlassColors.textPrimary)),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    key: const ValueKey('copy-invite-code'),
+                    onPressed: link.enabled
+                        ? () {
+                            Clipboard.setData(ClipboardData(text: link.joinUrl));
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đã sao chép link tham gia')));
+                          }
+                        : null,
+                    icon: const Icon(LucideIcons.copy, size: 16),
+                    label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Sao chép', maxLines: 1)),
                   ),
-                  icon: const Icon(LucideIcons.share2, size: 16),
-                  label: const Text('Chia sẻ'),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    key: const ValueKey('share-invite-code'),
+                    onPressed: link.enabled
+                        ? () => Share.share(
+                              'Mời bạn tham gia nhóm "$groupName" trên FinMate.\n'
+                              'Link tham gia: ${link.joinUrl}\n'
+                              'Mở app FinMate → "Nhập mã lời mời" → dán link này để tham gia.',
+                            )
+                        : null,
+                    icon: const Icon(LucideIcons.share2, size: 16),
+                    label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Chia sẻ', maxLines: 1)),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(child: Text('Cho phép tham gia bằng mã này', style: GlassTypography.bodyMd(color: GlassColors.textPrimary))),
+                Switch(
+                  key: const ValueKey('join-link-switch'),
+                  value: link.enabled,
+                  onChanged: (v) => _setEnabled(context, ref, v),
+                ),
+              ],
+            ),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: AsyncActionBuilder(
+                onPressed: () => _reset(context, ref),
+                builder: (_, onTap, running) => TextButton.icon(
+                  key: const ValueKey('reset-join-link'),
+                  onPressed: onTap,
+                  icon: running ? const ButtonLoadingIndicator(size: 16) : Icon(LucideIcons.refreshCw, size: 16, color: GlassColors.danger),
+                  label: Text('Đặt lại mã', style: TextStyle(color: GlassColors.danger)),
                 ),
               ),
-            ],
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }

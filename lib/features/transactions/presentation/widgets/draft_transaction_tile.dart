@@ -93,7 +93,7 @@ class DraftTransactionTile extends StatelessWidget {
               TextButton.icon(
                 onPressed: busy ? null : onEdit,
                 icon: const Icon(LucideIcons.pencil, size: 16),
-                label: const Text('Sửa'),
+                label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Sửa', maxLines: 1)),
               ),
               const SizedBox(width: AppSpacing.sm),
               FilledButton.icon(
@@ -113,7 +113,7 @@ class DraftTransactionTile extends StatelessWidget {
                         ),
                       )
                     : const Icon(LucideIcons.check, size: 16),
-                label: const Text('Xác nhận'),
+                label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Xác nhận', maxLines: 1)),
               ),
             ],
           ),

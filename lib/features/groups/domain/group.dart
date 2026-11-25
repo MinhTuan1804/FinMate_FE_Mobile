@@ -4,6 +4,10 @@ import 'package:finmate/features/transactions/domain/entities/transaction_entity
 /// Loại nhóm.
 enum GroupType {
   family('Family', 'Gia đình'),
+  friends('Friends', 'Bạn bè'),
+  travel('Travel', 'Du lịch'),
+  colleagues('Colleagues', 'Đồng nghiệp'),
+  roommates('Roommates', 'Bạn cùng phòng'),
   other('Other', 'Khác');
 
   final String apiValue;
@@ -16,8 +20,8 @@ enum GroupType {
 
 /// Thứ tự khai báo là thứ bậc: owner có quyền lớn nhất.
 enum GroupRole {
-  owner('Owner', 'Chủ nhóm'),
-  manager('Manager', 'Quản lý'),
+  owner('Owner', 'Trưởng nhóm'),
+  manager('Manager', 'Thủ quỹ'),
   member('Member', 'Thành viên'),
   viewer('Viewer', 'Chỉ xem');
 
@@ -114,6 +118,24 @@ class GroupEntity {
   final int memberCount;
   final DateTime createdAt;
 
+  /// Khóa biểu tượng chọn sẵn (xem group_type_icons.dart); null = theo loại nhóm.
+  final String? icon;
+  final String? description;
+  final String currency;
+
+  /// 'SharedFund' | 'SplitBill'
+  final String settlementModel;
+
+  /// Ngày chốt sổ 1–28; null = cuối tháng.
+  final int? closingDay;
+
+  /// 'AiOptimized' | 'Manual'
+  final String debtSettlementMethod;
+  final String? myDefaultFinancialAccountId;
+
+  /// Số liệu thẻ danh sách — chỉ có ở `GET /groups`, không có ở `GET /groups/{id}`.
+  final GroupCardEntity? card;
+
   const GroupEntity({
     required this.id,
     required this.name,
@@ -123,11 +145,28 @@ class GroupEntity {
     required this.myPermissions,
     required this.memberCount,
     required this.createdAt,
+    this.icon,
+    this.description,
+    this.currency = 'VND',
+    this.settlementModel = 'SharedFund',
+    this.closingDay,
+    this.debtSettlementMethod = 'AiOptimized',
+    this.myDefaultFinancialAccountId,
+    this.card,
   });
 
   bool get isOwner => myRole == GroupRole.owner;
+  bool get isSplitBill => settlementModel == 'SplitBill';
 
   factory GroupEntity.fromJson(Map<String, dynamic> json) => GroupEntity(
+        icon: json['icon'] as String?,
+        description: json['description'] as String?,
+        currency: json['currency'] as String? ?? 'VND',
+        settlementModel: json['settlementModel'] as String? ?? 'SharedFund',
+        closingDay: json['closingDay'] as int?,
+        debtSettlementMethod: json['debtSettlementMethod'] as String? ?? 'AiOptimized',
+        myDefaultFinancialAccountId: json['myDefaultFinancialAccountId'] as String?,
+        card: json['card'] == null ? null : GroupCardEntity.fromJson(json['card'] as Map<String, dynamic>),
         id: json['id'] as String,
         name: json['name'] as String,
         type: GroupType.fromApi(json['type'] as String),
@@ -136,6 +175,51 @@ class GroupEntity {
         myPermissions: _permissionsFromApi(json['myPermissions'] as List<dynamic>?),
         memberCount: json['memberCount'] as int,
         createdAt: DateTime.parse(json['createdAt'] as String),
+      );
+}
+
+class GroupMemberPreviewEntity {
+  final String userId;
+  final String displayName;
+  final String? avatarUrl;
+
+  const GroupMemberPreviewEntity({required this.userId, required this.displayName, this.avatarUrl});
+
+  factory GroupMemberPreviewEntity.fromJson(Map<String, dynamic> json) => GroupMemberPreviewEntity(
+        userId: json['userId'] as String,
+        displayName: json['displayName'] as String,
+        avatarUrl: json['avatarUrl'] as String?,
+      );
+}
+
+/// Số liệu trên thẻ nhóm ở danh sách (I1). Các số tiền là số nguyên đồng.
+class GroupCardEntity {
+  final BigInt? fundBalanceCents;
+  final BigInt monthlySpentCents;
+  final BigInt? monthlyBudgetCents;
+  final List<GroupMemberPreviewEntity> memberPreview;
+
+  const GroupCardEntity({
+    this.fundBalanceCents,
+    required this.monthlySpentCents,
+    this.monthlyBudgetCents,
+    this.memberPreview = const [],
+  });
+
+  /// Phần trăm ngân sách đã chi (0–100+), null nếu nhóm chưa đặt ngân sách tháng.
+  int? get budgetUsedPercent {
+    final budget = monthlyBudgetCents;
+    if (budget == null || budget <= BigInt.zero) return null;
+    return (monthlySpentCents * BigInt.from(100) ~/ budget).toInt();
+  }
+
+  factory GroupCardEntity.fromJson(Map<String, dynamic> json) => GroupCardEntity(
+        fundBalanceCents: json['fundBalanceCents'] == null ? null : BigInt.from(json['fundBalanceCents'] as num),
+        monthlySpentCents: BigInt.from((json['monthlySpentCents'] as num?) ?? 0),
+        monthlyBudgetCents: json['monthlyBudgetCents'] == null ? null : BigInt.from(json['monthlyBudgetCents'] as num),
+        memberPreview: ((json['memberPreview'] as List<dynamic>?) ?? const [])
+            .map((e) => GroupMemberPreviewEntity.fromJson(e as Map<String, dynamic>))
+            .toList(),
       );
 }
 
@@ -210,6 +294,10 @@ class GroupInvitationEntity {
 
   /// Với lời mời qua email: nhà cung cấp email có nhận thư không.
   final bool? emailSent;
+  final String? message;
+
+  /// `https://finmate.app/join/<token>` — chỉ có đúng một lần, cùng lúc với [token].
+  final String? joinUrl;
 
   const GroupInvitationEntity({
     required this.id,
@@ -219,9 +307,13 @@ class GroupInvitationEntity {
     required this.createdAt,
     this.token,
     this.emailSent,
+    this.message,
+    this.joinUrl,
   });
 
   factory GroupInvitationEntity.fromJson(Map<String, dynamic> json) => GroupInvitationEntity(
+        message: json['message'] as String?,
+        joinUrl: json['joinUrl'] as String?,
         id: json['id'] as String,
         email: json['email'] as String?,
         role: GroupRole.fromApi(json['role'] as String),
@@ -237,22 +329,41 @@ class GroupInvitationPreviewEntity {
   final GroupType groupType;
   final GroupRole role;
   final String? invitedBy;
-  final DateTime expiresAt;
+
+  /// null với mã tham gia chung của nhóm (không hết hạn).
+  final DateTime? expiresAt;
+  final String? groupIcon;
+  final int? memberCount;
+
+  /// null nếu nhóm chưa có quỹ chung.
+  final BigInt? fundBalanceCents;
+  final GroupRole? invitedByRole;
+  final String? message;
 
   const GroupInvitationPreviewEntity({
     required this.groupName,
     required this.groupType,
     required this.role,
     this.invitedBy,
-    required this.expiresAt,
+    this.expiresAt,
+    this.groupIcon,
+    this.memberCount,
+    this.fundBalanceCents,
+    this.invitedByRole,
+    this.message,
   });
 
   factory GroupInvitationPreviewEntity.fromJson(Map<String, dynamic> json) => GroupInvitationPreviewEntity(
+        groupIcon: json['groupIcon'] as String?,
+        memberCount: json['memberCount'] as int?,
+        fundBalanceCents: json['fundBalanceCents'] == null ? null : BigInt.from(json['fundBalanceCents'] as num),
+        invitedByRole: json['invitedByRole'] == null ? null : GroupRole.fromApi(json['invitedByRole'] as String),
+        message: json['message'] as String?,
         groupName: json['groupName'] as String,
         groupType: GroupType.fromApi(json['groupType'] as String),
         role: GroupRole.fromApi(json['role'] as String),
         invitedBy: json['invitedBy'] as String?,
-        expiresAt: DateTime.parse(json['expiresAt'] as String),
+        expiresAt: json['expiresAt'] == null ? null : DateTime.parse(json['expiresAt'] as String),
       );
 }
 
@@ -495,4 +606,22 @@ class GroupContributionEntity {
       );
 
   String get formattedAmount => formatVnd(amountCents);
+}
+
+/// Mã/link tham gia CHUNG của nhóm: luôn có sẵn, không hết hạn, dùng nhiều lần, vào nhóm với vai trò [role] (Member).
+/// Đưa [code] (hoặc [joinUrl]) cho `POST /group-invitations/preview|accept` như một token.
+class GroupJoinLinkEntity {
+  final String code;
+  final String joinUrl;
+  final GroupRole role;
+  final bool enabled;
+
+  const GroupJoinLinkEntity({required this.code, required this.joinUrl, required this.role, required this.enabled});
+
+  factory GroupJoinLinkEntity.fromJson(Map<String, dynamic> json) => GroupJoinLinkEntity(
+        code: json['code'] as String,
+        joinUrl: json['joinUrl'] as String,
+        role: GroupRole.fromApi(json['role'] as String),
+        enabled: json['enabled'] as bool? ?? true,
+      );
 }

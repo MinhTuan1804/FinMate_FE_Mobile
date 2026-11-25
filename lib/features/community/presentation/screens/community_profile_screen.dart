@@ -5,6 +5,7 @@ import 'package:finmate/core/theme/app_spacing.dart';
 import 'package:finmate/features/auth/domain/entities/consent.dart';
 import 'package:finmate/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:finmate/features/community/presentation/controllers/community_controller.dart';
+import 'package:finmate/core/widgets/async_action_builder.dart';
 
 /// Màn test hồ sơ Cộng đồng: tỉnh/khu vực, nhận gợi ý chia sẻ, và cấp đồng ý tham gia (đăng bài/bình luận).
 class CommunityProfileScreen extends ConsumerWidget {
@@ -57,8 +58,7 @@ class CommunityProfileScreen extends ConsumerWidget {
                       Text(profile.consentGranted ? 'Đã đồng ý tham gia' : 'Chưa đồng ý tham gia'),
                       const Spacer(),
                       if (!profile.consentGranted)
-                        ElevatedButton(
-                          key: const ValueKey('community-grant-consent'),
+                        AsyncActionBuilder(
                           onPressed: () async {
                             try {
                               await ref.read(authControllerProvider.notifier).acceptConsent(ConsentKind.community);
@@ -69,7 +69,11 @@ class CommunityProfileScreen extends ConsumerWidget {
                               }
                             }
                           },
-                          child: const Text('Đồng ý tham gia'),
+                          builder: (_, onTap, running) => ElevatedButton(
+                            key: const ValueKey('community-grant-consent'),
+                            onPressed: onTap,
+                            child: running ? const ButtonLoadingIndicator() : const Text('Đồng ý tham gia'),
+                          ),
                         ),
                     ],
                   ),

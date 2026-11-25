@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:finmate/core/network/api_exceptions.dart';
 import 'package:finmate/core/theme/app_colors.dart';
 import 'package:finmate/core/theme/app_spacing.dart';
+import 'package:finmate/core/widgets/cursor_pager.dart';
 import 'package:finmate/features/community/presentation/controllers/community_controller.dart';
 
 String _topicLabel(String t) => switch (t) {
@@ -174,23 +175,28 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
                       Text(errorMessage(e), textAlign: TextAlign.center),
                       const SizedBox(height: AppSpacing.sm),
                       ElevatedButton(
-                        onPressed: () => ref.invalidate(communityFeedProvider(_filter)),
+                        onPressed: () => ref.read(communityFeedProvider(_filter).notifier).refresh(),
                         child: const Text('Thử lại'),
                       ),
                     ],
                   ),
                 ),
               ),
-              data: (page) {
-                final items = page.items.where((p) => !p.isSpentHereOnly).toList();
-                if (items.isEmpty) {
+              data: (all) {
+                final pager = ref.read(communityFeedProvider(_filter).notifier);
+                final items = all.where((p) => !p.isSpentHereOnly).toList();
+                // Trang đầu có thể toàn bài "chạm" bị lọc ra: vẫn dựng footer để tải tiếp thay vì báo rỗng sớm.
+                if (items.isEmpty && !pager.hasMore) {
                   return const Center(child: Text('Chưa có bài nào.'));
                 }
-                return ListView.separated(
+                return RefreshIndicator(
+                  onRefresh: pager.refresh,
+                  child: ListView.separated(
                   padding: const EdgeInsets.all(AppSpacing.md),
-                  itemCount: items.length,
+                  itemCount: items.length + 1,
                   separatorBuilder: (_, __) => const Divider(),
                   itemBuilder: (context, i) {
+                    if (i == items.length) return CursorPagerFooter(pager: pager);
                     final p = items[i];
                     return ListTile(
                       key: ValueKey('community-post-${p.id}'),
@@ -208,6 +214,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
                       onTap: () => context.push('/community-post', extra: p.id),
                     );
                   },
+                  ),
                 );
               },
             ),

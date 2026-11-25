@@ -13,6 +13,7 @@ import 'package:finmate/features/categories/domain/category.dart';
 import 'package:finmate/features/categories/presentation/categories_provider.dart';
 import 'package:finmate/features/recurring/domain/recurring_item.dart';
 import 'package:finmate/features/recurring/presentation/controllers/recurring_items_controller.dart';
+import 'package:finmate/core/widgets/async_action_builder.dart';
 
 /// Màn quản lý khoản thu/chi định kỳ: tạo, sửa, xác nhận/từ chối đề xuất, tạm dừng/tiếp tục, hủy.
 /// Đơn giản để test nhanh toàn bộ API recurring-items còn thiếu ở FE.
@@ -176,7 +177,7 @@ class RecurringItemsScreen extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
             decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(6)),
-            child: Text(item.status.label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color)),
+            child: Text(item.status.label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color)),
           ),
           const SizedBox(height: 8),
           Row(
@@ -192,25 +193,34 @@ class RecurringItemsScreen extends ConsumerWidget {
     switch (item.status) {
       case RecurringStatus.suggested:
         return [
-          TextButton.icon(
-            key: ValueKey('confirm-${item.id}'),
+          AsyncActionBuilder(
             onPressed: () => _runAction(context, ref, () => ref.read(recurringItemsControllerProvider.notifier).confirm(item.id), 'Đã xác nhận'),
-            icon: const Icon(LucideIcons.check, size: 16),
-            label: const Text('Xác nhận'),
+            builder: (_, onTap, running) => TextButton.icon(
+              key: ValueKey('confirm-${item.id}'),
+              onPressed: onTap,
+              icon: running ? const ButtonLoadingIndicator(size: 16) : const Icon(LucideIcons.check, size: 16),
+              label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Xác nhận', maxLines: 1)),
+            ),
           ),
-          TextButton.icon(
-            key: ValueKey('reject-${item.id}'),
+          AsyncActionBuilder(
             onPressed: () => _runAction(context, ref, () => ref.read(recurringItemsControllerProvider.notifier).reject(item.id), 'Đã từ chối'),
-            icon: Icon(LucideIcons.x, size: 16, color: AppColors.danger),
-            label: Text('Từ chối', style: TextStyle(color: AppColors.danger)),
+            builder: (_, onTap, running) => TextButton.icon(
+              key: ValueKey('reject-${item.id}'),
+              onPressed: onTap,
+              icon: running ? const ButtonLoadingIndicator(size: 16) : Icon(LucideIcons.x, size: 16, color: AppColors.danger),
+              label: FittedBox(fit: BoxFit.scaleDown, child: Text('Từ chối', style: TextStyle(color: AppColors.danger), maxLines: 1)),
+            ),
           ),
         ];
       case RecurringStatus.active:
         return [
-          TextButton(
-            key: ValueKey('pause-${item.id}'),
+          AsyncActionBuilder(
             onPressed: () => _runAction(context, ref, () => ref.read(recurringItemsControllerProvider.notifier).pause(item.id), 'Đã tạm dừng'),
-            child: const Text('Tạm dừng'),
+            builder: (_, onTap, running) => TextButton(
+              key: ValueKey('pause-${item.id}'),
+              onPressed: onTap,
+              child: running ? const ButtonLoadingIndicator() : const Text('Tạm dừng'),
+            ),
           ),
           IconButton(
             key: ValueKey('edit-${item.id}'),
@@ -227,11 +237,14 @@ class RecurringItemsScreen extends ConsumerWidget {
         ];
       case RecurringStatus.paused:
         return [
-          TextButton.icon(
-            key: ValueKey('resume-${item.id}'),
+          AsyncActionBuilder(
             onPressed: () => _runAction(context, ref, () => ref.read(recurringItemsControllerProvider.notifier).resume(item.id), 'Đã tiếp tục'),
-            icon: const Icon(LucideIcons.refreshCw, size: 16),
-            label: const Text('Tiếp tục'),
+            builder: (_, onTap, running) => TextButton.icon(
+              key: ValueKey('resume-${item.id}'),
+              onPressed: onTap,
+              icon: running ? const ButtonLoadingIndicator(size: 16) : const Icon(LucideIcons.refreshCw, size: 16),
+              label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Tiếp tục', maxLines: 1)),
+            ),
           ),
           IconButton(
             key: ValueKey('edit-${item.id}'),
@@ -382,7 +395,7 @@ class _RecurringDialogState extends State<RecurringFormDialog> {
             OutlinedButton.icon(
               onPressed: _pickDate,
               icon: const Icon(LucideIcons.calendar, size: 16),
-              label: Text(_nextDueDate == null ? 'Chọn ngày đến hạn tiếp theo' : DateFormat('dd/MM/yyyy').format(_nextDueDate!)),
+              label: FittedBox(fit: BoxFit.scaleDown, child: Text(_nextDueDate == null ? 'Chọn ngày đến hạn tiếp theo' : DateFormat('dd/MM/yyyy').format(_nextDueDate!), maxLines: 1)),
             ),
             if (widget.categories.isNotEmpty) ...[
               const SizedBox(height: 12),
@@ -413,7 +426,7 @@ class _RecurringDialogState extends State<RecurringFormDialog> {
             if (_error != null)
               Padding(
                 padding: const EdgeInsets.only(top: 12),
-                child: Text(_error!, style: const TextStyle(color: AppColors.danger, fontSize: 13)),
+                child: Text(_error!, style: TextStyle(color: AppColors.danger, fontSize: 13)),
               ),
           ],
         ),

@@ -14,7 +14,11 @@ class GlassNotificationCard extends StatelessWidget {
   final VoidCallback? onTap;
   final VoidCallback? onDismiss;
 
+  /// Tầng kính của GlassCard: 1 cho thẻ trong danh sách, 3 (modal: đục hơn + blur nền) khi thẻ nổi trên nội dung khác.
+  final int level;
+
   const GlassNotificationCard({
+    this.level = 1,
     super.key,
     required this.icon,
     required this.iconColor,
@@ -31,6 +35,7 @@ class GlassNotificationCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: GlassCard(
+        level: level,
         borderRadius: const BorderRadius.all(Radius.circular(22)),
         padding: const EdgeInsets.all(16),
         child: Row(

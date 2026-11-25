@@ -23,12 +23,15 @@ BigInt? parseAmountInput(String text, {bool allowZero = false}) {
   return value;
 }
 
+// Tạo NumberFormat một lần: hàm được gọi trong từng dòng list, tạo mới mỗi lần build là lãng phí.
+final _vndFormat = NumberFormat('#,###', 'vi_VN');
+
 /// Ví dụ: 150000 -> '150.000 ₫'
-String formatVnd(BigInt cents) => '${NumberFormat('#,###', 'vi_VN').format(cents.toInt())} ₫';
+String formatVnd(BigInt cents) => '${_vndFormat.format(cents.toInt())} ₫';
 
 /// Như [formatVnd] nhưng không có " ₫" — dùng để điền sẵn ô nhập số tiền (vd sửa nháp) sao cho
 /// hiện có dấu chấm phần nghìn ngay từ đầu, không phải đợi người dùng gõ thêm mới thấy.
-String formatAmountDigits(BigInt cents) => NumberFormat('#,###', 'vi_VN').format(cents.toInt());
+String formatAmountDigits(BigInt cents) => _vndFormat.format(cents.toInt());
 
 /// Tự thêm dấu chấm phần nghìn khi người dùng đang gõ số tiền (vd gõ "2000" tự hiện "2.000"),
 /// để không phải tự đếm số 0. Chỉ giữ chữ số, bỏ mọi ký tự khác người dùng lỡ gõ vào — không

@@ -74,6 +74,30 @@ class _F5PurchaseCheckScreenState extends ConsumerState<F5PurchaseCheckScreen> {
         );
   }
 
+  void _showHelp() {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Kiểm tra mua sắm'),
+        content: const Text(
+          'Nhập món đồ và số tiền dự kiến. FinMate tính tác động của khoản chi này đến dòng tiền tới kỳ lương kế tiếp, ngân sách danh mục và kế hoạch tháng. Kết quả chỉ để tham khảo, không tạo giao dịch.',
+        ),
+        actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Đã hiểu'))],
+      ),
+    );
+  }
+
+  /// Chạy lại kiểm tra với đúng ngày an toàn sớm nhất mà BE gợi ý.
+  void _replanAt(DateTime date, PurchaseCheckEntity r) {
+    ref.read(purchaseCheckControllerProvider.notifier).check(
+          amountCents: r.amountCents,
+          purchaseDate: date,
+          item: r.item,
+          accountId: _accountId,
+          categoryId: _categoryId,
+        );
+  }
+
   @override
   Widget build(BuildContext context) {
     final resultState = ref.watch(purchaseCheckControllerProvider);
@@ -90,11 +114,19 @@ class _F5PurchaseCheckScreenState extends ConsumerState<F5PurchaseCheckScreen> {
           title: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Kiểm tra mua sắm', style: GlassTypography.headlineMd()),
+              Flexible(child: Text('Kiểm tra mua sắm', style: GlassTypography.headlineMd(), overflow: TextOverflow.ellipsis)),
               const SizedBox(width: 8),
               GlassBadge(text: 'AI CHECK', color: GlassColors.accentSkyBlue),
             ],
           ),
+          centerTitle: true,
+          actions: [
+            IconButton(
+              tooltip: 'Trợ giúp',
+              icon: Icon(LucideIcons.circleQuestionMark, color: GlassColors.textPrimary),
+              onPressed: _showHelp,
+            ),
+          ],
         ),
         body: SafeArea(
           child: ListView(
@@ -110,7 +142,7 @@ class _F5PurchaseCheckScreenState extends ConsumerState<F5PurchaseCheckScreen> {
                   onPressed: _submit,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: GlassColors.ink,
-                    foregroundColor: Colors.white,
+                    foregroundColor: GlassColors.onInk,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(borderRadius: GlassRadius.roundedPill),
                   ),
@@ -175,7 +207,8 @@ class _F5PurchaseCheckScreenState extends ConsumerState<F5PurchaseCheckScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('SỐ TIỀN DỰ KIẾN', style: GlassTypography.labelCaps()),
+              Flexible(child: Text('SỐ TIỀN DỰ KIẾN', style: GlassTypography.labelCaps(), overflow: TextOverflow.ellipsis)),
+              const SizedBox(width: 8),
               Text('Đơn vị: VNĐ', style: GlassTypography.labelCaps(color: GlassColors.accentSkyBlue)),
             ],
           ),
@@ -184,10 +217,11 @@ class _F5PurchaseCheckScreenState extends ConsumerState<F5PurchaseCheckScreen> {
             controller: _amountController,
             keyboardType: TextInputType.number,
             inputFormatters: [ThousandsSeparatorInputFormatter()],
-            style: GlassTypography.displayHero().copyWith(fontSize: 28),
+            style: GlassTypography.displayHero().copyWith(fontSize: 26),
             decoration: InputDecoration(
               hintText: '0',
               suffixText: 'đ',
+              suffixIcon: Icon(LucideIcons.banknote, size: 20, color: GlassColors.textMuted),
               border: OutlineInputBorder(borderRadius: GlassRadius.roundedInput, borderSide: BorderSide.none),
               filled: true,
               fillColor: GlassColors.secondarySurface,
@@ -200,7 +234,7 @@ class _F5PurchaseCheckScreenState extends ConsumerState<F5PurchaseCheckScreen> {
             value: _accountId,
             hint: 'Không xác định (bỏ qua số dư tài khoản)',
             icon: LucideIcons.landmark,
-            items: [for (final a in accounts) DropdownMenuItem(value: a.id, child: Text('${a.name} — ${formatVnd(a.balanceCents)}'))],
+            items: [for (final a in accounts) DropdownMenuItem(value: a.id, child: Text('${a.name} — ${formatVnd(a.balanceCents)}', overflow: TextOverflow.ellipsis))],
             onChanged: (v) => setState(() => _accountId = v),
           ),
           const SizedBox(height: 16),
@@ -212,7 +246,7 @@ class _F5PurchaseCheckScreenState extends ConsumerState<F5PurchaseCheckScreen> {
             icon: LucideIcons.tag,
             items: [
               for (final c in categories)
-                DropdownMenuItem(value: c.id, child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(categoryIcon(c.slug), size: 16), const SizedBox(width: 8), Text(c.name)])),
+                DropdownMenuItem(value: c.id, child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(categoryIcon(c.slug), size: 16), const SizedBox(width: 8), Flexible(child: Text(c.name, overflow: TextOverflow.ellipsis))])),
             ],
             onChanged: (v) => setState(() => _categoryId = v),
           ),
@@ -257,6 +291,26 @@ class _F5PurchaseCheckScreenState extends ConsumerState<F5PurchaseCheckScreen> {
         final color = _verdictColor[result.verdict] ?? GlassColors.textMuted;
         final label = _verdictLabel[result.verdict] ?? result.verdict;
 
+        final date = result.earliestSafeDate;
+        final b = result.budget;
+        final over = b.projectedAfterCents != null && b.limitCents != null ? b.projectedAfterCents! - b.limitCents! : null;
+        final remainingBefore = b.projectedAfterCents != null && b.limitCents != null ? b.limitCents! - (b.projectedAfterCents! - result.amountCents) : null;
+        final strong = GlassTypography.bodyMd(color: GlassColors.textPrimary).copyWith(fontWeight: FontWeight.w700);
+
+        Widget impactRow(IconData icon, Color tone, List<InlineSpan> spans) => Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(color: tone.withValues(alpha: 0.14), shape: BoxShape.circle),
+                  child: Icon(icon, size: 16, color: tone),
+                ),
+                const SizedBox(width: 12),
+                Expanded(child: Text.rich(TextSpan(style: GlassTypography.bodyMd(), children: spans))),
+              ],
+            );
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -265,71 +319,94 @@ class _F5PurchaseCheckScreenState extends ConsumerState<F5PurchaseCheckScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       GlassBadge(text: label, color: color),
                       if (result.status != 'assessable') GlassBadge(text: result.status == 'partial' ? 'Dữ liệu một phần' : 'Chưa đủ dữ liệu', color: GlassColors.textMuted),
                     ],
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 12),
                   Text(result.summary, style: GlassTypography.bodyMd(color: GlassColors.textPrimary)),
-                  if (!result.budget.isUnknown) ...[
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Icon(result.budget.isOver ? LucideIcons.trendingDown : LucideIcons.trendingUp, size: 16, color: result.budget.isOver ? GlassColors.danger : GlassColors.success),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            result.budget.isOver
-                                ? 'Vượt ngân sách danh mục "${result.budget.name}" nếu mua.'
-                                : 'Vẫn trong ngân sách danh mục "${result.budget.name}".',
-                            style: GlassTypography.bodySm(),
-                          ),
-                        ),
+                  if (!b.isUnknown) ...[
+                    const SizedBox(height: 14),
+                    impactRow(
+                      b.isOver ? LucideIcons.trendingDown : LucideIcons.trendingUp,
+                      b.isOver ? GlassColors.danger : GlassColors.success,
+                      [
+                        TextSpan(text: b.isOver ? 'Mua ngay sẽ vượt ngân sách danh mục "${b.name}"' : 'Vẫn trong ngân sách danh mục "${b.name}"'),
+                        if (b.isOver && over != null && over > BigInt.zero) ...[
+                          const TextSpan(text: ' thêm '),
+                          TextSpan(text: formatVnd(over), style: strong.copyWith(color: GlassColors.danger)),
+                        ] else if (!b.isOver && remainingBefore != null) ...[
+                          const TextSpan(text: ', hạn mức còn lại trước khi mua '),
+                          TextSpan(text: formatVnd(remainingBefore), style: strong),
+                        ],
+                        const TextSpan(text: '.'),
                       ],
                     ),
                   ],
                   if (result.plan.isOver) ...[
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Icon(LucideIcons.triangleAlert, size: 16, color: GlassColors.warning),
-                        const SizedBox(width: 8),
-                        Expanded(child: Text('Khoản mua này sẽ làm kế hoạch tháng (số tiền có thể chi) bị âm.', style: GlassTypography.bodySm())),
-                      ],
-                    ),
+                    const SizedBox(height: 12),
+                    impactRow(LucideIcons.triangleAlert, GlassColors.warning, const [
+                      TextSpan(text: 'Khoản mua này sẽ làm kế hoạch tháng (số tiền có thể chi) bị âm.'),
+                    ]),
                   ],
-                  if (result.maxAffordableCents != null) ...[
-                    const SizedBox(height: 8),
-                    Text('Mức tối đa có thể mua đúng ngày này: ${formatVnd(result.maxAffordableCents!)}', style: GlassTypography.bodySm()),
+                  if (date != null || result.maxAffordableCents != null) ...[
+                    const SizedBox(height: 14),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: GlassColors.accentSkyBlue.withValues(alpha: 0.14),
+                        borderRadius: GlassRadius.roundedInput,
+                        border: Border.all(color: GlassColors.accentSkyBlue.withValues(alpha: 0.4)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(LucideIcons.sparkles, size: 14, color: GlassColors.slateAnchor),
+                              const SizedBox(width: 6),
+                              Flexible(child: Text('Đề xuất thông minh từ AI', style: GlassTypography.labelCaps(color: GlassColors.slateAnchor))),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          if (date != null)
+                            Text.rich(TextSpan(style: GlassTypography.bodySm(color: GlassColors.textPrimary), children: [
+                              const TextSpan(text: 'Bạn nên dời lịch mua sang ngày '),
+                              TextSpan(text: DateFormat('dd/MM/yyyy').format(date), style: GlassTypography.bodySm(color: GlassColors.textPrimary).copyWith(fontWeight: FontWeight.w700)),
+                              const TextSpan(text: ' để dòng tiền không bị thiếu.'),
+                            ])),
+                          if (result.maxAffordableCents != null)
+                            Padding(
+                              padding: EdgeInsets.only(top: date != null ? 4 : 0),
+                              child: Text('Mức tối đa có thể mua đúng ngày này: ${formatVnd(result.maxAffordableCents!)}', style: GlassTypography.bodySm()),
+                            ),
+                        ],
+                      ),
+                    ),
                   ],
                 ],
               ),
             ),
             const SizedBox(height: 16),
-            if (result.verdict == 'shortfall_risk' || result.verdict == 'consider')
+            // Chỉ hiện khi BE trả ngày an toàn sớm nhất; bấm sẽ chạy lại kiểm tra với ngày đó.
+            if (date != null)
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: result.earliestSafeDate == null
-                      ? null
-                      : () => ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Gợi ý: cân nhắc mua sau ngày ${DateFormat('dd/MM/yyyy').format(result.earliestSafeDate!)}.')),
-                          ),
+                  onPressed: () => _replanAt(date, result),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: GlassColors.ink,
-                    foregroundColor: Colors.white,
+                    foregroundColor: GlassColors.onInk,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(borderRadius: GlassRadius.roundedPill),
                   ),
                   icon: const Icon(LucideIcons.calendarClock, size: 18),
-                  label: Text(
-                    result.earliestSafeDate == null
-                        ? 'Chưa đủ dữ liệu để gợi ý ngày mua'
-                        : 'Cân nhắc mua sau ngày ${DateFormat('dd/MM').format(result.earliestSafeDate!)}',
-                  ),
+                  label: FittedBox(fit: BoxFit.scaleDown, child: Text('Lập kế hoạch mua sau ngày ${DateFormat('dd/MM').format(date)}', maxLines: 1)),
                 ),
               ),
             const SizedBox(height: 10),
@@ -348,7 +425,7 @@ class _F5PurchaseCheckScreenState extends ConsumerState<F5PurchaseCheckScreen> {
                   shape: RoundedRectangleBorder(borderRadius: GlassRadius.roundedPill),
                 ),
                 icon: Icon(LucideIcons.creditCard, size: 18, color: GlassColors.textPrimary),
-                label: Text('Vẫn mua và ghi nhận giao dịch', style: GlassTypography.bodyMd(color: GlassColors.textPrimary).copyWith(fontWeight: FontWeight.w600)),
+                label: FittedBox(fit: BoxFit.scaleDown, child: Text('Vẫn mua và trừ vào ngân sách', style: GlassTypography.bodyMd(color: GlassColors.textPrimary).copyWith(fontWeight: FontWeight.w600), maxLines: 1)),
               ),
             ),
           ],

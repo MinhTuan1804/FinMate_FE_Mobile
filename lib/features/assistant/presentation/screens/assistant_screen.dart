@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:finmate/core/theme/app_colors.dart';
+import 'package:finmate/shared/widgets/permission_prompt.dart';
 import 'package:finmate/core/theme/app_spacing.dart';
 import 'package:finmate/core/theme/app_typography.dart';
 import 'package:finmate/core/widgets/glass/liquid_glass.dart';
@@ -13,6 +14,7 @@ import 'package:finmate/features/accounts/presentation/controllers/accounts_cont
 import 'package:finmate/features/assistant/data/receipt_image_source.dart';
 import 'package:finmate/features/assistant/data/speech_end_detector.dart';
 import 'package:finmate/features/assistant/data/voice_recorder.dart';
+import 'package:finmate/features/assistant/data/assistant_bubble_bridge.dart';
 import 'package:finmate/features/assistant/presentation/controllers/assistant_controller.dart';
 import 'package:finmate/features/assistant/presentation/widgets/chat_cards.dart';
 
@@ -97,8 +99,12 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
     }
     switch (await recorder.start()) {
       case VoiceStart.denied:
-        _snack(
-          'Cần quyền micro để ghi âm. Vào Cài đặt > Ứng dụng > FinMate > Quyền > Micro để bật.',
+        if (!mounted) return;
+        await showPermissionSettingsDialog(
+          context,
+          ref,
+          title: 'Cần quyền micro',
+          message: 'FinMate cần micro để nghe bạn nói và ghi giao dịch bằng giọng nói. Hãy bật quyền Micro trong Cài đặt nếu muốn dùng chức năng này.',
         );
         return;
       case VoiceStart.failed:
@@ -211,16 +217,24 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
     }
     final source = ref.read(receiptImageSourceProvider);
     try {
-      final path = switch (choice) {
-        'scan' => await source.scanBill(),
-        'camera' => await source.pickFromCamera(),
-        _ => await source.pickFromGallery(),
-      };
+      final controller = ref.read(assistantControllerProvider.notifier);
+      if (choice == 'gallery') {
+        // Thư viện cho chọn nhiều ảnh; huỷ hoặc rỗng thì không thêm tin nhắn nào
+        final paths = await source.pickMultipleFromGallery();
+        if (paths.isEmpty || !mounted) return;
+        controller.scanReceipts(paths);
+        return;
+      }
+      final path = await source.pickFromCamera();
       if (path == null || !mounted) return;
-      ref.read(assistantControllerProvider.notifier).scanReceipt(path);
+      controller.scanReceipt(path);
     } on ImageSourceException catch (e) {
-      _snack(
-        '${e.message} Bạn có thể bật quyền trong Cài đặt > Ứng dụng > FinMate > Quyền.',
+      if (!mounted) return;
+      await showPermissionSettingsDialog(
+        context,
+        ref,
+        title: 'Cần cấp quyền',
+        message: '${e.message} Hãy bật quyền trong Cài đặt nếu muốn dùng chức năng này.',
       );
     }
   }
@@ -251,7 +265,9 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
         .firstOrNull;
 
     final messages = state.messages;
-    final sendingOffset = state.isSending ? 1 : 0;
+    // Quét ảnh chạy nền (pendingScans) không khoá ô nhập nhưng vẫn hiện bong bóng chờ
+    final waiting = state.isSending || state.pendingScans > 0;
+    final sendingOffset = waiting ? 1 : 0;
     // Thêm một mục cho nhãn ngày giờ ở đầu cuộc trò chuyện (danh sách đảo chiều nên nó nằm cuối)
     final itemCount =
         messages.length + sendingOffset + (messages.isEmpty ? 0 : 1);
@@ -263,21 +279,26 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
           child: Column(
             children: [
               Expanded(
-                child: messages.isEmpty && !state.isSending
+                child: messages.isEmpty && !waiting
                     ? _buildEmpty(context)
                     : ListView.builder(
                         reverse: true,
                         padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                         itemCount: itemCount,
                         itemBuilder: (context, i) {
-                          if (state.isSending && i == 0) {
+                          if (waiting && i == 0) {
                             return Padding(
                               padding: const EdgeInsets.symmetric(vertical: 4),
                               child: AiRow(
                                 child: AssistantBubble(
-                                  text:
-                                      messages.isNotEmpty &&
-                                          messages.last is ImageNote
+                                  text: state.isAskingAgent
+                                      ? 'Đang phân tích số liệu của bạn, có thể mất vài chục giây...'
+                                      : !state.isSending && state.pendingScans > 0
+                                      ? (state.pendingScans == 1
+                                            ? 'Đang đọc hóa đơn...'
+                                            : 'Đang đọc ${state.pendingScans} hóa đơn...')
+                                      : messages.isNotEmpty &&
+                                            messages.last is ImageNote
                                       ? 'Đang đọc hóa đơn...'
                                       : 'Đang trả lời...',
                                 ),
@@ -359,6 +380,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
   );
 
   AppBar _buildAppBar(BuildContext context) {
+    final canPop = Navigator.of(context).canPop();
     final secondary = AppTypography.caption(context);
     return AppBar(
       backgroundColor: Colors.transparent,
@@ -366,62 +388,92 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
       title: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _buildAvatar(context),
-          const SizedBox(width: 10),
-          Flexible(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Flexible(
-                      child: Text(
-                        'FinMate AI',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTypography.bodyLarge(context).copyWith(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: -0.4,
-                          height: 1.3,
+          if (canPop)
+            LiquidGlassIconButton(
+              icon: LucideIcons.arrowLeft,
+              tooltip: 'Quay lại',
+              size: 40,
+              iconSize: 18,
+              onPressed: () => Navigator.of(context).maybePop(),
+            )
+          else if (ref.watch(isAssistantBubbleProvider))
+            LiquidGlassIconButton(
+              key: const ValueKey('bubble-open-full-app'),
+              icon: LucideIcons.maximize2,
+              tooltip: 'Mở trong FinMate',
+              size: 40,
+              iconSize: 18,
+              onPressed: () => ref.read(assistantBubbleBridgeProvider).openFullApp(),
+            )
+          else
+            const SizedBox(width: AppSpacing.minTouchTarget),
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildAvatar(context),
+                  const SizedBox(width: 10),
+                  Flexible(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                'FinMate AI',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTypography.bodyLarge(context)
+                                    .copyWith(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: -0.4,
+                                      height: 1.3,
+                                    ),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            ExcludeSemantics(
+                              child: Icon(
+                                LucideIcons.badgeCheck,
+                                size: 15,
+                                color: AppColors.slateOn(context),
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: const BoxDecoration(
+                                color: AppColors.safe,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                'Đang trực tuyến • Trợ lý tài chính',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: secondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 4),
-                    ExcludeSemantics(
-                      child: Icon(
-                        LucideIcons.badgeCheck,
-                        size: 15,
-                        color: AppColors.slateOn(context),
-                      ),
-                    ),
-                  ],
-                ),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 6,
-                      height: 6,
-                      decoration: const BoxDecoration(
-                        color: AppColors.safe,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Flexible(
-                      child: Text(
-                        'Đang trực tuyến • Trợ lý tài chính',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: secondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -521,7 +573,9 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
     DraftCard m => AiRow(child: DraftCardView(card: m)),
     DraftBatchCard m => AiRow(child: DraftBatchCardView(card: m)),
     GoalDraftCard m => AiRow(child: GoalDraftCardView(card: m)),
+    ItemCard m => AiRow(child: ItemCardView(card: m)),
     PurchaseCard m => AiRow(child: PurchaseCardView(card: m)),
+    AgentCard m => AiRow(child: AgentCardView(card: m)),
     ErrorNote m => AiRow(
       child: ErrorNoteView(
         note: m,

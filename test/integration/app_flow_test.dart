@@ -476,7 +476,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Thủ công'));
     await tester.pumpAndSettle();
-    await tester.enterText(find.widgetWithText(TextField, 'Số tiền (VNĐ)'), '500.000');
+    await tester.enterText(find.byKey(const ValueKey('tx-amount-field')), '500.000');
     await tester.tap(find.text('Lưu giao dịch'));
     await tester.pumpAndSettle();
 

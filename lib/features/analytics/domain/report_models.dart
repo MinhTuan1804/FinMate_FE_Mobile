@@ -66,17 +66,21 @@ class CategoryShare {
 /// Một ngày trong GET /reports/timeline — dùng để cộng dồn thu/chi theo kỳ tùy ý (F1 Ngày/Tuần/Năm),
 /// không cần giữ danh sách giao dịch chi tiết của ngày đó.
 class TimelineDaySummary {
+  /// Ngày (local, 00:00); null nếu BE không trả `date` hợp lệ.
+  final DateTime? date;
   final BigInt totalSpentCents;
   final BigInt totalIncomeCents;
   final int transactionCount;
 
   const TimelineDaySummary({
+    this.date,
     required this.totalSpentCents,
     required this.totalIncomeCents,
     required this.transactionCount,
   });
 
   factory TimelineDaySummary.fromJson(Map<String, dynamic> json) => TimelineDaySummary(
+        date: DateTime.tryParse(json['date'] as String? ?? ''),
         totalSpentCents: parseCents(json['totalSpentCents']),
         totalIncomeCents: parseCents(json['totalIncomeCents']),
         transactionCount: (json['transactions'] as List?)?.length ?? 0,

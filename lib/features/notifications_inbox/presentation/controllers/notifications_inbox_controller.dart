@@ -47,9 +47,9 @@ class NotificationsInboxController extends StateNotifier<AsyncValue<Notification
         movement: existing.isMovementType
             ? NotificationTabCounts(total: page.movement.total, unread: page.movement.unread - 1)
             : page.movement,
-        aiAlert: existing.isMovementType
-            ? page.aiAlert
-            : NotificationTabCounts(total: page.aiAlert.total, unread: page.aiAlert.unread - 1),
+        aiAlert: existing.isAiAlertType
+            ? NotificationTabCounts(total: page.aiAlert.total, unread: page.aiAlert.unread - 1)
+            : page.aiAlert,
       ),
     );
   }
@@ -77,7 +77,7 @@ class NotificationsInboxController extends StateNotifier<AsyncValue<Notification
                 unread: removed.isUnread ? page.movement.unread - 1 : page.movement.unread,
               )
             : page.movement,
-        aiAlert: removed != null && !removed.isMovementType
+        aiAlert: removed != null && removed.isAiAlertType
             ? NotificationTabCounts(
                 total: page.aiAlert.total - 1,
                 unread: removed.isUnread ? page.aiAlert.unread - 1 : page.aiAlert.unread,

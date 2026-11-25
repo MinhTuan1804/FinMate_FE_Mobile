@@ -269,7 +269,7 @@ class _TermsConsentScreenState extends ConsumerState<TermsConsentScreen> {
                           onChanged: _busy
                               ? null
                               : (v) => setState(() => _training = v),
-                          activeThumbColor: Colors.white,
+                          activeThumbColor: GlassColors.onInk,
                           activeTrackColor: GlassColors.ink,
                           inactiveTrackColor: GlassColors.secondarySurface,
                         ),

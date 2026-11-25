@@ -409,6 +409,40 @@ class IncomeForecastEntity {
       );
 }
 
+/// Nút hành động đi kèm một cảnh báo (backend tính từ loại cảnh báo, không phải AI). Chỉ là đề xuất: bấm thì app mới gọi API có sẵn.
+/// `raise_budget_limit` nâng hạn mức lên [amountCents] ([categoryId] rỗng = ngân sách tổng); `open_forecast` mở màn dự báo;
+/// `resume_recurring` theo dõi lại khoản định kỳ [targetId]. Loại lạ (backend mới hơn app) bị bỏ qua khi đọc.
+class ForecastAlertAction {
+  static const raiseBudgetLimit = 'raise_budget_limit';
+  static const openForecast = 'open_forecast';
+  static const resumeRecurring = 'resume_recurring';
+  static const known = {raiseBudgetLimit, openForecast, resumeRecurring};
+
+  final String kind;
+  final String title;
+  final BigInt? amountCents;
+  final String? categoryId;
+  final String? targetId;
+
+  const ForecastAlertAction({required this.kind, required this.title, this.amountCents, this.categoryId, this.targetId});
+
+  factory ForecastAlertAction.fromJson(Map<String, dynamic> json) => ForecastAlertAction(
+        kind: json['kind'] as String? ?? '',
+        title: json['title'] as String? ?? '',
+        amountCents: json['amountCents'] == null ? null : parseCents(json['amountCents']),
+        categoryId: json['categoryId'] as String?,
+        targetId: json['targetId'] as String?,
+      );
+
+  /// Đủ dữ liệu cho việc của loại này thì mới có nút
+  bool get canRun => switch (kind) {
+        raiseBudgetLimit => (amountCents ?? BigInt.zero) > BigInt.zero && categoryId != null,
+        openForecast => true,
+        resumeRecurring => (targetId ?? '').isNotEmpty,
+        _ => false,
+      };
+}
+
 /// Một cảnh báo dự báo (GET /forecast/alerts). [data] là payload tự do kèm theo tuỳ loại cảnh báo
 /// (vd. shortfallDate, budgetId...) — chỉ để debug/điều hướng, UI không cần đọc từng khoá.
 class ForecastAlertEntity {
@@ -428,6 +462,9 @@ class ForecastAlertEntity {
   final bool markedInaccurate;
   final DateTime createdAt;
 
+  /// Nút hành động của cảnh báo (rỗng với cảnh báo cũ hoặc loại không có hành động)
+  final List<ForecastAlertAction> actions;
+
   const ForecastAlertEntity({
     required this.id,
     required this.kind,
@@ -439,6 +476,7 @@ class ForecastAlertEntity {
     this.sentAt,
     required this.markedInaccurate,
     required this.createdAt,
+    this.actions = const [],
   });
 
   factory ForecastAlertEntity.fromJson(Map<String, dynamic> json) => ForecastAlertEntity(
@@ -452,6 +490,11 @@ class ForecastAlertEntity {
         sentAt: json['sentAt'] == null ? null : DateTime.parse(json['sentAt'] as String).toLocal(),
         markedInaccurate: json['markedInaccurate'] as bool? ?? false,
         createdAt: DateTime.parse(json['createdAt'] as String).toLocal(),
+        actions: [
+          for (final a in (json['actions'] as List? ?? const []))
+            if (a is Map<String, dynamic> && ForecastAlertAction.known.contains(a['kind']))
+              ForecastAlertAction.fromJson(a),
+        ],
       );
 }
 

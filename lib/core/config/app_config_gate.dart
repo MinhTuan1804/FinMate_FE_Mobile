@@ -277,7 +277,7 @@ class _UpdateNoticeState extends State<UpdateNotice> {
               onPressed: _copy,
               style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
               icon: Icon(_copied ? LucideIcons.check : LucideIcons.copy, size: 18),
-              label: Text(_copied ? 'Đã sao chép' : 'Sao chép liên kết'),
+              label: FittedBox(fit: BoxFit.scaleDown, child: Text(_copied ? 'Đã sao chép' : 'Sao chép liên kết', maxLines: 1)),
             ),
           ),
         ],

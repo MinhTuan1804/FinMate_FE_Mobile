@@ -8,6 +8,7 @@ import 'package:finmate/core/theme/app_spacing.dart';
 import 'package:finmate/core/theme/app_theme.dart';
 import 'package:finmate/core/theme/app_typography.dart';
 import 'package:finmate/core/widgets/glass/liquid_glass.dart';
+import 'package:finmate/core/theme/appearance_prefs.dart';
 
 /// Màn H3: Giao diện & Hiển thị (theo Figma). Chỉ có hai cài đặt thật là chế độ màu và giảm hiệu ứng trong suốt, áp dụng ngay.
 /// Cỡ chữ áp dụng thật toàn app. Ẩn số dư, giảm chuyển động và tăng tương phản chưa có cơ chế nên hiện khóa kèm nhãn "Sắp có".
@@ -140,7 +141,7 @@ class AppearanceSettingsScreen extends ConsumerWidget {
                       overflow: TextOverflow.ellipsis,
                       style: AppTypography.body(
                         context,
-                      ).copyWith(fontSize: 14.5, fontWeight: FontWeight.w700),
+                      ).copyWith(fontSize: 15, fontWeight: FontWeight.w700),
                     ),
                     subtitle: Text(
                       'Dùng nền đặc thay kính mờ, dễ đọc và tiết kiệm pin.',
@@ -222,7 +223,7 @@ class AppearanceSettingsScreen extends ConsumerWidget {
                           'BẢN XEM TRƯỚC TRỰC TIẾP',
                           style: AppTypography.caption(
                             context,
-                          ).copyWith(fontSize: 10.5, letterSpacing: 0.5),
+                          ).copyWith(fontSize: 12, letterSpacing: 0.5),
                         ),
                         const SizedBox(height: 4),
                         Text(
@@ -242,7 +243,7 @@ class AppearanceSettingsScreen extends ConsumerWidget {
   }
 }
 
-const _scaleStops = [0.9, 1.0, 1.15];
+const _scaleStops = AppearancePrefs.textScaleStops;
 
 String _scaleLabel(double scale) => switch (scale) {
   0.9 => 'Nhỏ',
@@ -277,7 +278,7 @@ Widget _lockedTile(
             overflow: TextOverflow.ellipsis,
             style: AppTypography.body(
               context,
-            ).copyWith(fontSize: 14.5, fontWeight: FontWeight.w700),
+            ).copyWith(fontSize: 15, fontWeight: FontWeight.w700),
           ),
         ),
         const SizedBox(width: 8),
@@ -290,7 +291,7 @@ Widget _lockedTile(
           child: Text(
             'Sắp có',
             style: TextStyle(
-              fontSize: 10,
+              fontSize: 11,
               fontWeight: FontWeight.w700,
               color: AppColors.slateOn(context),
             ),
@@ -379,7 +380,7 @@ class _ThemeCard extends StatelessWidget {
                 textAlign: TextAlign.center,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: AppTypography.caption(context).copyWith(fontSize: 11),
+                style: AppTypography.caption(context).copyWith(fontSize: 12),
               ),
             ],
           ),

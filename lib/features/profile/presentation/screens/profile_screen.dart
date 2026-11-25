@@ -10,9 +10,11 @@ import 'package:finmate/core/theme/app_theme.dart';
 import 'package:finmate/core/theme/app_typography.dart';
 import 'package:finmate/core/widgets/glass/liquid_glass.dart';
 import 'package:finmate/features/accounts/presentation/controllers/accounts_controller.dart';
+import 'package:finmate/features/assistant/presentation/widgets/assistant_bubble_tile.dart';
 import 'package:finmate/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:finmate/features/finance_methods/presentation/controllers/finance_methods_controller.dart';
 import 'package:finmate/features/subscriptions/presentation/controllers/subscriptions_controller.dart';
+import 'package:finmate/core/widgets/async_action_builder.dart';
 
 /// Một hàng trong nhóm cài đặt (Figma H1): biểu tượng, tiêu đề, mô tả phụ, nội dung bên phải và mũi tên/biểu tượng mở ngoài.
 class _Row {
@@ -102,7 +104,7 @@ class _RowTile extends StatelessWidget {
                   children: [
                     Text(
                       row.label,
-                      style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w600, fontSize: 14.5, color: color),
+                      style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w600, fontSize: 15, color: color),
                     ),
                     // Chip và mô tả nằm ở dòng phụ (Wrap tự xuống dòng khi hẹp) để không tranh chỗ với tiêu đề
                     if (row.subtitle != null || row.trailingText != null) ...[
@@ -203,7 +205,7 @@ class ProfileScreen extends ConsumerWidget {
               name: user?.displayName ?? '',
               email: user?.email ?? '',
               incomeCents: user?.monthlyIncomeCents,
-              planLabel: (plan != null && !plan.isFree) ? plan.planName : null,
+              planLabel: (plan != null && plan.enabled && !plan.isFree) ? plan.planName : null,
             ),
             const SizedBox(height: 24),
             _Group(
@@ -220,7 +222,7 @@ class ProfileScreen extends ConsumerWidget {
                           const SizedBox(width: 14),
                           Text(
                             'Chế độ giao diện',
-                            style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w600, fontSize: 14.5),
+                            style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w600, fontSize: 15),
                           ),
                         ],
                       ),
@@ -242,6 +244,7 @@ class ProfileScreen extends ConsumerWidget {
                     ],
                   ),
                 ),
+                if (ref.watch(assistantBubbleSupportedProvider).valueOrNull ?? false) const AssistantBubbleTile(),
               ],
               rows: [
                 _Row(
@@ -310,7 +313,7 @@ class ProfileScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 24),
             // Các mục dưới đây không có trong Figma H1 nhưng vẫn cần lối vào từ màn này.
-            const _Group(
+            _Group(
               title: 'Quản lý tài chính',
               rows: [
                 _Row(key: ValueKey('open-recurring'), icon: LucideIcons.refreshCw, label: 'Khoản thu/chi định kỳ', route: '/recurring-items'),
@@ -318,8 +321,9 @@ class ProfileScreen extends ConsumerWidget {
                 _Row(key: ValueKey('open-forecast'), icon: LucideIcons.trendingUp, label: 'Dự báo tài chính', route: '/forecast'),
                 _Row(key: ValueKey('open-finance-methods'), icon: LucideIcons.wallet, label: 'Cách quản lý tài chính', route: '/finance-methods'),
                 _Row(key: ValueKey('open-category-management'), icon: LucideIcons.tag, label: 'Danh mục', route: '/profile/categories'),
-                _Row(key: ValueKey('open-subscription'), icon: LucideIcons.crown, label: 'Gói đăng ký', route: '/profile/subscription'),
-                _Row(key: ValueKey('open-qr-transfers'), icon: Icons.qr_code, label: 'QR chuyển khoản', route: '/qr-transfers/scan'),
+                // Gói đăng ký chưa đưa vào sử dụng (cờ features.subscriptions tắt): ẩn lối vào, bật cờ ở backend là hiện lại.
+                if (plan?.enabled == true)
+                  const _Row(key: ValueKey('open-subscription'), icon: LucideIcons.crown, label: 'Gói đăng ký', route: '/profile/subscription'),
               ],
             ),
             const SizedBox(height: 24),
@@ -336,15 +340,18 @@ class ProfileScreen extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 28),
-            OutlinedButton.icon(
+            AsyncActionBuilder(
               onPressed: () => _logout(context, ref),
-              icon: const Icon(LucideIcons.logOut, size: 18, color: AppColors.danger),
-              label: const Text('Đăng xuất tài khoản', style: TextStyle(color: AppColors.danger)),
-              style: OutlinedButton.styleFrom(
-                backgroundColor: AppColors.inset(context, 0.7),
-                side: BorderSide(color: AppColors.danger.withValues(alpha: 0.5)),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: const StadiumBorder(),
+              builder: (_, onTap, running) => OutlinedButton.icon(
+                onPressed: onTap,
+                icon: running ? const ButtonLoadingIndicator(size: 16) : const Icon(LucideIcons.logOut, size: 18, color: AppColors.danger),
+                label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Đăng xuất tài khoản', style: TextStyle(color: AppColors.danger), maxLines: 1)),
+                style: OutlinedButton.styleFrom(
+                  backgroundColor: AppColors.inset(context, 0.7),
+                  side: BorderSide(color: AppColors.danger.withValues(alpha: 0.5)),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: const StadiumBorder(),
+                ),
               ),
             ),
           ],
@@ -379,7 +386,7 @@ class _ProfileCard extends StatelessWidget {
                 backgroundColor: AppColors.primaryAction(context).withValues(alpha: 0.15),
                 child: Text(
                   name.isNotEmpty ? name[0].toUpperCase() : 'F',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: AppColors.primaryAction(context)),
+                  style: TextStyle(fontSize: 26, fontWeight: FontWeight.w700, color: AppColors.primaryAction(context)),
                 ),
               ),
               const SizedBox(width: 14),
@@ -407,7 +414,7 @@ class _ProfileCard extends StatelessWidget {
                             ),
                             child: Text(
                               planLabel!.toUpperCase(),
-                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.slateOn(context)),
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.slateOn(context)),
                             ),
                           ),
                         ],
@@ -423,7 +430,7 @@ class _ProfileCard extends StatelessWidget {
                 key: const ValueKey('open-edit-profile'),
                 onPressed: () => context.push('/profile/edit'),
                 icon: const Icon(LucideIcons.pencil, size: 14),
-                label: const Text('Sửa'),
+                label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Sửa', maxLines: 1)),
                 style: OutlinedButton.styleFrom(
                   shape: const StadiumBorder(),
                   backgroundColor: AppColors.inset(context, 0.8),

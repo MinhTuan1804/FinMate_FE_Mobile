@@ -32,8 +32,17 @@ class _InitialSetupScreenState extends ConsumerState<InitialSetupScreen> {
   final _cashController = TextEditingController(text: '0');
   final _budgetController = TextEditingController();
 
+  // Số dư ban đầu của từng tài khoản đã chọn ở bước 2 (tạo lười khi vào bước 3).
+  final Map<String, TextEditingController> _providerBalanceControllers = {};
+
+  TextEditingController _balanceControllerFor(String providerId) =>
+      _providerBalanceControllers.putIfAbsent(providerId, () => TextEditingController());
+
   @override
   void dispose() {
+    for (final c in _providerBalanceControllers.values) {
+      c.dispose();
+    }
     _incomeController.dispose();
     _cashController.dispose();
     _budgetController.dispose();
@@ -70,11 +79,23 @@ class _InitialSetupScreenState extends ConsumerState<InitialSetupScreen> {
       return;
     }
 
+    final providers =
+        ref.read(accountProvidersProvider).valueOrNull ??
+        const <AccountProviderInfo>[];
+    final providerBalances = <String, BigInt>{};
+    for (final p in providers.where((p) => _selectedProviderIds.contains(p.id))) {
+      final text = _providerBalanceControllers[p.id]?.text.trim() ?? '';
+      if (text.isEmpty) continue;
+      final v = parseAmountInput(text, allowZero: true);
+      if (v == null) {
+        _showError('Số dư ${p.displayName} không hợp lệ.');
+        return;
+      }
+      providerBalances[p.id] = v;
+    }
+
     setState(() => _isSaving = true);
     try {
-      final providers =
-          ref.read(accountProvidersProvider).valueOrNull ??
-          const <AccountProviderInfo>[];
       await ref
           .read(onboardingControllerProvider)
           .complete(
@@ -84,6 +105,7 @@ class _InitialSetupScreenState extends ConsumerState<InitialSetupScreen> {
               selectedProviders: providers
                   .where((p) => _selectedProviderIds.contains(p.id))
                   .toList(),
+              providerBalancesCents: providerBalances,
             ),
           );
       // Cuối chuỗi onboarding bắt buộc: hỏi quyền đọc thông báo 1 lần (§16.4) trước khi sang
@@ -262,7 +284,7 @@ class _InitialSetupScreenState extends ConsumerState<InitialSetupScreen> {
                           title: Text(provider.displayName, style: GlassTypography.bodyLg().copyWith(fontWeight: FontWeight.w600)),
                           subtitle: Text(provider.type.label, style: GlassTypography.bodySm()),
                           value: selected,
-                          activeThumbColor: Colors.white,
+                          activeThumbColor: GlassColors.onInk,
                           activeTrackColor: GlassColors.ink,
                           onChanged: (val) {
                             setState(() {
@@ -309,6 +331,20 @@ class _InitialSetupScreenState extends ConsumerState<InitialSetupScreen> {
           prefixIcon: LucideIcons.wallet,
           suffixIcon: const Padding(padding: EdgeInsets.only(right: 16), child: Center(widthFactor: 1, child: Text('₫'))),
         ),
+        // Mỗi tài khoản đã chọn ở bước 2 cũng cần số dư ban đầu; để trống = 0.
+        for (final p in (ref.watch(accountProvidersProvider).valueOrNull ?? const <AccountProviderInfo>[])
+            .where((p) => _selectedProviderIds.contains(p.id))) ...[
+          const SizedBox(height: 20),
+          GlassTextField(
+            key: ValueKey('setup-balance-${p.id}'),
+            label: 'Số dư ${p.displayName} hiện có (VND)',
+            controller: _balanceControllerFor(p.id),
+            keyboardType: TextInputType.number,
+            inputFormatters: [ThousandsSeparatorInputFormatter()],
+            prefixIcon: p.type == AccountType.bank ? LucideIcons.landmark : LucideIcons.smartphone,
+            suffixIcon: const Padding(padding: EdgeInsets.only(right: 16), child: Center(widthFactor: 1, child: Text('₫'))),
+          ),
+        ],
       ],
     );
   }

@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:finmate/core/widgets/cursor_pager.dart';
 import 'package:finmate/features/community/data/community_image_source.dart';
 import 'package:finmate/features/community/data/community_repository.dart';
 import 'package:finmate/features/community/domain/community.dart';
@@ -15,9 +16,14 @@ final communityProfileProvider = FutureProvider.autoDispose<CommunityProfileEnti
   (ref) => ref.watch(communityRepositoryProvider).getProfile(),
 );
 
-final communityPlacesProvider = FutureProvider.autoDispose<CommunityPlacePageEntity>(
-  (ref) => ref.watch(communityRepositoryProvider).listPlaces(),
-);
+final communityPlacesProvider =
+    StateNotifierProvider.autoDispose<CursorPager<CommunityPlaceSummaryEntity>, AsyncValue<List<CommunityPlaceSummaryEntity>>>((ref) {
+  final repo = ref.watch(communityRepositoryProvider);
+  return CursorPager((cursor) async {
+    final page = await repo.listPlaces(cursor: cursor);
+    return (items: page.items, nextCursor: page.nextCursor);
+  });
+});
 
 final communityPlaceDetailProvider = FutureProvider.autoDispose.family<CommunityPlaceDetailEntity, String>(
   (ref, placeId) => ref.watch(communityRepositoryProvider).getPlace(placeId),
@@ -28,12 +34,15 @@ typedef CommunityFeedFilter = ({String? topic, String? sort, bool mine});
 
 const defaultFeedFilter = (topic: null, sort: null, mine: false);
 
-/// Chỉ tải TRANG ĐẦU (không cuộn vô hạn) — đủ cho test UI, tránh làm phức tạp phân trang cursor.
-final communityFeedProvider = FutureProvider.autoDispose.family<CommunityPostPageEntity, CommunityFeedFilter>(
-  (ref, filter) => ref
-      .watch(communityRepositoryProvider)
-      .listPosts(topic: filter.topic, sort: filter.sort, mine: filter.mine),
-);
+/// Bảng tin cuộn vô hạn theo cursor.
+final communityFeedProvider = StateNotifierProvider.autoDispose
+    .family<CursorPager<CommunityPostEntity>, AsyncValue<List<CommunityPostEntity>>, CommunityFeedFilter>((ref, filter) {
+  final repo = ref.watch(communityRepositoryProvider);
+  return CursorPager((cursor) async {
+    final page = await repo.listPosts(topic: filter.topic, sort: filter.sort, mine: filter.mine, cursor: cursor);
+    return (items: page.items, nextCursor: page.nextCursor);
+  });
+});
 
 /// Chi tiết 1 bài + bình luận (trang đầu) + các thao tác: vote, bình luận, ảnh, báo cáo, xóa.
 /// Mỗi lần gọi BE đều nhận entity MỚI (parse lại JSON) nên không gặp bẫy Riverpod so sánh bằng-giá-trị
@@ -41,8 +50,11 @@ final communityFeedProvider = FutureProvider.autoDispose.family<CommunityPostPag
 class CommunityPostDetailState {
   final CommunityPostEntity post;
   final List<CommunityCommentEntity> comments;
+  final String? commentsCursor;
 
-  const CommunityPostDetailState({required this.post, required this.comments});
+  const CommunityPostDetailState({required this.post, required this.comments, this.commentsCursor});
+
+  bool get hasMoreComments => commentsCursor != null;
 }
 
 final communityPostDetailControllerProvider = StateNotifierProvider.autoDispose
@@ -61,10 +73,24 @@ class CommunityPostDetailController extends StateNotifier<AsyncValue<CommunityPo
     try {
       final post = await repository.getPost(postId);
       final comments = await repository.listComments(postId);
-      state = AsyncValue.data(CommunityPostDetailState(post: post, comments: comments.items));
+      state = AsyncValue.data(CommunityPostDetailState(post: post, comments: comments.items, commentsCursor: comments.nextCursor));
     } catch (e, st) {
       state = AsyncValue.error(e, st);
     }
+  }
+
+  /// Nối trang bình luận kế tiếp; lỗi ném ra cho nút gọi tự báo.
+  Future<void> loadMoreComments() async {
+    final current = state.value;
+    final cursor = current?.commentsCursor;
+    if (current == null || cursor == null) return;
+    final page = await repository.listComments(postId, cursor: cursor);
+    if (!mounted || state.value != current) return;
+    state = AsyncValue.data(CommunityPostDetailState(
+      post: current.post,
+      comments: [...current.comments, ...page.items],
+      commentsCursor: page.nextCursor,
+    ));
   }
 
   Future<void> vote() async {

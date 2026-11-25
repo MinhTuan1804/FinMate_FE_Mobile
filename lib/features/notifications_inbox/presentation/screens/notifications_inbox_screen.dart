@@ -1,24 +1,41 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:finmate/core/network/api_exceptions.dart';
 import 'package:finmate/core/theme/glass/glass_colors.dart';
 import 'package:finmate/core/theme/glass/glass_typography.dart';
+import 'package:finmate/features/devices/data/push_messaging.dart';
 import 'package:finmate/features/notifications_inbox/domain/notification_entity.dart';
 import 'package:finmate/features/notifications_inbox/presentation/controllers/notifications_inbox_controller.dart';
 import 'package:finmate/shared/widgets/glass/glass_background.dart';
 import 'package:finmate/shared/widgets/glass/glass_buttons.dart';
 import 'package:finmate/shared/widgets/glass/glass_filter_chip.dart';
+import 'package:finmate/features/transactions/presentation/controllers/transaction_controller.dart';
 import 'package:finmate/shared/widgets/glass/glass_notification_card.dart';
 
 (IconData, Color) _iconForType(String type) => switch (type) {
       'BalanceChange' => (LucideIcons.arrowLeftRight, GlassColors.accentSkyBlue),
+      'TransactionReview' => (LucideIcons.clipboardCheck, GlassColors.warning),
+      'ForecastAlert' => (LucideIcons.chartLine, GlassColors.warning),
       'GoalMilestone' => (LucideIcons.target, GlassColors.success),
       'BudgetThreshold' => (LucideIcons.triangleAlert, GlassColors.warning),
       'AnomalyDetected' => (LucideIcons.sparkles, GlassColors.accentDustyRose),
       'RecurringBillDue' => (LucideIcons.calendarClock, GlassColors.warning),
       'ForecastReady' => (LucideIcons.chartLine, GlassColors.accentSkyBlue),
       _ => (LucideIcons.bell, GlassColors.slateAnchor),
+    };
+
+/// Bấm một thông báo trong hộp thư → màn của đúng thứ nó báo (cùng đích với push cùng loại, xem routeForPush). null: chỉ đánh dấu đã đọc.
+@visibleForTesting
+String? routeForInboxType(String type) => switch (type) {
+      'BalanceChange' => '/transactions',
+      'GoalMilestone' => '/planning/goals',
+      'BudgetThreshold' => '/planning/budgets',
+      'AnomalyDetected' => '/analytics/alerts',
+      'RecurringBillDue' => '/planning/recurring',
+      'ForecastReady' => '/analytics/insights',
+      _ => null,
     };
 
 String _dateGroupLabel(DateTime date) {
@@ -71,18 +88,20 @@ class NotificationsInboxScreen extends ConsumerWidget {
                 ),
               ),
             ),
-            data: (page) => _buildBody(context, controller, page),
+            data: (page) => _buildBody(context, ref, controller, page),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildBody(BuildContext context, NotificationsInboxController controller, NotificationInboxPage page) {
+  Widget _buildBody(BuildContext context, WidgetRef ref, NotificationsInboxController controller, NotificationInboxPage page) {
     final grouped = <String, List<UserNotificationEntity>>{};
     for (final item in page.items) {
       grouped.putIfAbsent(_dateGroupLabel(item.createdAt), () => []).add(item);
     }
+    // Dàn phẳng (tiêu đề nhóm | thông báo) để ListView.builder chỉ dựng dòng đang hiện.
+    final rows = <Object>[for (final group in grouped.entries) ...[group.key, ...group.value]];
 
     return Column(
       children: [
@@ -139,30 +158,47 @@ class NotificationsInboxScreen extends ConsumerWidget {
                     ),
                   ),
                 )
-              : ListView(
+              : ListView.builder(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                  children: [
-                    for (final group in grouped.entries) ...[
-                      Padding(
+                  itemCount: rows.length,
+                  itemBuilder: (context, i) {
+                    final row = rows[i];
+                    if (row is String) {
+                      return Padding(
                         padding: const EdgeInsets.symmetric(vertical: 8),
-                        child: Text(group.key.toUpperCase(), style: GlassTypography.labelCaps()),
+                        child: Text(row.toUpperCase(), style: GlassTypography.labelCaps()),
+                      );
+                    }
+                    final item = row as UserNotificationEntity;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: GlassNotificationCard(
+                        icon: _iconForType(item.type).$1,
+                        iconColor: _iconForType(item.type).$2,
+                        title: item.title,
+                        body: item.body,
+                        metaText: _timeLabel(item.createdAt),
+                        unread: item.isUnread,
+                        onTap: () {
+                          controller.markRead(item.id);
+                          // Mục đến từ push: mở đúng màn như khi bấm push; mục cũ không có data: theo loại.
+                          final data = item.data;
+                          if (data != null && data.isNotEmpty) {
+                            final (path, extra) = routeForPush(data);
+                            context.push(path, extra: extra);
+                            if (data['type'] == 'transaction_review') {
+                              ref.read(transactionControllerProvider.notifier).setDraftsOnly(true);
+                            }
+                            return;
+                          }
+                          final path = routeForInboxType(item.type);
+                          if (path != null) context.push(path);
+                        },
+                        onDismiss: () => controller.delete(item.id),
                       ),
-                      for (final item in group.value) ...[
-                        GlassNotificationCard(
-                          icon: _iconForType(item.type).$1,
-                          iconColor: _iconForType(item.type).$2,
-                          title: item.title,
-                          body: item.body,
-                          metaText: _timeLabel(item.createdAt),
-                          unread: item.isUnread,
-                          onTap: () => controller.markRead(item.id),
-                          onDismiss: () => controller.delete(item.id),
-                        ),
-                        const SizedBox(height: 10),
-                      ],
-                    ],
-                  ],
-                ),
+                    );
+                  },
+                  ),
         ),
         if (page.items.isNotEmpty)
           Padding(

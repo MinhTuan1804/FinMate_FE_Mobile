@@ -10,6 +10,7 @@ import 'package:finmate/core/theme/app_spacing.dart';
 import 'package:finmate/core/theme/app_typography.dart';
 import 'package:finmate/features/accounts/domain/financial_account.dart';
 import 'package:finmate/features/accounts/presentation/controllers/accounts_controller.dart';
+import 'package:finmate/features/assistant/domain/agent_answer.dart';
 import 'package:finmate/features/assistant/domain/assistant_models.dart';
 import 'package:finmate/features/assistant/presentation/controllers/assistant_controller.dart';
 import 'package:finmate/features/assistant/presentation/screens/transaction_review_screen.dart';
@@ -17,6 +18,7 @@ import 'package:finmate/features/categories/domain/category.dart';
 import 'package:finmate/features/categories/presentation/categories_provider.dart';
 import 'package:finmate/features/categories/presentation/category_icons.dart';
 import 'package:finmate/features/transactions/domain/entities/transaction_entity.dart';
+import 'package:finmate/core/widgets/async_action_builder.dart';
 
 /// Nền kính của bong bóng/thẻ trợ lý (Figma E1: nền sáng mờ, viền trắng, bóng xanh nhạt)
 BoxDecoration _glassDecoration(BuildContext context, {BorderRadius? radius}) {
@@ -153,7 +155,7 @@ class UserBubble extends StatelessWidget {
                       Text(
                         time!,
                         style: TextStyle(
-                          fontSize: 10,
+                          fontSize: 12,
                           color: onAction.withValues(alpha: 0.7),
                         ),
                       ),
@@ -190,8 +192,14 @@ class ImageBubble extends StatelessWidget {
         constraints: const BoxConstraints(maxHeight: 260),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(22),
-          child: Image.file(
-            File(path),
+          child: Image(
+            // Ảnh chụp tới 3000px: chỉ giải mã đủ cho bong bóng 200x260 (×2 dư cho cover với ảnh ngang/dọc).
+            image: ResizeImage(
+              FileImage(File(path)),
+              width: (260 * 2 * MediaQuery.devicePixelRatioOf(context)).round(),
+              height: (260 * 2 * MediaQuery.devicePixelRatioOf(context)).round(),
+              policy: ResizeImagePolicy.fit,
+            ),
             fit: BoxFit.cover,
             errorBuilder: (_, __, ___) => const SizedBox(
               height: 80,
@@ -360,7 +368,7 @@ class SavedCardView extends ConsumerWidget {
                       ),
                       Text(
                         _dateLabel(tx.date) ?? 'Hôm nay',
-                        style: secondary.copyWith(fontSize: 10),
+                        style: secondary.copyWith(fontSize: 12),
                       ),
                     ],
                   ),
@@ -412,7 +420,10 @@ class SavedCardView extends ConsumerWidget {
                 child: TextButton.icon(
                   onPressed: () => context.push('/transactions'),
                   icon: const Icon(LucideIcons.receipt, size: 14),
-                  label: const Text('Xem giao dịch'),
+                  label: const FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text('Xem giao dịch', maxLines: 1),
+                  ),
                 ),
               ),
             ],
@@ -1017,6 +1028,104 @@ class DraftBatchCardView extends ConsumerWidget {
 }
 
 /// Thẻ xác nhận mục tiêu tiết kiệm từ câu chat. Hiện ngày hạn cụ thể (kèm cụm người dùng đã nói) để họ soát; không bao giờ tự tạo.
+/// Thẻ kết quả của câu lệnh tạo ngân sách / khoản định kỳ / khoản vay nợ: đang lưu, "Đã lưu" kèm "Hoàn tác", đã hoàn tác, hoặc lỗi kèm lý do.
+class ItemCardView extends ConsumerWidget {
+  final ItemCard card;
+  const ItemCardView({super.key, required this.card});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final controller = ref.read(assistantControllerProvider.notifier);
+    if (card.status == ItemCardStatus.needsConfirm) {
+      return Container(
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.all(14),
+        decoration: _cardDecoration(context),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('${card.question ?? ''}${card.error == null ? '' : '\n${card.error}'}', style: AppTypography.body(context)),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  key: const ValueKey('repay-decline'),
+                  onPressed: () => controller.declineRepayment(card.id),
+                  child: const Text('Không'),
+                ),
+                FilledButton(
+                  key: const ValueKey('repay-confirm'),
+                  onPressed: () => controller.confirmRepayment(card.id),
+                  child: const Text('Ghi lần trả'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
+    if (card.status == ItemCardStatus.needsCategory) {
+      return Container(
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.all(14),
+        decoration: _cardDecoration(context),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Bạn chưa có danh mục "${card.missingCategory}". Bạn muốn tạo danh mục này luôn và đặt ngân sách ${formatVnd(card.item.amountCents)}/tháng không?${card.error == null ? '' : '\n${card.error}'}',
+              style: AppTypography.body(context),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  key: const ValueKey('item-decline'),
+                  onPressed: () => controller.declineNewCategory(card.id),
+                  child: const Text('Không'),
+                ),
+                FilledButton(
+                  key: const ValueKey('item-create-category'),
+                  onPressed: () => controller.confirmNewCategory(card.id),
+                  child: const Text('Tạo và đặt ngân sách'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
+    final (icon, color, text) = switch (card.status) {
+      ItemCardStatus.saving => (LucideIcons.loader, null, 'Đang lưu...'),
+      ItemCardStatus.declined => (LucideIcons.circleX, null, card.summary ?? 'Mình không tạo danh mục và không đặt ngân sách.'),
+      ItemCardStatus.needsCategory || ItemCardStatus.needsConfirm => (LucideIcons.circleHelp, null, ''),
+      ItemCardStatus.created => (LucideIcons.circleCheck, AppColors.safe, '${card.summary ?? 'Đã lưu.'}${card.error == null ? '' : '\n${card.error}'}'),
+      ItemCardStatus.undone => card.summary != null ? (LucideIcons.circleCheck, AppColors.safe, card.summary!) : (LucideIcons.circleX, null, 'Đã hoàn tác, mình không lưu mục này.'),
+      ItemCardStatus.failed => (LucideIcons.circleAlert, AppColors.danger, 'Chưa lưu được: ${card.error ?? 'có lỗi xảy ra'}'),
+    };
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.all(14),
+      decoration: _cardDecoration(context),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: color),
+          const SizedBox(width: 8),
+          Expanded(child: Text(text, style: AppTypography.body(context))),
+          if (card.status == ItemCardStatus.created)
+            TextButton(
+              key: const ValueKey('item-undo'),
+              onPressed: () => controller.undoItem(card.id),
+              child: const Text('Hoàn tác'),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 class GoalDraftCardView extends ConsumerWidget {
   final GoalDraftCard card;
   const GoalDraftCardView({super.key, required this.card});
@@ -1077,11 +1186,17 @@ class GoalDraftCardView extends ConsumerWidget {
             Expanded(
               child: Text(
                 created
-                    ? 'Đã tạo mục tiêu "${goal.name}" (${formatVnd(goal.targetCents)}). Xem ở tab Kế hoạch.'
+                    ? 'Đã tạo mục tiêu "${goal.name}" (${formatVnd(goal.targetCents)}${goal.deadline == null ? '' : ', hạn ${DateFormat('dd/MM/yyyy').format(goal.deadline!)}'}). Xem ở tab Kế hoạch.${card.error == null ? '' : '\n${card.error}'}'
                     : 'Đã hủy, mình không tạo mục tiêu nào.',
                 style: AppTypography.body(context),
               ),
             ),
+            if (created && card.goalId != null)
+              TextButton(
+                key: const ValueKey('goal-undo'),
+                onPressed: () => controller.undoGoal(card.id),
+                child: const Text('Hoàn tác'),
+              ),
           ],
         ),
       );
@@ -1138,7 +1253,7 @@ class GoalDraftCardView extends ConsumerWidget {
                 child: Text(
                   deadline == null
                       ? 'Chưa có hạn'
-                      : 'Hạn: ${DateFormat('dd/MM/yyyy').format(deadline)}${goal.deadlineText == null ? '' : ' (${goal.deadlineText})'}',
+                      : 'Hạn: ${DateFormat('dd/MM/yyyy').format(deadline)}${goal.deadlineText == null ? '' : ' (${goal.deadlineText})'}${goal.aiAssisted ? ' · AI đọc hộ, bạn kiểm tra lại ngày nhé' : ''}',
                   key: const ValueKey('goal-deadline-text'),
                   style: AppTypography.body(context),
                 ),
@@ -1180,10 +1295,13 @@ class GoalDraftCardView extends ConsumerWidget {
                 onPressed: saving ? null : () => controller.cancelGoal(card.id),
                 child: const Text('Hủy'),
               ),
-              TextButton(
-                key: const ValueKey('goal-edit'),
+              AsyncActionBuilder(
                 onPressed: saving ? null : () => _edit(context, controller),
-                child: const Text('Sửa'),
+                builder: (_, onTap, running) => TextButton(
+                  key: const ValueKey('goal-edit'),
+                  onPressed: onTap,
+                  child: running ? const ButtonLoadingIndicator() : const Text('Sửa'),
+                ),
               ),
               ElevatedButton(
                 key: const ValueKey('goal-create'),
@@ -1193,6 +1311,340 @@ class GoalDraftCardView extends ConsumerWidget {
                 child: Text(saving ? 'Đang tạo...' : 'Tạo mục tiêu'),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Câu trả lời của AI Financial Agent: kết luận (nếu có), các mệnh đề, "Vì sao?" (bằng chứng kèm nguồn, ngày, độ tin cậy) và thẻ đề xuất.
+/// Mọi con số lấy từ bằng chứng của backend; app không tự tính hay viết lại. Độ tin cậy KHÔNG phải xác suất nên không hiện dạng phần trăm.
+class AgentCardView extends ConsumerWidget {
+  final AgentCard card;
+  const AgentCardView({super.key, required this.card});
+
+  static (String, Color?, IconData) _verdictStyle(String verdict) =>
+      switch (verdict) {
+        'feasible' => ('Khả thi', AppColors.safe, LucideIcons.circleCheck),
+        'tight' => (
+          'Cần cân nhắc',
+          AppColors.warning,
+          LucideIcons.triangleAlert,
+        ),
+        'infeasible' => ('Khó đạt', AppColors.danger, LucideIcons.circleX),
+        _ => ('', null, LucideIcons.circleHelp),
+      };
+
+  static String _sourceLabel(String source) => switch (source) {
+    'confirmed' => 'đã xác nhận',
+    'user_entered' => 'người dùng nhập',
+    'estimated' => 'ước tính',
+    'document' => 'theo tài liệu',
+    _ => source,
+  };
+
+  /// Giá trị của một bằng chứng: tiền thì định dạng đồng; chỉ là chữ (null) thì không hiện số
+  static String? _value(AgentEvidence e) =>
+      e.valueVnd == null ? null : formatVnd(e.valueVnd!);
+
+  Widget _evidenceRow(BuildContext context, AgentEvidence e) {
+    final value = _value(e);
+    final meta = [
+      _sourceLabel(e.source),
+      if (e.sourceName != null && e.sourceName!.isNotEmpty) e.sourceName!,
+      if (e.asOf != null) DateFormat('dd/MM/yyyy').format(e.asOf!),
+      'độ tin cậy ${e.confidence.toStringAsFixed(2).replaceAll('.', ',')}',
+    ].join(' · ');
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: Text(e.text, style: AppTypography.body(context))),
+              if (value != null) ...[
+                const SizedBox(width: 8),
+                Text(
+                  value,
+                  style: AppTypography.tabular(AppTypography.body(context)),
+                ),
+              ],
+            ],
+          ),
+          Text(meta, style: AppTypography.caption(context)),
+        ],
+      ),
+    );
+  }
+
+  /// Hai con số chính của đánh giá mục tiêu, to và rõ: cần góp mỗi tháng (đỏ khi vượt khả năng) và bạn dành được bao nhiêu. Số lấy từ bằng chứng của backend;
+  /// phần trăm thu nhập chỉ là phép chia hai bằng chứng đó để hiển thị.
+  Widget _goalSummary(
+    BuildContext context,
+    AgentAnswer answer,
+    Color? verdictColor,
+  ) {
+    final required = answer.evidenceById('plan_required')!.valueVnd;
+    final capacity = answer.evidenceById('capacity_base')?.valueVnd;
+    final income = answer.evidenceById('income_declared')?.valueVnd;
+    final over = required != null && capacity != null && required > capacity;
+    final share = (required != null && income != null && income > BigInt.zero)
+        ? ((required * BigInt.from(100) + income ~/ BigInt.two) ~/ income)
+              .toInt()
+        : null;
+
+    Widget tile(
+      String key,
+      String caption,
+      String value,
+      String? hint, {
+      Color? valueColor,
+    }) => Expanded(
+      child: Container(
+        key: ValueKey(key),
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: AppColors.slateOn(context).withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(caption, style: AppTypography.caption(context)),
+            const SizedBox(height: 2),
+            Text(
+              value,
+              style: AppTypography.tabular(AppTypography.bodyMedium(context))
+                  .copyWith(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 18,
+                    color: valueColor,
+                  ),
+            ),
+            if (hint != null) Text(hint, style: AppTypography.caption(context)),
+          ],
+        ),
+      ),
+    );
+
+    // IntrinsicHeight + stretch: hai ô cao bằng nhau dù một ô có thêm dòng phụ.
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          tile(
+            'goal-need',
+            'Cần góp mỗi tháng',
+            required == null ? '—' : formatVnd(required),
+            share == null ? null : 'bằng $share% thu nhập bạn khai',
+            valueColor: over ? verdictColor : null,
+          ),
+          const SizedBox(width: 8),
+          tile(
+            'goal-capacity',
+            'Số tiền dư mỗi tháng',
+            capacity == null ? 'Chưa biết' : formatVnd(capacity),
+            capacity == null ? 'ghi chép chi tiêu để mình tính' : 'thu nhập trừ chi tiêu (ước tính)',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _action(
+    BuildContext context,
+    WidgetRef ref,
+    int index,
+    AgentSuggestedAction action,
+  ) {
+    final controller = ref.read(assistantControllerProvider.notifier);
+    final applied = card.applied.contains(index);
+    final applying = card.applying == index;
+    // Tiêu đề do backend dựng từ bằng chứng và đã có đủ số tiền, ngày: không ghép thêm số tiền/ngày nữa (trước đây bị lặp hai lần)
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Row(
+        children: [
+          Icon(
+            applied ? LucideIcons.circleCheck : LucideIcons.lightbulb,
+            size: 16,
+            color: applied ? AppColors.safe : AppColors.slateOn(context),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              action.title,
+              key: ValueKey('agent-action-title-$index'),
+              style: AppTypography.body(context),
+            ),
+          ),
+          if (action.canApply && !applied)
+            TextButton(
+              key: ValueKey('agent-action-$index'),
+              onPressed: card.applying != null
+                  ? null
+                  : () => controller.applyAgentAction(card.id, index),
+              child: Text(applying ? action.busyLabel : action.applyLabel),
+            ),
+          if (applied)
+            Text(
+              action.doneLabel,
+              style: AppTypography.caption(
+                context,
+              ).copyWith(color: AppColors.safe),
+            ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final answer = card.answer;
+
+    if (!answer.isAnswered) {
+      final icon = answer.status == AgentAnswer.clarify
+          ? LucideIcons.messageCircleQuestionMark
+          : LucideIcons.info;
+      return Container(
+        padding: const EdgeInsets.all(14),
+        decoration: _cardDecoration(context),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: 18, color: AppColors.slateOn(context)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                answer.message ?? 'Mình chưa trả lời được câu này.',
+                key: const ValueKey('agent-message'),
+                style: AppTypography.body(context),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final (verdictTitle, verdictColor, verdictIcon) = _verdictStyle(
+      answer.verdict ?? '',
+    );
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: _cardDecoration(context),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (answer.verdict != null && verdictTitle.isNotEmpty) ...[
+            Row(
+              children: [
+                Icon(verdictIcon, size: 18, color: verdictColor),
+                const SizedBox(width: 8),
+                Text(
+                  verdictTitle,
+                  key: const ValueKey('agent-verdict'),
+                  style: AppTypography.bodyMedium(
+                    context,
+                  ).copyWith(fontWeight: FontWeight.w700, color: verdictColor),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+          ],
+          if (answer.isGoalPlan)
+            // Đánh giá mục tiêu: hai con số chính thay cho đoạn văn dài (chi tiết nằm ở "Vì sao?")
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: _goalSummary(context, answer, verdictColor),
+            )
+          else
+            for (final claim in answer.claims)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text(claim.text, style: AppTypography.body(context)),
+              ),
+          if (answer.evidence.isNotEmpty)
+            // Material trong suốt: ExpansionTile (ListTile) cần Material tổ tiên, mà nền thẻ chỉ là DecoratedBox
+            Material(
+              type: MaterialType.transparency,
+              child: Theme(
+                data: Theme.of(
+                  context,
+                ).copyWith(dividerColor: Colors.transparent),
+                child: ExpansionTile(
+                  key: const ValueKey('agent-why'),
+                  tilePadding: EdgeInsets.zero,
+                  childrenPadding: EdgeInsets.zero,
+                  title: Text(
+                    'Vì sao?',
+                    style: AppTypography.bodyMedium(
+                      context,
+                    ).copyWith(fontWeight: FontWeight.w600),
+                  ),
+                  children: [
+                    for (final e in answer.evidence) _evidenceRow(context, e),
+                  ],
+                ),
+              ),
+            ),
+          if (answer.isGoalPlan && answer.suggestedActions.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: Text(
+                'Nếu muốn dễ thở hơn',
+                style: AppTypography.bodyMedium(
+                  context,
+                ).copyWith(fontWeight: FontWeight.w700),
+              ),
+            ),
+          for (var i = 0; i < answer.suggestedActions.length; i++)
+            _action(context, ref, i, answer.suggestedActions[i]),
+          if (card.error != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                card.error!,
+                key: const ValueKey('agent-action-error'),
+                style: AppTypography.caption(
+                  context,
+                ).copyWith(color: AppColors.danger),
+              ),
+            ),
+          if (answer.preliminaryNote != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Icon(
+                      LucideIcons.info,
+                      size: 14,
+                      color: AppColors.slateOn(context),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      answer.preliminaryNote!,
+                      key: const ValueKey('agent-preliminary-note'),
+                      style: AppTypography.caption(context),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          const SizedBox(height: 8),
+          Text(
+            // Ghi chú sơ bộ đã nói "chỉ để tham khảo" rồi: không lặp lại ý đó
+            answer.preliminaryNote != null
+                ? 'Mình không đưa lời khuyên đầu tư và không tự thay đổi dữ liệu của bạn.'
+                : 'Dải dự báo, chỉ để tham khảo. Mình không đưa lời khuyên đầu tư và không tự thay đổi dữ liệu của bạn.',
+            style: AppTypography.caption(context),
           ),
         ],
       ),
@@ -1524,7 +1976,7 @@ class ErrorNoteView extends StatelessWidget {
           Expanded(
             child: Text(
               note.message,
-              style: const TextStyle(color: AppColors.danger, fontSize: 13),
+              style: TextStyle(color: AppColors.danger, fontSize: 13),
             ),
           ),
           if (note.retryText != null)

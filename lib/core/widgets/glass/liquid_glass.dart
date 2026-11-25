@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -5,6 +6,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:finmate/core/theme/app_colors.dart';
 import 'package:finmate/core/theme/app_spacing.dart';
 import 'package:finmate/core/theme/app_theme.dart';
+import 'package:finmate/core/widgets/async_action_builder.dart';
 
 /// Các biến thể độ sâu của hệ thống Liquid Glass (3 tầng: Nền -> Card kính -> Lớp nổi)
 enum LiquidGlassVariant {
@@ -810,7 +812,7 @@ class ZenvestSurfaceSheet extends StatelessWidget {
                         title ?? '',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          fontSize: 17,
+                          fontSize: 18,
                           fontWeight: FontWeight.w700,
                           letterSpacing: -0.3,
                           color: AppColors.textPrimary(context),
@@ -987,7 +989,7 @@ class ZenvestTransactionTile extends StatelessWidget {
                 Text(
                   typeLabel,
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: FontWeight.w700,
                     color: typeColor,
                   ),
@@ -1030,18 +1032,29 @@ class LiquidGlassPillButton extends StatelessWidget {
     this.style = LiquidGlassButtonStyle.primary,
     this.isFullWidth = false,
     this.compact = false,
+    this.loading = false,
   });
 
   final String label;
-  final VoidCallback? onPressed;
+  /// Trả về Future → nút tự hiện spinner và khoá tới khi xong.
+  final FutureOr<void> Function()? onPressed;
   final IconData? icon;
   final IconData? trailingIcon;
   final LiquidGlassButtonStyle style;
   final bool isFullWidth;
   final bool compact;
+  final bool loading;
 
   @override
   Widget build(BuildContext context) {
+    return AsyncActionBuilder(
+      onPressed: onPressed,
+      loading: loading,
+      builder: (context, onPressed, loading) => _build(context, onPressed, loading),
+    );
+  }
+
+  Widget _build(BuildContext context, VoidCallback? onPressed, bool loading) {
     final isDark = AppColors.isDark(context);
 
     final (Color bg, Color fg, Color border) = switch (style) {
@@ -1073,7 +1086,22 @@ class LiquidGlassPillButton extends StatelessWidget {
         ),
     };
 
-    final content = Row(
+    final content = loading
+        ? Row(
+            mainAxisSize: isFullWidth ? MainAxisSize.max : MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              Semantics(
+                label: 'Đang xử lý',
+                child: SizedBox(
+                  width: compact ? 16 : 18,
+                  height: compact ? 16 : 18,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: fg),
+                ),
+              ),
+            ],
+          )
+        : Row(
       mainAxisSize: isFullWidth ? MainAxisSize.max : MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.center,
       children: <Widget>[
@@ -1106,7 +1134,7 @@ class LiquidGlassPillButton extends StatelessWidget {
         minWidth: isFullWidth ? double.infinity : 0,
       ),
       child: Material(
-        color: onPressed == null ? bg.withValues(alpha: 0.45) : bg,
+        color: onPressed == null && !loading ? bg.withValues(alpha: 0.45) : bg,
         shape: StadiumBorder(
           side: BorderSide(color: border, width: 1),
         ),

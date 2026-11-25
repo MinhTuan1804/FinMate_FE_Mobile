@@ -13,6 +13,7 @@ import 'package:finmate/features/categories/domain/category.dart';
 import 'package:finmate/features/categories/presentation/categories_provider.dart';
 import 'package:finmate/features/categories/presentation/category_colors.dart';
 import 'package:finmate/features/categories/presentation/category_icons.dart';
+import 'package:finmate/core/widgets/async_action_builder.dart';
 
 /// Màn H13: Thêm / sửa danh mục (theo Figma): xem trước biểu tượng, tên, loại chi/thu, biểu tượng, màu nhận diện (bảng màu do admin đặt),
 /// nhóm cha (danh mục hệ thống), hạn mức ngân sách gợi ý mỗi tháng (chỉ để hiển thị) và "yêu thích". Tất cả lưu ở backend.
@@ -162,7 +163,7 @@ class _CategoryFormScreenState extends ConsumerState<CategoryFormScreen> {
                     label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: selected ? AppColors.activeFg(context) : AppColors.textPrimary(context), fontWeight: selected ? FontWeight.w700 : FontWeight.w500, fontSize: 13.5),
+                    style: TextStyle(color: selected ? AppColors.activeFg(context) : AppColors.textPrimary(context), fontWeight: selected ? FontWeight.w700 : FontWeight.w500, fontSize: 14),
                   ),
                 ),
               ],
@@ -253,11 +254,11 @@ class _CategoryFormScreenState extends ConsumerState<CategoryFormScreen> {
                     children: [
                       Row(
                         children: [
-                          Expanded(child: Text('Chọn biểu tượng', style: AppTypography.h2(context).copyWith(fontSize: 17, fontWeight: FontWeight.w700))),
+                          Expanded(child: Text('Chọn biểu tượng', style: AppTypography.h2(context).copyWith(fontSize: 18, fontWeight: FontWeight.w700))),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                             decoration: BoxDecoration(color: AppColors.secondary.withValues(alpha: 0.2), borderRadius: AppSpacing.roundedPill),
-                            child: Text('${categoryIconChoices.length} mẫu', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: AppColors.slateOn(context))),
+                            child: Text('${categoryIconChoices.length} mẫu', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.slateOn(context))),
                           ),
                         ],
                       ),
@@ -300,7 +301,7 @@ class _CategoryFormScreenState extends ConsumerState<CategoryFormScreen> {
                     children: [
                       Row(
                         children: [
-                          Expanded(child: Text('Màu nhận diện', style: AppTypography.h2(context).copyWith(fontSize: 17, fontWeight: FontWeight.w700))),
+                          Expanded(child: Text('Màu nhận diện', style: AppTypography.h2(context).copyWith(fontSize: 18, fontWeight: FontWeight.w700))),
                           if (selectedColorName != null)
                             Text(selectedColorName, key: const ValueKey('category-color-name'), style: AppTypography.caption(context).copyWith(fontWeight: FontWeight.w700)),
                         ],
@@ -397,16 +398,19 @@ class _CategoryFormScreenState extends ConsumerState<CategoryFormScreen> {
                 ),
                 if (editing != null) ...[
                   const SizedBox(height: 10),
-                  OutlinedButton.icon(
-                    key: const ValueKey('category-delete'),
+                  AsyncActionBuilder(
                     onPressed: _busy ? null : _delete,
-                    icon: const Icon(LucideIcons.trash2, size: 18, color: AppColors.danger),
-                    label: const Text('Xóa danh mục này', style: TextStyle(color: AppColors.danger)),
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(50),
-                      shape: const StadiumBorder(),
-                      side: BorderSide(color: AppColors.danger.withValues(alpha: 0.4)),
-                      backgroundColor: AppColors.danger.withValues(alpha: 0.06),
+                    builder: (_, onTap, running) => OutlinedButton.icon(
+                      key: const ValueKey('category-delete'),
+                      onPressed: onTap,
+                      icon: running ? const ButtonLoadingIndicator(size: 16) : const Icon(LucideIcons.trash2, size: 18, color: AppColors.danger),
+                      label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Xóa danh mục này', style: TextStyle(color: AppColors.danger), maxLines: 1)),
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(50),
+                        shape: const StadiumBorder(),
+                        side: BorderSide(color: AppColors.danger.withValues(alpha: 0.4)),
+                        backgroundColor: AppColors.danger.withValues(alpha: 0.06),
+                      ),
                     ),
                   ),
                 ],

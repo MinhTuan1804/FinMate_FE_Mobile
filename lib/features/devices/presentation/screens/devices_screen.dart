@@ -8,6 +8,7 @@ import 'package:finmate/core/theme/app_spacing.dart';
 import 'package:finmate/core/theme/app_typography.dart';
 import 'package:finmate/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:finmate/features/devices/data/devices_repository.dart';
+import 'package:finmate/core/widgets/async_action_builder.dart';
 
 const _platforms = [('Android', 'Android'), ('Ios', 'iOS'), ('Web', 'Web')];
 
@@ -134,18 +135,24 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen> {
                   Row(
                     children: [
                       Expanded(
-                        child: ElevatedButton(
-                          key: const ValueKey('device-register'),
+                        child: AsyncActionBuilder(
                           onPressed: _registering ? null : _register,
-                          child: const Text('Đăng ký'),
+                          builder: (_, onTap, running) => ElevatedButton(
+                            key: const ValueKey('device-register'),
+                            onPressed: onTap,
+                            child: running ? const ButtonLoadingIndicator() : const Text('Đăng ký'),
+                          ),
                         ),
                       ),
                       const SizedBox(width: AppSpacing.sm),
                       Expanded(
-                        child: OutlinedButton(
-                          key: const ValueKey('device-unregister'),
+                        child: AsyncActionBuilder(
                           onPressed: _unregistering ? null : _unregister,
-                          child: const Text('Gỡ đăng ký'),
+                          builder: (_, onTap, running) => OutlinedButton(
+                            key: const ValueKey('device-unregister'),
+                            onPressed: onTap,
+                            child: running ? const ButtonLoadingIndicator() : const Text('Gỡ đăng ký'),
+                          ),
                         ),
                       ),
                     ],
@@ -172,11 +179,14 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen> {
                     style: AppTypography.caption(context),
                   ),
                   const SizedBox(height: AppSpacing.sm),
-                  OutlinedButton(
-                    key: const ValueKey('device-logout-all'),
+                  AsyncActionBuilder(
                     onPressed: _loggingOutAll ? null : _logoutAllDevices,
-                    style: OutlinedButton.styleFrom(side: const BorderSide(color: AppColors.danger)),
-                    child: const Text('Đăng xuất tất cả thiết bị', style: TextStyle(color: AppColors.danger)),
+                    builder: (_, onTap, running) => OutlinedButton(
+                      key: const ValueKey('device-logout-all'),
+                      onPressed: onTap,
+                      style: OutlinedButton.styleFrom(side: const BorderSide(color: AppColors.danger)),
+                      child: running ? const ButtonLoadingIndicator() : const Text('Đăng xuất tất cả thiết bị', style: TextStyle(color: AppColors.danger)),
+                    ),
                   ),
                 ],
               ),

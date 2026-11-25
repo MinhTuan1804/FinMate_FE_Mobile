@@ -93,7 +93,7 @@ class _BackupExportScreenState extends ConsumerState<BackupExportScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(color: AppColors.secondary.withValues(alpha: 0.2), borderRadius: AppSpacing.roundedPill),
-      child: Text('Sắp có', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.slateOn(context))),
+      child: Text('Sắp có', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.slateOn(context))),
     );
   }
 
@@ -149,7 +149,7 @@ class _BackupExportScreenState extends ConsumerState<BackupExportScreen> {
               children: [
                 Icon(LucideIcons.history, size: 16, color: AppColors.textSecondary(context)),
                 const SizedBox(width: 8),
-                Expanded(child: Text('Chưa có bản sao lưu nào', style: AppTypography.caption(context).copyWith(fontSize: 12.5))),
+                Expanded(child: Text('Chưa có bản sao lưu nào', style: AppTypography.caption(context).copyWith(fontSize: 13))),
               ],
             ),
           ),
@@ -158,7 +158,7 @@ class _BackupExportScreenState extends ConsumerState<BackupExportScreen> {
             key: const ValueKey('backup-now'),
             onPressed: null,
             icon: const Icon(LucideIcons.refreshCw, size: 16),
-            label: const Text('Sao lưu ngay bây giờ'),
+            label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Sao lưu ngay bây giờ', maxLines: 1)),
             style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48), shape: const StadiumBorder()),
           ),
           const SizedBox(height: 8),
@@ -251,14 +251,14 @@ class _BackupExportScreenState extends ConsumerState<BackupExportScreen> {
             key: const ValueKey('export-run'),
             onPressed: null,
             icon: const Icon(LucideIcons.download, size: 18),
-            label: Text('Xuất và tải về (${_format.short})'),
+            label: FittedBox(fit: BoxFit.scaleDown, child: Text('Xuất và tải về (${_format.short})', maxLines: 1)),
             style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52), shape: const StadiumBorder()),
           ),
           const SizedBox(height: 8),
           Text(
             'Xuất tệp cần máy chủ hỗ trợ nên chưa dùng được. Dữ liệu của bạn vẫn an toàn trên tài khoản FinMate.',
             textAlign: TextAlign.center,
-            style: AppTypography.caption(context).copyWith(fontSize: 11.5),
+            style: AppTypography.caption(context).copyWith(fontSize: 12),
           ),
         ],
       ),

@@ -167,7 +167,7 @@ class JarDetailScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('Đã chi tiêu', style: GlassTypography.bodySm(color: GlassColors.textSecondary)),
-                    Text(formatVnd(jar.spentCents), style: GlassTypography.labelNumeric().copyWith(fontSize: 18, fontWeight: FontWeight.w700)),
+                    Text(formatVnd(jar.spentCents), style: GlassTypography.labelNumeric().copyWith(fontSize: 18, fontWeight: FontWeight.w700, fontVariations: [FontVariation('wght', FontWeight.w700.value.toDouble())])),
                     const SizedBox(height: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),

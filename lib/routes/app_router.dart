@@ -17,7 +17,14 @@ import 'package:finmate/features/onboarding/presentation/screens/initial_setup_s
 import 'package:finmate/features/onboarding/presentation/screens/notification_permission_screen.dart';
 import 'package:finmate/features/dashboard/presentation/screens/home_screen.dart';
 import 'package:finmate/features/transactions/presentation/screens/transactions_screen.dart';
-import 'package:finmate/features/planning/presentation/screens/planning_screen.dart';
+import 'package:finmate/features/planning/presentation/screens/planning_hub_screen.dart';
+import 'package:finmate/features/planning/presentation/screens/goals_screen.dart';
+import 'package:finmate/features/planning/presentation/screens/goal_form_screen.dart';
+import 'package:finmate/features/planning/presentation/screens/budgets_screen.dart';
+import 'package:finmate/features/planning/presentation/screens/budget_form_screen.dart';
+import 'package:finmate/features/planning/domain/entities/budget_entity.dart';
+import 'package:finmate/features/recurring/domain/recurring_item.dart';
+import 'package:finmate/features/recurring/presentation/screens/recurring_form_screen.dart';
 import 'package:finmate/features/analytics/presentation/screens/analytics_screen.dart';
 import 'package:finmate/features/analytics/presentation/screens/f2_category_report_screen.dart';
 import 'package:finmate/features/analytics/presentation/screens/f4_alerts_screen.dart';
@@ -38,6 +45,8 @@ import 'package:finmate/features/community/presentation/screens/community_place_
 import 'package:finmate/features/community/presentation/screens/community_profile_screen.dart';
 import 'package:finmate/features/categories/presentation/screens/categories_screen.dart';
 import 'package:finmate/features/recurring/presentation/screens/recurring_items_screen.dart';
+import 'package:finmate/features/groups/presentation/screens/create_bill_screen.dart';
+import 'package:finmate/features/groups/presentation/screens/group_approvals_screen.dart';
 import 'package:finmate/features/groups/presentation/screens/groups_screen.dart';
 import 'package:finmate/features/groups/presentation/screens/i2_create_group_screen.dart';
 import 'package:finmate/features/groups/presentation/screens/group_detail_screen.dart';
@@ -82,6 +91,7 @@ import 'package:finmate/features/devices/presentation/screens/devices_screen.dar
 import 'package:finmate/features/finance_methods/presentation/screens/b4_recommendations_screen.dart';
 import 'package:finmate/features/finance_methods/presentation/screens/b5_my_methods_screen.dart';
 import 'package:finmate/features/finance_methods/presentation/screens/b6_jar_detail_screen.dart';
+import 'package:finmate/features/finance_methods/presentation/screens/b8_financial_plan_screen.dart';
 import 'package:finmate/features/finance_methods/presentation/screens/b7_alert_thresholds_screen.dart';
 import 'package:finmate/features/home_widget/data/widget_config_bridge.dart';
 import 'package:finmate/features/home_widget/domain/widget_config.dart';
@@ -139,6 +149,10 @@ String? authRedirect(AsyncValue<UserProfile?> auth, String location) {
   return null;
 }
 
+/// Route mở đầu tiên. Cửa sổ bong bóng FinMate AI (assistant_bubble_main.dart) ghi đè thành '/assistant';
+/// đang kiểm tra đăng nhập thì redirect giữ nguyên vị trí, chưa đăng nhập thì vẫn bị đưa về /login.
+final initialLocationProvider = Provider<String>((ref) => _splashPath);
+
 final routerProvider = Provider<GoRouter>((ref) {
   final refresh = ValueNotifier<int>(0);
   ref.onDispose(refresh.dispose);
@@ -150,7 +164,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   });
 
   return GoRouter(
-    initialLocation: _splashPath,
+    initialLocation: ref.watch(initialLocationProvider),
     refreshListenable: refresh,
     redirect: (context, state) => authRedirect(ref.read(authControllerProvider), state.matchedLocation),
     onException: (context, state, router) => router.go('/home'),
@@ -225,7 +239,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/planning',
-        builder: (context, state) => const PlanningScreen(),
+        builder: (context, state) => const PlanningHubScreen(),
       ),
       GoRoute(
         path: '/analytics',
@@ -288,6 +302,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => GroupDetailScreen(groupId: state.extra as String),
       ),
       GoRoute(
+        path: '/group-bill-new',
+        builder: (context, state) => CreateBillScreen(groupId: state.extra as String),
+      ),
+      GoRoute(
+        path: '/group-approvals',
+        builder: (context, state) => GroupApprovalsScreen(groupId: state.extra as String),
+      ),
+      GoRoute(
         path: '/group-members',
         builder: (context, state) => I4MembersScreen(groupId: state.extra as String),
       ),
@@ -328,8 +350,28 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => SavingsGoalDetailScreen(goal: state.extra as SavingsGoalEntity),
       ),
       GoRoute(
+        path: '/planning/goals',
+        builder: (context, state) => const GoalsScreen(),
+      ),
+      GoRoute(
+        path: '/planning/goals/form',
+        builder: (context, state) => GoalFormScreen(goal: state.extra as SavingsGoalEntity?),
+      ),
+      GoRoute(
+        path: '/planning/budgets',
+        builder: (context, state) => const BudgetsScreen(),
+      ),
+      GoRoute(
+        path: '/planning/budgets/form',
+        builder: (context, state) => BudgetFormScreen(budget: state.extra as BudgetEntity?),
+      ),
+      GoRoute(
         path: '/planning/recurring',
         builder: (context, state) => const RecurringTransactionsScreen(),
+      ),
+      GoRoute(
+        path: '/planning/recurring/form',
+        builder: (context, state) => RecurringFormScreen(item: state.extra as RecurringItemEntity?),
       ),
       GoRoute(
         path: '/planning/loans',
@@ -433,6 +475,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const AlertThresholdsScreen(),
       ),
       GoRoute(
+        path: '/finance-methods/plan',
+        builder: (context, state) => const FinancialPlanScreen(),
+      ),
+      GoRoute(
         path: '/finance-methods/jar-detail',
         builder: (context, state) {
           final extra = state.extra as Map;
@@ -492,7 +538,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/accept-invitation',
-        builder: (context, state) => const AcceptInvitationScreen(),
+        builder: (context, state) => AcceptInvitationScreen(initialToken: state.extra is String ? state.extra as String : null),
       ),
       GoRoute(
         path: '/group-finance',

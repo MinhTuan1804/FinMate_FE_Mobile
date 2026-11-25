@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Màu widget (sáng); bản tối ở values-night/colors.xml. Giữ đồng bộ với SafeSpendColors (ProgressRing.kt) -->
+    <color name="widget_card_bg">#F8FAFC</color>
+    <color name="widget_text_primary">#0F172A</color>
+    <color name="widget_text_secondary">#64748B</color>
+    <color name="widget_chip_bg">#E2E8F0</color>
+    <color name="widget_on_primary">#FFFFFF</color>
+    <color name="widget_safe">#15803D</color>
+    <!-- Màu nhấn của icon push FCM trên thanh thông báo: GlassColors.accentSkyBlue -->
+    <color name="push_accent">#7CA9D6</color>
+    <!-- Bong bóng trợ lý AI: nền chuyển màu từ GlassColors.ink (sáng) sang accentSkyBlue, giống avatar trợ lý trong màn chat.
+         Bong bóng nằm trên mọi app nên dùng cùng một màu ở cả chế độ sáng/tối (không có bản values-night). -->
+    <color name="assistant_bubble_start">#42638E</color>
+    <color name="assistant_bubble_end">#7CA9D6</color>
+    <color name="assistant_bubble_ring">#59FFFFFF</color>
+</resources>

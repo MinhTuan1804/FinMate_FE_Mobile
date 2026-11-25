@@ -23,12 +23,25 @@ class GroupInvitationsRepository {
   }
 
   /// Trả về id của nhóm đã tham gia.
-  Future<String> accept(String token) async {
+  /// [defaultFinancialAccountId]: ví của chính mình; server chỉ lưu lại — khi góp quỹ/ghi chi FE vẫn phải tự truyền ví.
+  Future<String> accept({required String? token, String? defaultFinancialAccountId}) async {
     final res = await apiClient.post<String>(
       '/api/v1/group-invitations/accept',
-      data: {'token': token},
+      data: {
+        if (token != null) 'token': token,
+        if (defaultFinancialAccountId != null) 'defaultFinancialAccountId': defaultFinancialAccountId,
+      },
       fromJsonT: (json) => (json as Map<String, dynamic>)['groupId'] as String,
     );
     return res.data as String;
+  }
+
+  /// Từ chối: token sai hoặc của người khác 404; đã xử lý/hết hạn 422 GROUP_INVITATION_INVALID.
+  Future<void> decline({required String? token}) async {
+    await apiClient.post<void>(
+      '/api/v1/group-invitations/decline',
+      data: {if (token != null) 'token': token},
+      fromJsonT: (_) {},
+    );
   }
 }

@@ -8,6 +8,7 @@ import 'package:finmate/core/theme/app_spacing.dart';
 import 'package:finmate/core/theme/app_typography.dart';
 import 'package:finmate/features/accounts/domain/financial_account.dart';
 import 'package:finmate/features/accounts/presentation/controllers/accounts_controller.dart';
+import 'package:finmate/core/widgets/async_action_builder.dart';
 
 /// Màn quản lý tài khoản/ví: đổi tên, bật/tắt theo dõi, xem số dư mới nhất, xóa.
 /// Đơn giản để test nhanh các API còn thiếu (update/toggle-monitoring/balance/delete).
@@ -139,10 +140,13 @@ class AccountsScreen extends ConsumerWidget {
                     ),
                     Row(
                       children: [
-                        TextButton.icon(
+                        AsyncActionBuilder(
                           onPressed: () => _showBalance(context, ref, account),
-                          icon: const Icon(LucideIcons.refreshCw, size: 16),
-                          label: const Text('Xem số dư mới nhất'),
+                          builder: (_, onTap, running) => TextButton.icon(
+                            onPressed: onTap,
+                            icon: running ? const ButtonLoadingIndicator(size: 16) : const Icon(LucideIcons.refreshCw, size: 16),
+                            label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Xem số dư mới nhất', maxLines: 1)),
+                          ),
                         ),
                         const Spacer(),
                         IconButton(

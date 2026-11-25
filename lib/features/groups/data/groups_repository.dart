@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:finmate/core/network/api_client.dart';
 import 'package:finmate/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:finmate/features/groups/domain/group.dart';
+import 'package:finmate/features/groups/domain/group_extras.dart';
 import 'package:finmate/features/planning/domain/entities/savings_goal_entity.dart';
 
 final groupsRepositoryProvider = Provider<GroupsRepository>(
@@ -28,30 +29,131 @@ class GroupsRepository {
     return res.data as GroupEntity;
   }
 
-  Future<GroupEntity> createGroup({required String name, GroupType type = GroupType.family}) async {
+  Future<GroupEntity> createGroup({
+    required String name,
+    GroupType type = GroupType.family,
+    String? icon,
+    String? description,
+    String? settlementModel,
+  }) async {
     final res = await apiClient.post<GroupEntity>(
       '/api/v1/groups',
-      data: {'name': name, 'type': type.apiValue},
+      data: {
+        'name': name,
+        'type': type.apiValue,
+        if (icon != null) 'icon': icon,
+        if (description != null && description.isNotEmpty) 'description': description,
+        if (settlementModel != null) 'settlementModel': settlementModel,
+      },
       fromJsonT: (json) => GroupEntity.fromJson(json as Map<String, dynamic>),
     );
     return res.data as GroupEntity;
   }
 
-  /// [name]/[transactionVisibility] null = giữ nguyên.
+  /// Trường null = giữ nguyên. Không đặt được closingDay về "cuối tháng" ở đây — dùng [putSettings] với closingDay null.
   Future<GroupEntity> updateGroup({
     required String id,
     String? name,
     GroupTransactionVisibility? transactionVisibility,
+    GroupType? type,
+    String? icon,
+    String? description,
+    String? settlementModel,
   }) async {
     final res = await apiClient.patch<GroupEntity>(
       '/api/v1/groups/$id',
       data: {
         if (name != null) 'name': name,
         if (transactionVisibility != null) 'transactionVisibility': transactionVisibility.apiValue,
+        if (type != null) 'type': type.apiValue,
+        if (icon != null) 'icon': icon,
+        if (description != null) 'description': description,
+        if (settlementModel != null) 'settlementModel': settlementModel,
       },
       fromJsonT: (json) => GroupEntity.fromJson(json as Map<String, dynamic>),
     );
     return res.data as GroupEntity;
+  }
+
+  Future<GroupSettingsEntity> getSettings(String groupId) async {
+    final res = await apiClient.get<GroupSettingsEntity>(
+      '/api/v1/groups/$groupId/settings',
+      fromJsonT: (json) => GroupSettingsEntity.fromJson(json as Map<String, dynamic>),
+    );
+    return res.data as GroupSettingsEntity;
+  }
+
+  /// Chỉ chủ nhóm; PUT thay toàn bộ nên truyền đủ [GroupSettingsEntity].
+  Future<GroupSettingsEntity> putSettings(String groupId, GroupSettingsEntity settings) async {
+    final res = await apiClient.put<GroupSettingsEntity>(
+      '/api/v1/groups/$groupId/settings',
+      data: settings.toJson(),
+      fromJsonT: (json) => GroupSettingsEntity.fromJson(json as Map<String, dynamic>),
+    );
+    return res.data as GroupSettingsEntity;
+  }
+
+  Future<GroupsSummaryEntity> getMySummary({int? year, int? month}) async {
+    final res = await apiClient.get<GroupsSummaryEntity>(
+      '/api/v1/groups/me/summary',
+      queryParameters: {if (year != null) 'year': year, if (month != null) 'month': month},
+      fromJsonT: (json) => GroupsSummaryEntity.fromJson(json as Map<String, dynamic>),
+    );
+    return res.data as GroupsSummaryEntity;
+  }
+
+  /// Khớp chính xác email đã xác minh hoặc FinMate ID (FM-XXXXXXXX); khớp từng phần trả rỗng. Giới hạn 20 lần/giờ (429).
+  Future<List<UserSearchResult>> searchUsers({required String query, required String groupId}) async {
+    final res = await apiClient.get<List<UserSearchResult>>(
+      '/api/v1/users/search',
+      queryParameters: {'q': query, 'groupId': groupId},
+      fromJsonT: (json) => (json as List).map((e) => UserSearchResult.fromJson(e as Map<String, dynamic>)).toList(),
+    );
+    return res.data ?? const [];
+  }
+
+  Future<List<InviteSuggestion>> getInviteSuggestions(String groupId) async {
+    final res = await apiClient.get<List<InviteSuggestion>>(
+      '/api/v1/groups/$groupId/invite-suggestions',
+      fromJsonT: (json) => (json as List).map((e) => InviteSuggestion.fromJson(e as Map<String, dynamic>)).toList(),
+    );
+    return res.data ?? const [];
+  }
+
+  /// Mã/link tham gia chung của nhóm (tạo luôn lần đầu mở). Cần quyền mời thành viên.
+  Future<GroupJoinLinkEntity> getJoinLink(String groupId) async {
+    final res = await apiClient.get<GroupJoinLinkEntity>(
+      '/api/v1/groups/$groupId/join-link',
+      fromJsonT: (json) => GroupJoinLinkEntity.fromJson(json as Map<String, dynamic>),
+    );
+    return res.data as GroupJoinLinkEntity;
+  }
+
+  /// Đổi mã mới; mã cũ hết dùng được. Dùng khi mã bị lộ.
+  Future<GroupJoinLinkEntity> resetJoinLink(String groupId) async {
+    final res = await apiClient.post<GroupJoinLinkEntity>(
+      '/api/v1/groups/$groupId/join-link/reset',
+      fromJsonT: (json) => GroupJoinLinkEntity.fromJson(json as Map<String, dynamic>),
+    );
+    return res.data as GroupJoinLinkEntity;
+  }
+
+  Future<GroupJoinLinkEntity> setJoinLinkEnabled(String groupId, bool enabled) async {
+    final res = await apiClient.put<GroupJoinLinkEntity>(
+      '/api/v1/groups/$groupId/join-link',
+      data: {'enabled': enabled},
+      fromJsonT: (json) => GroupJoinLinkEntity.fromJson(json as Map<String, dynamic>),
+    );
+    return res.data as GroupJoinLinkEntity;
+  }
+
+  /// Thu hồi mọi lời mời đang chờ; trả số lời mời đã thu hồi.
+  Future<int> revokeAllInvitations(String groupId) async {
+    final res = await apiClient.deleteWithResult<int>(
+      '/api/v1/groups/$groupId/invitations',
+      fromJsonT: (json) => (json as Map<String, dynamic>)['revoked'] as int,
+    );
+    return res.data ?? 0;
   }
 
   Future<void> deleteGroup(String id) => apiClient.delete('/api/v1/groups/$id');
@@ -116,15 +218,20 @@ class GroupsRepository {
     );
   }
 
-  /// [email] null = tạo lời mời qua link (không gửi email); kết quả trả [GroupInvitationEntity.token] đúng một lần.
+  /// Có [email] = gửi lời mời qua email; không có = lời mời link (trả token + joinUrl đúng một lần).
   Future<GroupInvitationEntity> createInvitation({
     required String groupId,
     String? email,
+    String? message,
     GroupRole role = GroupRole.member,
   }) async {
     final res = await apiClient.post<GroupInvitationEntity>(
       '/api/v1/groups/$groupId/invitations',
-      data: {if (email != null && email.isNotEmpty) 'email': email, 'role': role.apiValue},
+      data: {
+        if (email != null && email.isNotEmpty) 'email': email,
+        if (message != null && message.isNotEmpty) 'message': message,
+        'role': role.apiValue,
+      },
       fromJsonT: (json) => GroupInvitationEntity.fromJson(json as Map<String, dynamic>),
     );
     return res.data as GroupInvitationEntity;

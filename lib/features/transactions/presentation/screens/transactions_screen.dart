@@ -24,6 +24,7 @@ import 'package:finmate/features/transactions/presentation/widgets/draft_edit_sh
 import 'package:finmate/features/transactions/presentation/widgets/draft_transaction_tile.dart';
 import 'package:finmate/features/transactions/presentation/widgets/failed_sync_banner.dart';
 import 'package:finmate/features/transactions/presentation/widgets/notification_access_card.dart';
+import 'package:finmate/features/transactions/presentation/widgets/transactions_filter_sheet.dart';
 import 'package:finmate/shared/widgets/glass/main_bottom_nav.dart';
 
 /// Tổng chi/thu của một khoảng ngày bất kỳ (máy chủ tính, không cộng từ các trang đã tải).
@@ -212,6 +213,28 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     }
   }
 
+  Future<void> _openFilterSheet() async {
+    final controller = ref.read(transactionControllerProvider.notifier);
+    final result = await TransactionsFilterSheet.show(
+      context,
+      TransactionFilterResult(
+        type: controller.filter,
+        draftsOnly: controller.draftsOnly,
+        range: _range,
+      ),
+    );
+    if (result == null || !mounted) return;
+    if (result.range != _range) {
+      setState(() => _range = result.range);
+      controller.setRange(result.range?.start, result.range?.end);
+    }
+    if (result.type != controller.filter) controller.setFilter(result.type);
+    if (result.draftsOnly != controller.draftsOnly) {
+      controller.setDraftsOnly(result.draftsOnly);
+    }
+    setState(() {});
+  }
+
   Future<void> _openAccessSettings() async {
     try {
       await ref
@@ -251,6 +274,13 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
         backgroundColor: Colors.transparent,
         title: const Text('Lịch sử giao dịch'),
         actions: [
+          IconButton(
+            key: const ValueKey('open-filter'),
+            tooltip: 'Bộ lọc giao dịch',
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+            icon: const Icon(LucideIcons.slidersHorizontal),
+            onPressed: _openFilterSheet,
+          ),
           IconButton(
             key: const ValueKey('open-transfer'),
             tooltip: 'Chuyển tiền giữa ví',
@@ -425,7 +455,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                   child: TextButton.icon(
                     onPressed: controller.loadTransactions,
                     icon: const Icon(LucideIcons.refreshCw, size: 16),
-                    label: const Text('Tải lại'),
+                    label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Tải lại', maxLines: 1)),
                   ),
                 ),
               ],
@@ -710,7 +740,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
               Text(
                 '$days NGÀY',
                 style: caption.copyWith(
-                  fontSize: 11,
+                  fontSize: 12,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.55,
                 ),
@@ -885,7 +915,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: secondary.copyWith(
-                          fontSize: 10,
+                          fontSize: 11,
                           fontWeight: FontWeight.w600,
                           color: AppColors.slateOn(context),
                         ),

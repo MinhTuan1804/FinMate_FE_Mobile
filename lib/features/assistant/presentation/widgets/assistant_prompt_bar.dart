@@ -42,7 +42,7 @@ class AssistantPromptBar extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: AppTypography.body(context).copyWith(
                 color: AppColors.textSecondary(context),
-                fontSize: 13.5,
+                fontSize: 14,
               ),
             ),
           ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:finmate/features/assistant/data/assistant_repository.dart';
+import 'package:finmate/features/assistant/domain/agent_answer.dart';
 import 'package:finmate/features/assistant/domain/assistant_models.dart';
 import 'package:finmate/features/assistant/presentation/controllers/assistant_controller.dart';
 import 'package:finmate/features/assistant/presentation/widgets/chat_cards.dart';
@@ -24,31 +25,60 @@ Map<String, dynamic> goalJson({String? deadline, String? deadlineText = '2 thán
 
 class _Repo extends AssistantRepository {
   final Map<String, dynamic> reply;
+  final List<String> asked = [];
+  Object? askFails;
+
+  /// Kết luận của agent cho mục tiêu: feasible | tight | infeasible. Mặc định khả thi (để mục tiêu được tự tạo)
+  String verdict = 'feasible';
+
+  /// false: câu trả lời không có bằng chứng `goal_target` của công cụ goal_plan (agent dùng công cụ khác)
+  bool goalEvidence = true;
+
   _Repo(this.reply) : super(apiClient: testApiClient(RouteAdapter((o) => respondJson({'success': true}))));
 
   @override
-  Future<ChatReply> chat(String text, {String? accountId, String? clientRequestId}) async => ChatReply.fromJson(reply);
+  Future<ChatReply> chat(String text, {String? accountId, String? clientRequestId, Map<String, dynamic>? itemContext}) async => ChatReply.fromJson(reply);
+
+  @override
+  Future<AgentAnswer> assessGoal(BigInt targetVnd, int months) async {
+    asked.add('goal:$targetVnd:$months');
+    if (askFails != null) throw askFails!;
+    return AgentAnswer.fromJson({
+      'status': 'answered',
+      'claims': [{'text': 'Cần góp khoảng 25.000.000 đồng mỗi tháng.', 'evidenceIds': []}],
+      'evidence': [
+        if (goalEvidence) {'id': 'goal_target', 'key': 'goal_target', 'valueVnd': 50000000, 'text': 'Số tiền mục tiêu', 'unit': 'VND', 'source': 'user_entered', 'asOf': '2026-11-19T10:00:00+07:00', 'confidence': 1.0},
+      ],
+      'verdict': verdict,
+      'suggestedActions': [],
+    });
+  }
 }
 
 void main() {
   late List<(String, BigInt, DateTime?)> created;
+  late List<String> deleted;
   late Object? failWith;
 
-  AssistantController controller(Map<String, dynamic> reply, {bool withCreate = true}) => AssistantController(
-        repository: _Repo(reply),
+  AssistantController controller(Map<String, dynamic> reply, {bool withCreate = true, _Repo? repo, bool auto = true}) => AssistantController(
+        repository: repo ?? _Repo(reply),
         retryEvery: null,
+        autoCreateGoals: auto,
         createGoal: withCreate
             ? (name, target, deadline) async {
                 if (failWith != null) throw failWith!;
                 created.add((name, target, deadline));
+                return 'goal-${created.length}';
               }
             : null,
+        deleteGoal: (id) async => deleted.add(id),
       );
 
   String inTwoMonths() => DateTime.now().add(const Duration(days: 62)).toUtc().toIso8601String();
 
   setUp(() {
     created = [];
+    deleted = [];
     failWith = null;
   });
 
@@ -95,8 +125,121 @@ void main() {
   });
 
   group('thẻ trong chat', () {
-    test('câu đặt mục tiêu hiện lời nhắn rồi MỘT thẻ, và chưa tạo gì', () async {
+    test('mục tiêu KHẢ THI: hỏi agent trước, rồi tạo ngay đúng một lần, thẻ "Đã tạo" có id để hoàn tác, phân tích hiện sau thẻ; số tiền và số tháng gửi cho agent đúng như đã hiểu', () async {
+      final repo = _Repo(goalJson(deadline: inTwoMonths()));
+      final c = controller(goalJson(deadline: inTwoMonths()), repo: repo);
+
+      await c.send('đặt mục tiêu mua xe máy 50 triệu trong 2 tháng');
+
+      expect(created, hasLength(1));
+      final card = c.state.messages.whereType<GoalDraftCard>().single;
+      expect((card.status, card.goalId), (GoalCardStatus.created, 'goal-1'));
+      expect(repo.asked, hasLength(1));
+      expect(repo.asked.single, 'goal:50000000:3');
+      expect(c.state.messages.whereType<AssistantText>().where((m) => m.text.contains('bấm Tạo mục tiêu')), isEmpty, reason: 'lời mời bấm xác nhận sai khi app đã tạo rồi');
+      expect(c.state.messages.whereType<AgentCard>(), hasLength(1));
+      expect(c.state.isAskingAgent, isFalse);
+    });
+
+    for (final verdict in ['tight', 'infeasible']) {
+      test('mục tiêu chưa khả thi ($verdict): KHÔNG tự tạo; hiện lời giải thích, phân tích, rồi thẻ xác nhận để người dùng quyết (tạo theo hạn đã nêu vẫn được)', () async {
+        final repo = _Repo(goalJson(deadline: inTwoMonths()))..verdict = verdict;
+        final c = controller(goalJson(deadline: inTwoMonths()), repo: repo);
+
+        await c.send('đặt mục tiêu mua xe máy 50 triệu trong 2 tháng');
+
+        expect(created, isEmpty);
+        expect(c.state.messages.map((m) => m.runtimeType), [UserText, AssistantText, AgentCard, GoalDraftCard], reason: 'thứ tự: lời giải thích, phân tích, rồi quyết định');
+        expect((c.state.messages[1] as AssistantText).text, contains('chưa khả thi'));
+        final card = c.state.messages.whereType<GoalDraftCard>().single;
+        expect(card.status, GoalCardStatus.pending);
+
+        await c.confirmGoal(card.id); // người dùng quyết định tạo dù chưa khả thi
+        expect(created, hasLength(1));
+        expect(c.state.messages.whereType<GoalDraftCard>().single.status, GoalCardStatus.created);
+      });
+    }
+
+    test('agent lỗi (chưa đánh giá được): KHÔNG tự tạo, báo rõ và để thẻ xác nhận, không có thẻ phân tích', () async {
+      final repo = _Repo(goalJson(deadline: inTwoMonths()))..askFails = Exception('AI không dùng được');
+      final c = controller(goalJson(deadline: inTwoMonths()), repo: repo);
+
+      await c.send('đặt mục tiêu mua xe máy 50 triệu trong 2 tháng');
+
+      expect(created, isEmpty);
+      expect(c.state.messages.whereType<AgentCard>(), isEmpty);
+      expect(c.state.messages.whereType<GoalDraftCard>().single.status, GoalCardStatus.pending);
+      expect(c.state.messages.whereType<AssistantText>().single.text, contains('chưa đánh giá được'));
+      expect(c.state.isAskingAgent, isFalse);
+    });
+
+    test('câu trả lời của agent không phải đánh giá mục tiêu (thiếu bằng chứng goal_target) dù nói "khả thi": không tin để tự tạo', () async {
+      final repo = _Repo(goalJson(deadline: inTwoMonths()))..goalEvidence = false;
+      final c = controller(goalJson(deadline: inTwoMonths()), repo: repo);
+
+      await c.send('đặt mục tiêu mua xe máy 50 triệu trong 2 tháng');
+
+      expect(created, isEmpty);
+      expect(c.state.messages.whereType<GoalDraftCard>().single.status, GoalCardStatus.pending);
+    });
+
+    test('khả thi nhưng tạo lỗi: thẻ chờ kèm lý do để bấm lại, không hiện phân tích', () async {
+      failWith = Exception('mất mạng');
+      final repo = _Repo(goalJson(deadline: inTwoMonths()));
+      final c = controller(goalJson(deadline: inTwoMonths()), repo: repo);
+
+      await c.send('đặt mục tiêu mua xe máy 50 triệu trong 2 tháng');
+
+      final card = c.state.messages.whereType<GoalDraftCard>().single;
+      expect((card.status, card.error == null), (GoalCardStatus.pending, false));
+      expect(c.state.messages.whereType<AgentCard>(), isEmpty);
+    });
+
+    test('Hoàn tác: hủy đúng mục tiêu vừa tạo một lần, thẻ thành "đã hủy"', () async {
       final c = controller(goalJson(deadline: inTwoMonths()));
+      await c.send('đặt mục tiêu mua xe máy 50 triệu trong 2 tháng');
+      final id = c.state.messages.whereType<GoalDraftCard>().single.id;
+
+      await c.undoGoal(id);
+      await c.undoGoal(id);
+
+      expect(deleted, ['goal-1']);
+      expect(c.state.messages.whereType<GoalDraftCard>().single.status, GoalCardStatus.cancelled);
+    });
+
+    test('hạn do AI đọc hộ (aiAssisted): không tự tạo, thẻ chờ người dùng soát ngày; đọc đúng cờ từ phản hồi', () async {
+      final json = goalJson(deadline: inTwoMonths());
+      (json['goal'] as Map<String, dynamic>)['aiAssisted'] = true;
+      expect(ChatReply.fromJson(json).goal!.aiAssisted, isTrue);
+      expect(ChatReply.fromJson(goalJson(deadline: inTwoMonths())).goal!.aiAssisted, isFalse, reason: 'backend cũ không có cờ: luật đọc, được tự tạo');
+      final repo = _Repo(json);
+      final c = controller(json, repo: repo);
+
+      await c.send('đặt mục tiêu mua xe máy 50 triệu đến năm 2029');
+
+      expect(created, isEmpty);
+      expect(repo.asked, isEmpty);
+      final card = c.state.messages.whereType<GoalDraftCard>().single;
+      expect((card.status, card.goal.aiAssisted), (GoalCardStatus.pending, true));
+      expect(c.state.messages.whereType<AssistantText>().single.text, contains('bấm Tạo mục tiêu'), reason: 'thẻ chờ xác nhận thì lời mời bấm vẫn đúng');
+    });
+
+    test('không tự tạo khi tắt autoCreateGoals hoặc thiếu hạn: thẻ chờ xác nhận như trước', () async {
+      final off = AssistantController(repository: _Repo(goalJson(deadline: inTwoMonths())), retryEvery: null, autoCreateGoals: false, createGoal: (n, t, d) async {
+        created.add((n, t, d));
+        return 'x';
+      });
+      await off.send('đặt mục tiêu mua xe máy 50 triệu');
+      final noDeadline = controller(goalJson());
+      await noDeadline.send('đặt mục tiêu mua xe máy 50 triệu');
+
+      expect(created, isEmpty);
+      expect(off.state.messages.whereType<GoalDraftCard>().single.status, GoalCardStatus.pending);
+      expect(noDeadline.state.messages.whereType<GoalDraftCard>().single.status, GoalCardStatus.pending);
+    });
+
+    test('câu đặt mục tiêu hiện lời nhắn rồi MỘT thẻ, và chưa tạo gì', () async {
+      final c = controller(goalJson());
       await c.send('đặt mục tiêu vào 2 tháng sau tôi sẽ mua được xe máy khoảng 50 triệu');
 
       expect(c.state.messages.whereType<AssistantText>().single.text, contains('mục tiêu'));
@@ -200,8 +343,9 @@ void main() {
   });
 
   group('thẻ trên màn hình', () {
-    Future<AssistantController> pump(WidgetTester tester, Map<String, dynamic> reply) async {
-      final c = controller(reply);
+    /// [auto] false: thẻ chờ xác nhận (câu thiếu hạn, hoặc tắt tự tạo); true: câu đủ số tiền và hạn đã được tạo ngay
+    Future<AssistantController> pump(WidgetTester tester, Map<String, dynamic> reply, {bool auto = false}) async {
+      final c = controller(reply, auto: auto);
       await c.send('đặt mục tiêu mua xe máy 50 triệu');
       await tester.pumpWidget(ProviderScope(
         overrides: [assistantControllerProvider.overrideWith((ref) => c)],
@@ -245,6 +389,21 @@ void main() {
       expect(created, hasLength(1));
       expect(find.textContaining('Đã tạo mục tiêu "Mua xe máy"'), findsOneWidget);
       expect(find.byKey(const ValueKey('goal-create')), findsNothing);
+    });
+
+    testWidgets('câu đủ số tiền và hạn đã được tạo: thẻ "Đã tạo" có nút Hoàn tác; bấm thì thành dòng đã hủy', (tester) async {
+      await pump(tester, goalJson(deadline: DateTime.now().add(const Duration(days: 62)).toUtc().toIso8601String()), auto: true);
+
+      expect(created, hasLength(1));
+      expect(find.textContaining('Đã tạo mục tiêu "Mua xe máy"'), findsOneWidget);
+      expect(find.textContaining('hạn '), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('goal-undo')));
+      await tester.pumpAndSettle();
+
+      expect(deleted, ['goal-1']);
+      expect(find.textContaining('Đã hủy'), findsOneWidget);
+      expect(find.byKey(const ValueKey('goal-undo')), findsNothing);
     });
 
     testWidgets('bấm Hủy: thẻ thành dòng đã hủy, không tạo gì', (tester) async {

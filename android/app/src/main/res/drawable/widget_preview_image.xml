@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ảnh xem trước dự phòng (Android < 12, không có previewLayout): chỉ khung thẻ + biểu tượng có sẵn. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@drawable/widget_preview_bg" />
+    <item
+        android:drawable="@drawable/ic_shield_check"
+        android:gravity="center"
+        android:width="32dp"
+        android:height="32dp" />
+</layer-list>

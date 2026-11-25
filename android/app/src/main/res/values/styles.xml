@@ -15,4 +15,11 @@
     <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
         <item name="android:windowBackground">?android:colorBackground</item>
     </style>
+    <!-- Khung chat mở từ bong bóng FinMate AI vẽ đè: cửa sổ trong suốt toàn màn hình, Flutter tự vẽ khung chat
+         (AssistantOverlayActivity) nên vùng phía trên vẫn thấy app đang dùng như Messenger. -->
+    <style name="AssistantOverlayTheme" parent="@android:style/Theme.Translucent.NoTitleBar">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowAnimationStyle">@android:style/Animation.Dialog</item>
+    </style>
 </resources>

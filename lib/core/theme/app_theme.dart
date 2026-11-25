@@ -660,7 +660,8 @@ class AppTheme {
     );
   }
 
-  /// Áp cấu hình giao diện do admin đặt lên một theme có sẵn và tùy chọn Reduce Transparency.
+  /// Áp font admin chọn và tùy chọn Reduce Transparency của người dùng lên một theme có sẵn. Admin không đổi màu:
+  /// màu theo thiết kế, nên chế độ sáng/tối người dùng chọn luôn đúng.
   static ThemeData applyConfig(
     ThemeData base,
     ThemeConfig config, {
@@ -675,38 +676,13 @@ class AppTheme {
         ],
       );
     }
-    final primary = config.primaryColor;
-    if (primary != null) {
-      theme = theme.copyWith(
-        colorScheme: theme.colorScheme.copyWith(
-          primary: primary,
-          onPrimary: _onColor(primary),
-        ),
-        bottomNavigationBarTheme: theme.bottomNavigationBarTheme.copyWith(
-          selectedItemColor: primary,
-        ),
-      );
-    }
-    final background = config.backgroundColor;
-    if (background != null) {
-      theme = theme.copyWith(
-        scaffoldBackgroundColor: background,
-        appBarTheme: theme.appBarTheme.copyWith(backgroundColor: background),
-      );
-    }
-    final navBar = config.navBarColor;
-    if (navBar != null) {
-      theme = theme.copyWith(
-        bottomNavigationBarTheme: theme.bottomNavigationBarTheme.copyWith(
-          backgroundColor: navBar,
-        ),
-      );
-    }
     final font = config.fontFamily;
     if (font != null) {
+      final bundled = AppTypography.bundledFonts[font.toLowerCase()];
       try {
         theme = theme.copyWith(
-          textTheme: GoogleFonts.getTextTheme(font, theme.textTheme),
+          // Font đóng gói sẵn thì dùng bản trong app (không tải mạng); font khác tải qua Google Fonts.
+          textTheme: bundled != null ? theme.textTheme.apply(fontFamily: bundled) : GoogleFonts.getTextTheme(font, theme.textTheme),
         );
       } on Object {
         // tên không phải font Google hoặc không tải được: giữ font hiện tại thay vì làm hỏng cả theme
@@ -715,9 +691,4 @@ class AppTheme {
     return theme;
   }
 
-  /// Chữ trên nền [color]: trắng trên nền tối, đen trên nền sáng, để màu admin chọn luôn đọc được.
-  static Color _onColor(Color color) =>
-      ThemeData.estimateBrightnessForColor(color) == Brightness.dark
-          ? Colors.white
-          : Colors.black;
 }

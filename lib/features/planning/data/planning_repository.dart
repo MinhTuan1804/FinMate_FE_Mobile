@@ -75,16 +75,18 @@ class PlanningRepository {
     return (response.data ?? const <SavingsGoalEntity>[]).where((g) => !g.isCancelled).toList();
   }
 
-  Future<void> createGoal({required String name, required BigInt targetCents, DateTime? deadline}) async {
-    await apiClient.post(
+  /// Trả id mục tiêu vừa tạo (null nếu backend không trả) để app hoàn tác hoặc đổi hạn sau đó
+  Future<String?> createGoal({required String name, required BigInt targetCents, DateTime? deadline}) async {
+    final response = await apiClient.post(
       '/api/v1/saving-goals',
       data: {
         'name': name,
         'targetCents': targetCents.toInt(),
         if (deadline != null) 'deadline': deadline.toUtc().toIso8601String(),
       },
-      fromJsonT: (json) => json,
+      fromJsonT: (json) => json is Map ? json['id'] as String? : null,
     );
+    return response.data;
   }
 
   /// Nạp tiền vào mục tiêu; backend còn trả `celebration` (cấp độ/vật phẩm) nhưng FE không dùng

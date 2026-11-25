@@ -107,7 +107,7 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('change-role-u2')));
     await tester.pumpAndSettle();
-    await tester.tap(find.descendant(of: find.byType(Dialog), matching: find.text('Quản lý')));
+    await tester.tap(find.descendant(of: find.byType(Dialog), matching: find.text('Thủ quỹ')));
     await tester.pumpAndSettle();
 
     final req = adapter.requests.firstWhere((r) => r.method == 'PATCH');

@@ -222,4 +222,29 @@ void main() {
     expect(find.text('Chọn danh mục'), findsOneWidget);
     expect(adapter.requests.where((r) => r.method == 'POST' && r.path.contains('/entries')), isEmpty);
   });
+
+  testWidgets('nhóm chia hóa đơn: có tab Chia tiền, nút nổi "Chia tiền bill mới" và dải "Đã góp" của từng người', (tester) async {
+    final splitGroup = {...(fixtureData('groups') as List)[0] as Map<String, dynamic>, 'settlementModel': 'SplitBill', 'myRole': 'Owner'};
+    final base = detailAdapter(groupOverride: splitGroup, hasFund: true);
+    final adapter = RouteAdapter((o) {
+      if (o.path.endsWith('/balances')) {
+        return respondJson({'success': true, 'data': {'method': 'AiOptimized', 'members': [], 'transfers': []}});
+      }
+      if (o.path.endsWith('/approvals')) return respondJson({'success': true, 'data': []});
+      if (o.path.endsWith('/bills')) return respondJson({'success': true, 'data': []});
+      return base.handler(o);
+    });
+    await pumpScreen(tester, adapter);
+
+    expect(find.byKey(const ValueKey('detail-tab-bills')), findsOneWidget);
+    expect(find.byKey(const ValueKey('fab-new-bill')), findsOneWidget);
+    expect(find.byKey(const ValueKey('contributions-strip')), findsOneWidget);
+  });
+
+  testWidgets('nhóm quỹ chung thường: không có tab Chia tiền và không có nút nổi tạo bill', (tester) async {
+    await pumpScreen(tester, detailAdapter(hasFund: true));
+
+    expect(find.byKey(const ValueKey('detail-tab-bills')), findsNothing);
+    expect(find.byKey(const ValueKey('fab-new-bill')), findsNothing);
+  });
 }

@@ -16,7 +16,7 @@ class _Repo extends AssistantRepository {
   _Repo() : super(apiClient: testApiClient(RouteAdapter((o) => respondJson({'success': true}))));
 
   @override
-  Future<ChatReply> chat(String text, {String? accountId, String? clientRequestId}) async => ChatReply.fromJson(fixtureData('chat_confirm_multi') as Map<String, dynamic>);
+  Future<ChatReply> chat(String text, {String? accountId, String? clientRequestId, Map<String, dynamic>? itemContext}) async => ChatReply.fromJson(fixtureData('chat_confirm_multi') as Map<String, dynamic>);
 }
 
 DraftTransaction draft(int cents, String? slug, {String? account = 'acc-1', List<String> missing = const [], TransactionType type = TransactionType.expense, String desc = 'món'}) => DraftTransaction(

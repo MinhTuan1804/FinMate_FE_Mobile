@@ -9,7 +9,7 @@ import 'package:finmate/features/home_widget/domain/widget_config.dart';
 class WidgetConfigBridge {
   WidgetConfigBridge({MethodChannel? channel}) : _channel = channel ?? const MethodChannel(_channelName);
 
-  static const _channelName = 'com.example.finmate/widget_config';
+  static const _channelName = 'com.finmate.app/widget_config';
   final MethodChannel _channel;
 
   Future<int?> getWidgetId() async {
@@ -81,8 +81,8 @@ class WidgetConfigBridge {
   }
 
   String _receiverClassName(HomeWidgetKind kind) => switch (kind) {
-        HomeWidgetKind.safeSpend => 'com.example.finmate.widgets.SafeSpendWidgetReceiver',
-        HomeWidgetKind.overview => 'com.example.finmate.widgets.OverviewWidgetReceiver',
-        HomeWidgetKind.detail => 'com.example.finmate.widgets.DetailWidgetReceiver',
+        HomeWidgetKind.safeSpend => 'com.finmate.app.widgets.SafeSpendWidgetReceiver',
+        HomeWidgetKind.overview => 'com.finmate.app.widgets.OverviewWidgetReceiver',
+        HomeWidgetKind.detail => 'com.finmate.app.widgets.DetailWidgetReceiver',
       };
 }

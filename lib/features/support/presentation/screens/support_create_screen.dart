@@ -155,7 +155,7 @@ class _SupportCreateScreenState extends ConsumerState<SupportCreateScreen> {
                             child: Icon(LucideIcons.image, size: 18, color: AppColors.slateOn(context)),
                           ),
                           const SizedBox(width: 10),
-                          Expanded(child: Text(_images[i].name, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w600, fontSize: 13.5))),
+                          Expanded(child: Text(_images[i].name, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w600, fontSize: 14))),
                           IconButton(
                             key: ValueKey('remove-image-$i'),
                             tooltip: 'Bỏ ảnh',

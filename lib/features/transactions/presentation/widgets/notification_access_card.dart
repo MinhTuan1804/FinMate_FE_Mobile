@@ -51,7 +51,7 @@ class NotificationAccessCard extends StatelessWidget {
                   TextButton.icon(
                     onPressed: onOpenSettings,
                     icon: const Icon(LucideIcons.settings, size: 16),
-                    label: const Text('Mở cài đặt'),
+                    label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Mở cài đặt', maxLines: 1)),
                   ),
                 ],
               ),

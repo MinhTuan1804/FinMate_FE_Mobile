@@ -92,13 +92,15 @@ class PlanningController extends StateNotifier<AsyncValue<PlanningState>> {
     await loadPlanningData(silent: true);
   }
 
-  Future<void> createSavingsGoal({
+  /// Trả id mục tiêu vừa tạo (có thể null)
+  Future<String?> createSavingsGoal({
     required String title,
     required BigInt targetAmountCents,
     DateTime? targetDate,
   }) async {
-    await repository.createGoal(name: title, targetCents: targetAmountCents, deadline: targetDate);
+    final id = await repository.createGoal(name: title, targetCents: targetAmountCents, deadline: targetDate);
     await loadPlanningData(silent: true);
+    return id;
   }
 
   Future<void> cancelSavingsGoal(String goalId) async {
