@@ -470,7 +470,9 @@ class SummaryCardView extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Tóm tắt chi tiêu ${summary.periodLabel}',
+            summary.metric == 'wallet_balance'
+                ? 'Số dư hiện tại'
+                : 'Tóm tắt chi tiêu ${summary.periodLabel}',
             style: AppTypography.bodyMedium(
               context,
             ).copyWith(fontWeight: FontWeight.w700),
@@ -480,22 +482,36 @@ class SummaryCardView extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: _insetDecoration(context),
             child: Column(
-              children: [
-                row('Tổng chi', formatVnd(summary.expenseCents)),
-                if (summary.incomeCents > BigInt.zero)
-                  row(
-                    'Tổng thu',
-                    formatVnd(summary.incomeCents),
-                    color: AppColors.income,
-                  ),
-                row(
-                  'Còn lại',
-                  formatVnd(summary.leftCents),
-                  color: summary.leftCents < BigInt.zero
-                      ? AppColors.danger
-                      : AppColors.safe,
-                ),
-              ],
+              children: summary.metric == 'wallet_balance'
+                  ? [
+                      // số dư là tiền đang có trong các ví, không phải thu trừ chi của kỳ
+                      row(
+                        'Tổng số dư các ví',
+                        formatVnd(summary.totalCents),
+                        color: summary.totalCents < BigInt.zero
+                            ? AppColors.danger
+                            : AppColors.safe,
+                      ),
+                    ]
+                  : [
+                      row('Tổng chi', formatVnd(summary.expenseCents)),
+                      if (summary.incomeCents > BigInt.zero)
+                        row(
+                          'Tổng thu',
+                          formatVnd(summary.incomeCents),
+                          color: AppColors.income,
+                        ),
+                      // hỏi riêng một nhóm thì máy chủ không gửi thu và "còn lại" của cả kỳ (cả hai bằng 0)
+                      if (summary.incomeCents > BigInt.zero ||
+                          summary.leftCents != BigInt.zero)
+                        row(
+                          'Còn lại',
+                          formatVnd(summary.leftCents),
+                          color: summary.leftCents < BigInt.zero
+                              ? AppColors.danger
+                              : AppColors.safe,
+                        ),
+                    ],
             ),
           ),
           if (summary.items.isNotEmpty) ...[
