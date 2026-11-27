@@ -330,7 +330,7 @@ class ProfileScreen extends ConsumerWidget {
             const _Group(
               title: 'Ứng dụng & tài khoản',
               rows: [
-                _Row(key: ValueKey('open-devices'), icon: LucideIcons.smartphone, label: 'Thiết bị & thông báo push', route: '/devices'),
+                _Row(key: ValueKey('open-devices'), icon: LucideIcons.smartphone, label: 'Phiên đăng nhập', route: '/devices'),
                 _Row(key: ValueKey('open-widget-settings'), icon: Icons.widgets_outlined, label: 'Widget trên màn hình chính', route: '/widget-settings'),
                 _Row(key: ValueKey('open-survey'), icon: LucideIcons.clipboardList, label: 'Khảo sát đầu vào', route: '/survey'),
                 _Row(key: ValueKey('open-appearance'), icon: LucideIcons.eye, label: 'Giao diện và hiển thị', route: '/profile/appearance'),

@@ -26,71 +26,13 @@ Future<void> _pump(WidgetTester tester, RouteAdapter adapter) async {
 
 void main() {
   group('DevicesScreen', () {
-    testWidgets('đăng ký thiết bị gửi đúng token (đã sinh sẵn) và platform mặc định Android', (tester) async {
-      final adapter = _adapter();
-      await _pump(tester, adapter);
-
-      final tokenField = tester.widget<TextField>(find.byKey(const ValueKey('device-token')));
-      final token = tokenField.controller!.text;
-      expect(token, isNotEmpty);
-
-      await tester.tap(find.byKey(const ValueKey('device-register')));
-      await tester.pumpAndSettle();
-
-      final req = adapter.requests.single;
-      expect(req.method, 'POST');
-      expect(req.path, contains('/api/v1/devices'));
-      expect(req.data, {'token': token, 'platform': 'Android'});
-      expect(find.textContaining('Đã đăng ký thiết bị'), findsOneWidget);
-    });
-
-    testWidgets('bấm sinh lại token thì ô token đổi giá trị khác', (tester) async {
+    testWidgets('không còn ô token thử và nút đăng ký/gỡ đăng ký', (tester) async {
       await _pump(tester, _adapter());
 
-      final before = tester.widget<TextField>(find.byKey(const ValueKey('device-token'))).controller!.text;
-      await tester.tap(find.byKey(const ValueKey('device-token-regenerate')));
-      await tester.pump();
-      final after = tester.widget<TextField>(find.byKey(const ValueKey('device-token'))).controller!.text;
-
-      expect(after, isNot(equals(before)));
-    });
-
-    testWidgets('chọn nền tảng iOS rồi đăng ký thì gửi platform Ios', (tester) async {
-      final adapter = _adapter();
-      await _pump(tester, adapter);
-
-      await tester.tap(find.byKey(const ValueKey('device-platform')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('iOS').last);
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.byKey(const ValueKey('device-register')));
-      await tester.pumpAndSettle();
-
-      expect(adapter.requests.single.data['platform'], 'Ios');
-    });
-
-    testWidgets('gỡ đăng ký gửi DELETE với token hiện tại trong body', (tester) async {
-      final adapter = _adapter();
-      await _pump(tester, adapter);
-
-      final token = tester.widget<TextField>(find.byKey(const ValueKey('device-token'))).controller!.text;
-      await tester.tap(find.byKey(const ValueKey('device-unregister')));
-      await tester.pumpAndSettle();
-
-      final req = adapter.requests.single;
-      expect(req.method, 'DELETE');
-      expect(req.data, {'token': token});
-      expect(find.textContaining('Đã gỡ đăng ký'), findsOneWidget);
-    });
-
-    testWidgets('lỗi mạng khi đăng ký hiện thông báo lỗi, không crash', (tester) async {
-      await _pump(tester, RouteAdapter((o) => throwNetworkDown(o)));
-
-      await tester.tap(find.byKey(const ValueKey('device-register')));
-      await tester.pumpAndSettle();
-
-      expect(find.byType(SnackBar), findsOneWidget);
+      expect(find.byKey(const ValueKey('device-token')), findsNothing);
+      expect(find.byKey(const ValueKey('device-register')), findsNothing);
+      expect(find.byKey(const ValueKey('device-unregister')), findsNothing);
+      expect(find.byKey(const ValueKey('device-logout-all')), findsOneWidget);
     });
 
     testWidgets('đăng xuất tất cả thiết bị: hủy trong hộp thoại thì không gửi request', (tester) async {
