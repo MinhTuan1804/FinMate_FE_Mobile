@@ -16,6 +16,9 @@ object SafeSpendPrefs {
 
     private const val KEY_PER_DAY_CENTS = "w1_perDayCents"
     private const val KEY_SPENT_CENTS = "w1_spentCents"
+    private const val KEY_SPENT_TODAY_CENTS = "w1_spentTodayCents"
+    private const val KEY_OVER_MONTH = "w1_overMonth"
+    private const val KEY_MONTH_OVER_CENTS = "w1_monthOverCents"
     private const val KEY_PERCENT_USED = "w1_percentUsed"
     private const val KEY_HAS_BUDGET = "w1_hasBudget"
     private const val KEY_LAST_SYNC_AT = "w1_lastSyncAtMillis"
@@ -28,7 +31,13 @@ object SafeSpendPrefs {
         val hasBudget: Boolean,
         val lastSyncAtMillis: Long,
         val syncError: Boolean,
-    )
+        val spentTodayCents: Long = 0L,
+        val overMonth: Boolean = false,
+        val monthOverCents: Long = 0L,
+    ) {
+        /** Báo đỏ khi tháng đã vượt mức hoặc riêng hôm nay đã chi quá mức an toàn (xem [DailySafeSpend.over]). */
+        val over: Boolean get() = hasBudget && (overMonth || percentUsed >= 100f)
+    }
 
     fun read(context: Context): Data? {
         val prefs = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
@@ -41,6 +50,9 @@ object SafeSpendPrefs {
             hasBudget = prefs.getBoolean(KEY_HAS_BUDGET, false),
             lastSyncAtMillis = lastSync,
             syncError = prefs.getBoolean(KEY_SYNC_ERROR, false),
+            spentTodayCents = prefs.getLong(KEY_SPENT_TODAY_CENTS, 0L),
+            overMonth = prefs.getBoolean(KEY_OVER_MONTH, false),
+            monthOverCents = prefs.getLong(KEY_MONTH_OVER_CENTS, 0L),
         )
     }
 
@@ -52,6 +64,9 @@ object SafeSpendPrefs {
             .putBoolean(KEY_HAS_BUDGET, data.hasBudget)
             .putLong(KEY_LAST_SYNC_AT, data.lastSyncAtMillis)
             .putBoolean(KEY_SYNC_ERROR, data.syncError)
+            .putLong(KEY_SPENT_TODAY_CENTS, data.spentTodayCents)
+            .putBoolean(KEY_OVER_MONTH, data.overMonth)
+            .putLong(KEY_MONTH_OVER_CENTS, data.monthOverCents)
             .commit()
     }
 
@@ -133,26 +148,20 @@ object SafeSpendSync {
         }
     }
 
-    /// Cùng công thức với `_buildSafeToSpendCard` (home_screen.dart): perDay = spendableCents /
-    /// số ngày còn lại trong tháng; percentUsed = spentCents/incomeCents*100 (0 nếu chưa biết thu nhập).
+    /// Cùng công thức với `_buildSafeToSpendCard` (home_screen.dart), xem [DailySafeSpend]: mức an toàn hôm nay do server tính,
+    /// vòng tròn = đã chi hôm nay ÷ mức đó. `spentCents` vẫn là chi cả tháng (không còn hiển thị ở W1).
     private fun computeFrom(json: JSONObject): SafeSpendPrefs.Data {
-        val spendableCents = json.optLong("spendableCents", Long.MIN_VALUE).takeIf { !json.isNull("spendableCents") && it != Long.MIN_VALUE }
-        val incomeCents = json.optLong("incomeCents", Long.MIN_VALUE).takeIf { !json.isNull("incomeCents") && it != Long.MIN_VALUE }
-        val spentCents = json.optLong("spentCents", 0L)
-
-        val cal = java.util.Calendar.getInstance()
-        val lastDay = cal.getActualMaximum(java.util.Calendar.DAY_OF_MONTH)
-        val daysRemaining = lastDay - cal.get(java.util.Calendar.DAY_OF_MONTH) + 1
-        val perDay = if (spendableCents != null && daysRemaining > 0) spendableCents / daysRemaining else 0L
-        val percentUsed = if (incomeCents == null || incomeCents == 0L) 0f else (spentCents.toFloat() / incomeCents.toFloat() * 100f)
-
+        val daily = DailySafeSpend.from(json)
         return SafeSpendPrefs.Data(
-            perDayCents = perDay,
-            spentCents = spentCents,
-            percentUsed = percentUsed,
-            hasBudget = spendableCents != null,
+            perDayCents = daily.safeTodayCents,
+            spentCents = json.optLong("spentCents", 0L),
+            percentUsed = daily.percentUsed,
+            hasBudget = daily.hasBudget,
             lastSyncAtMillis = System.currentTimeMillis(),
             syncError = false,
+            spentTodayCents = daily.spentTodayCents,
+            overMonth = daily.overMonth,
+            monthOverCents = daily.monthOverCents,
         )
     }
 }

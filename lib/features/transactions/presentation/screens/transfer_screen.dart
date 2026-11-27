@@ -102,6 +102,12 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
       setState(() => _errorMessage = 'Số tiền chuyển không hợp lệ.');
       return;
     }
+    // Không chuyển quá số dư ví nguồn (server cũng từ chối).
+    final available = _fromAccount!.balanceCents;
+    if (BigInt.from(amountInt) > available) {
+      setState(() => _errorMessage = 'Số dư ví nguồn không đủ: còn ${formatVnd(available < BigInt.zero ? BigInt.zero : available)}.');
+      return;
+    }
 
     setState(() {
       _isLoading = true;

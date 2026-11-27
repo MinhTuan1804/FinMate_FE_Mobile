@@ -300,11 +300,20 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
                   child: Row(
                     children: [
                       Expanded(child: Text('Chi an toàn hôm nay', style: GlassTypography.bodySm())),
-                      Text('${formatVnd(planning.dailySafeLimit)} / ngày', style: GlassTypography.labelNumeric().copyWith(fontSize: 13)),
+                      Text('${formatVnd(effectiveDailySafeLimit(ref, planning))} / ngày', style: GlassTypography.labelNumeric().copyWith(fontSize: 13)),
                     ],
                   ),
                 ),
               ],
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  key: const ValueKey('budget-total-delete'),
+                  onPressed: () => _delete(overall),
+                  icon: Icon(LucideIcons.trash2, size: 16, color: GlassColors.danger),
+                  label: Text('Xoá ngân sách tổng', style: TextStyle(color: GlassColors.danger)),
+                ),
+              ),
             ],
           ),
         ),

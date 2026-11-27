@@ -38,13 +38,12 @@ import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
 import com.finmate.app.MainActivity
 import com.finmate.app.R
-import kotlin.math.abs
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Locale
 
 /**
- * W1 "Chi an toàn" (2×2) — nội dung thật (đợt build riêng cho W1, xem kế hoạch chia nhỏ Luồng 9):
+ * W1 "Hôm nay" (2×1) — nội dung thật (đợt build riêng cho W1, xem kế hoạch chia nhỏ Luồng 9):
  * đọc dữ liệu đã đồng bộ sẵn bởi [SafeSpendRefreshWorker] (WorkManager nền, 30 phút/lần, không phụ
  * thuộc Flutter engine đang chạy hay không) qua [SafeSpendPrefs]. Theo đúng
  * `design_reference/W_widgets/w1_states.png`: đang đồng bộ lần đầu / an toàn &lt;80% / lưu ý
@@ -56,9 +55,9 @@ class SafeSpendWidget : GlanceAppWidget() {
         // Trạng thái vượt ngân sách: mở /planning qua ActionCallback thật (không qua Intent) — Intent
         // extra đã bị nghi rơi mất qua lớp Background-Activity-Launch-workaround của Glance, cùng gốc
         // với bug trampoline "Page Not Found" trước đó.
-        val over = data?.let { it.hasBudget && it.percentUsed >= 100f } ?: false
-        val openAppAction = if (over) {
-            actionRunCallback<OpenPlanningCallback>()
+        // Chạm vào thẻ = ghi một khoản chi ngay (việc làm nhiều nhất trong ngày); chưa có số liệu thì chỉ mở app.
+        val openAppAction = if (data != null && data.hasBudget) {
+            actionRunCallback<OpenQuickAddCallback>()
         } else {
             actionStartActivity(Intent(context, MainActivity::class.java))
         }
@@ -71,7 +70,7 @@ class SafeSpendWidget : GlanceAppWidget() {
                         .cornerRadius(20.dp)
                         .background(SafeSpendColors.cardBg)
                         .clickable(openAppAction)
-                        .padding(14.dp),
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
                 ) {
                     when {
                         data == null -> SyncingContent()
@@ -124,136 +123,63 @@ private fun SyncingContent() {
     }
 }
 
-@Composable
-private fun CardHeader(iconRes: Int, label: String) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = GlanceModifier.fillMaxWidth().clickable(actionRunCallback<OpenWidgetSettingsCallback>()),
-    ) {
-        Image(
-            provider = ImageProvider(iconRes),
-            contentDescription = null,
-            modifier = GlanceModifier.size(14.dp),
-            colorFilter = androidx.glance.ColorFilter.tint(SafeSpendColors.textSecondary),
-        )
-        Spacer(modifier = GlanceModifier.width(6.dp))
-        Text(
-            text = "FinMate • $label",
-            style = TextStyle(fontSize = 11.sp, color = SafeSpendColors.textSecondary),
-        )
-    }
-}
-
-@Composable
-private fun CardFooter(updatedAtMillis: Long, actionLabel: String) {
-    Row(
-        modifier = GlanceModifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = "Cập nhật ${formatTime(updatedAtMillis)}",
-            style = TextStyle(fontSize = 10.sp, color = SafeSpendColors.textSecondary),
-            modifier = GlanceModifier.defaultWeight(),
-        )
-        Text(
-            text = actionLabel,
-            style = TextStyle(fontSize = 10.sp, color = SafeSpendColors.textPrimary, fontWeight = FontWeight.Medium),
-        )
-    }
-}
-
+/** Một hàng: nhãn nhỏ (có biểu tượng) và số tiền lớn bên dưới; không còn khoảng trống trên dưới như bản 2×2.
+ * Số lớn là "hôm nay còn chi được bao nhiêu"; tháng đã vượt thì "Vượt X" (rút gọn: "10,9 tr"). Chạm vào thẻ = ghi một khoản chi. */
 @Composable
 private fun SpendableContent(data: SafeSpendPrefs.Data) {
-    val over = data.percentUsed >= 100f
+    val over = data.over
     val caution = !over && data.percentUsed >= 80f
-    val ringColor = when {
-        over -> SafeSpendColors.OVER
-        caution -> SafeSpendColors.CAUTION
-        else -> SafeSpendColors.SAFE
+    val remaining = (data.perDayCents - data.spentTodayCents).coerceAtLeast(0L)
+    val bigText = when {
+        data.overMonth -> if (data.monthOverCents > 0) "Vượt ${formatVndShort(data.monthOverCents)}" else "Hết mức"
+        else -> formatVndShort(remaining)
     }
-    Column(modifier = GlanceModifier.fillMaxSize()) {
-        CardHeader(
-            iconRes = if (over) R.drawable.ic_alert_triangle else R.drawable.ic_shield_check,
-            label = if (over) "Cần điều chỉnh" else "Chi an toàn",
-        )
-        Spacer(modifier = GlanceModifier.height(8.dp))
-        Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
-            Column(modifier = GlanceModifier.defaultWeight()) {
-                Text(
-                    text = if (over) "Vượt ${formatVnd(abs(data.perDayCents))}" else formatVnd(data.perDayCents),
-                    style = TextStyle(
-                        fontSize = if (over) 14.sp else 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (over) ColorProvider(Color(SafeSpendColors.OVER)) else SafeSpendColors.textPrimary,
-                    ),
-                    maxLines = 1,
-                )
-                Text(
-                    text = if (over) "Nên tạm hoãn các khoản phát sinh" else "Hôm nay có thể chi tiêu an toàn",
-                    style = TextStyle(fontSize = 10.sp, color = SafeSpendColors.textSecondary),
-                    maxLines = 2,
-                )
-            }
-            Spacer(modifier = GlanceModifier.width(6.dp))
+    val label = when {
+        data.overMonth -> "Vượt mức tháng này"
+        over -> "Quá mức an toàn hôm nay"
+        else -> "Hôm nay · đã dùng ${data.percentUsed.toInt()}%"
+    } + if (data.syncError) " · dữ liệu cũ" else ""
+    val bigColor = when {
+        over -> ColorProvider(Color(SafeSpendColors.OVER))
+        caution -> ColorProvider(Color(SafeSpendColors.CAUTION))
+        else -> SafeSpendColors.textPrimary
+    }
+    Column(modifier = GlanceModifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Image(
-                provider = ImageProvider(
-                    ProgressRing.draw(
-                        sizePx = 160,
-                        strokeWidthPx = 14f,
-                        percent = data.percentUsed,
-                        trackColor = withAlpha(ringColor, 40),
-                        progressColor = ringColor,
-                        percentText = "${data.percentUsed.toInt()}%",
-                        subLabel = "tháng",
-                        subLabelColor = SafeSpendColors.secondaryInt(androidx.glance.LocalContext.current),
-                    ),
-                ),
-                contentDescription = "${data.percentUsed.toInt()}% ngân sách tháng đã dùng",
-                modifier = GlanceModifier.size(56.dp),
+                provider = ImageProvider(if (over) R.drawable.ic_alert_triangle else R.drawable.ic_shield_check),
+                contentDescription = null,
+                modifier = GlanceModifier.size(12.dp),
+                colorFilter = androidx.glance.ColorFilter.tint(SafeSpendColors.textSecondary),
             )
-        }
-        Spacer(modifier = GlanceModifier.height(6.dp))
-        CardFooter(
-            updatedAtMillis = data.lastSyncAtMillis,
-            actionLabel = if (over) "Bù đắp ngân sách →" else "Mở FinMate →",
-        )
-        if (data.syncError) {
+            Spacer(modifier = GlanceModifier.width(4.dp))
             Text(
-                text = "Dữ liệu cũ — mất kết nối lần đồng bộ gần nhất",
-                style = TextStyle(fontSize = 9.sp, color = ColorProvider(Color(SafeSpendColors.CAUTION))),
+                text = label,
+                style = TextStyle(fontSize = 10.sp, color = SafeSpendColors.textSecondary),
                 maxLines = 1,
             )
         }
+        Text(
+            text = bigText,
+            style = TextStyle(fontSize = 24.sp, fontWeight = FontWeight.Bold, color = bigColor),
+            maxLines = 1,
+        )
     }
 }
 
 @Composable
 private fun NoBudgetContent() {
-    Column(modifier = GlanceModifier.fillMaxSize()) {
-        CardHeader(iconRes = R.drawable.ic_sparkles, label = "Gợi ý thông minh")
-        Spacer(modifier = GlanceModifier.height(8.dp))
-        Column(modifier = GlanceModifier.fillMaxWidth().defaultWeight()) {
-            Text(
-                text = "Chưa đặt ngân sách",
-                style = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.Bold, color = SafeSpendColors.textPrimary),
-            )
-            Text(
-                text = "Đặt ngân sách tháng để kích hoạt hạn mức an toàn mỗi ngày.",
-                style = TextStyle(fontSize = 10.sp, color = SafeSpendColors.textSecondary),
-                maxLines = 3,
-            )
-        }
-        Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = "Chỉ mất 30 giây thiết lập",
-                style = TextStyle(fontSize = 10.sp, color = SafeSpendColors.textSecondary),
-                modifier = GlanceModifier.defaultWeight(),
-            )
-            Text(
-                text = "Đặt ngay +",
-                style = TextStyle(fontSize = 10.sp, color = SafeSpendColors.textPrimary, fontWeight = FontWeight.Bold),
-            )
-        }
+    Column(modifier = GlanceModifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = "Chưa đặt ngân sách",
+            style = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Bold, color = SafeSpendColors.textPrimary),
+            maxLines = 1,
+        )
+        Text(
+            text = "Đặt hạn mức để biết mỗi ngày chi bao nhiêu",
+            style = TextStyle(fontSize = 10.sp, color = SafeSpendColors.textSecondary),
+            maxLines = 1,
+        )
     }
 }
 
@@ -264,6 +190,20 @@ private fun formatVnd(cents: Long): String {
     val formatter = NumberFormat.getNumberInstance(Locale.forLanguageTag("vi-VN"))
     formatter.maximumFractionDigits = 0
     return "${formatter.format(cents)} đ"
+}
+
+/** Số tiền rút gọn cho ô hẹp: từ 1 triệu trở lên ghi "10,9 tr" / "2,3 tỷ", dưới đó ghi đủ ("850.000 đ"). */
+private fun formatVndShort(cents: Long): String {
+    val abs = kotlin.math.abs(cents)
+    fun oneDecimal(value: Double): String {
+        val text = String.format(Locale.US, "%.1f", value)
+        return (if (text.endsWith(".0")) text.dropLast(2) else text).replace('.', ',')
+    }
+    return when {
+        abs >= 1_000_000_000L -> "${oneDecimal(cents / 1_000_000_000.0)} tỷ"
+        abs >= 1_000_000L -> "${oneDecimal(cents / 1_000_000.0)} tr"
+        else -> formatVnd(cents)
+    }
 }
 
 private fun formatTime(millis: Long): String =

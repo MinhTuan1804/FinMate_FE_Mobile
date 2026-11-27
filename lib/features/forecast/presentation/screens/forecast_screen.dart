@@ -124,6 +124,9 @@ class ForecastScreen extends ConsumerStatefulWidget {
 class _ForecastScreenState extends ConsumerState<ForecastScreen> {
   /// Kết quả thử kịch bản gần nhất (null = đang hiện dự báo thật, không giả định gì).
   CashflowForecastEntity? _scenarioResult;
+
+  /// "Số tiền có thể chi" tính lại cho cùng kịch bản (null = số thật).
+  SafeToSpendEntity? _spendableScenario;
   bool _scenarioBusy = false;
 
   /// Theo cùng [AnomaliesController.openOnly], chỉ để SegmentedButton rebuild đúng khi bấm.
@@ -151,6 +154,7 @@ class _ForecastScreenState extends ConsumerState<ForecastScreen> {
       ref.invalidate(goalForecastProvider(_selectedGoalId!));
     setState(() {
       _scenarioResult = null;
+      _spendableScenario = null;
       _anomaliesOpenOnly = true;
       _goalScenarioResult = null;
     });
@@ -251,11 +255,17 @@ class _ForecastScreenState extends ConsumerState<ForecastScreen> {
     setState(() => _scenarioBusy = true);
     final messenger = ScaffoldMessenger.of(context);
     try {
-      final result = await ref
-          .read(forecastRepositoryProvider)
-          .runScenario(items: [item]);
+      final repo = ref.read(forecastRepositoryProvider);
+      // Cùng một kịch bản cho cả dự báo dòng tiền lẫn "Số tiền có thể chi", để hai khối không mâu thuẫn nhau.
+      final (result, spendable) = await (
+        repo.runScenario(items: [item]),
+        repo.runSpendableScenario(items: [item]),
+      ).wait;
       if (!mounted) return;
-      setState(() => _scenarioResult = result);
+      setState(() {
+        _scenarioResult = result;
+        _spendableScenario = spendable;
+      });
     } catch (e) {
       messenger.showSnackBar(
         SnackBar(
@@ -442,7 +452,10 @@ class _ForecastScreenState extends ConsumerState<ForecastScreen> {
                   if (isScenario)
                     TextButton(
                       key: const ValueKey('forecast-reset-scenario'),
-                      onPressed: () => setState(() => _scenarioResult = null),
+                      onPressed: () => setState(() {
+                        _scenarioResult = null;
+                        _spendableScenario = null;
+                      }),
                       child: const Text('Xem lại dự báo gốc'),
                     ),
                 ],
@@ -458,9 +471,10 @@ class _ForecastScreenState extends ConsumerState<ForecastScreen> {
     BuildContext context,
     AsyncValue<SafeToSpendEntity> async,
   ) {
+    final scenario = _spendableScenario;
     return _sectionCard(
-      title: 'Số tiền có thể chi',
-      child: async.when(
+      title: scenario != null ? 'Số tiền có thể chi (kịch bản giả định)' : 'Số tiền có thể chi',
+      child: (scenario != null ? AsyncValue.data(scenario) : async).when(
         loading: () => const Padding(
           padding: EdgeInsets.all(16),
           child: Center(child: CircularProgressIndicator()),

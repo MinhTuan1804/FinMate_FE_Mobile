@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Luồng 9 — nhãn/mô tả hiện trong trình chọn "Tiện ích/Widgets" của Android -->
-    <string name="widget_w1_label">FinMate — Chi an toàn</string>
-    <string name="widget_w1_description">Ví dụ: số tiền còn có thể tiêu an toàn hôm nay, kèm vòng tròn % ngân sách đã dùng.</string>
-    <string name="widget_w2_label">FinMate — Tổng quan</string>
-    <string name="widget_w2_description">Ví dụ: số dư khả dụng, % ngân sách tháng đã dùng và nút ghi chép nhanh.</string>
-    <string name="widget_w4x4_label">FinMate — Chi tiết</string>
-    <string name="widget_w4x4_description">Ví dụ: số dư, dự báo cuối tháng và số giao dịch đã ghi hôm nay.</string>
+    <string name="widget_w1_label">FinMate — Hôm nay</string>
+    <string name="widget_w1_description">Một hàng gọn: hôm nay còn chi được bao nhiêu; chạm vào để ghi một khoản chi.</string>
+    <string name="widget_w2_label">FinMate — Ghi nhanh</string>
+    <string name="widget_w2_description">Số dư các ví và hai nút: Chat, Quét QR.</string>
+    <string name="widget_w4x4_label">FinMate — Tổng quan</string>
+    <string name="widget_w4x4_description">Còn chi được hôm nay, số dư, đã chi tháng này, dự báo cuối tháng, hai nút Chat và Quét QR, giao dịch gần nhất và các khoản sắp đến hạn.</string>
 </resources>

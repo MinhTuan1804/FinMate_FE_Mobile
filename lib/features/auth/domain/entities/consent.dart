@@ -3,7 +3,7 @@
 /// server từ chối (409) phiên bản không khớp, nên app cũ không thể "đồng ý" thay cho câu chữ mới.
 /// KHÔNG có endpoint nào ở BE trả về phiên bản hiện hành để client tự đọc — các hằng số dưới đây phải tự tay đồng bộ
 /// với file trên mỗi khi BE tăng phiên bản.
-enum ConsentKind { terms, ai, training, community }
+enum ConsentKind { terms, ai, training }
 
 class ConsentVersions {
   const ConsentVersions._();
@@ -21,13 +21,9 @@ class ConsentVersions {
   /// Đóng góp chữ hóa đơn đã ẩn thông tin cá nhân + danh mục cuối cùng để cải thiện phân loại
   static const training = 1;
 
-  /// Đăng bài/bình luận trong Cộng đồng. Xem thì không cần đồng ý này.
-  static const community = 1;
-
   static int of(ConsentKind kind) => switch (kind) {
         ConsentKind.terms => terms,
         ConsentKind.ai => ai,
         ConsentKind.training => training,
-        ConsentKind.community => community,
       };
 }

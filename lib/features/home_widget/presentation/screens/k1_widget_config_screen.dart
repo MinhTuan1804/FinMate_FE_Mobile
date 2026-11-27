@@ -18,8 +18,9 @@ final _accountsProvider = FutureProvider<List<FinancialAccount>>(
   (ref) => ref.watch(accountsRepositoryProvider).getAccounts(),
 );
 
-/// Dữ liệu xem trước đã tính từ số liệu thật của người dùng — cùng công thức với các lớp *Sync.kt
-/// (perDay = spendable / số ngày còn lại trong tháng; percent = spent / income). Giá trị null = chưa có.
+/// Dữ liệu xem trước đã tính từ số liệu thật của người dùng — cùng công thức với các lớp *Sync.kt và Trang chủ
+/// (DailySafeSpend.kt): mức an toàn hôm nay do server tính (`safeTodayCents`), vòng tròn = đã chi hôm nay ÷ mức đó,
+/// tháng đã vượt mức thì 0 đ và vòng 100%. Giá trị null = chưa có.
 class WidgetPreviewData {
   const WidgetPreviewData({
     this.accountLabel,
@@ -29,6 +30,9 @@ class WidgetPreviewData {
     this.income,
     this.percentUsed,
     this.forecastEnd,
+    this.spentToday,
+    this.overMonth = false,
+    this.monthOver,
   });
 
   final String? accountLabel;
@@ -38,8 +42,24 @@ class WidgetPreviewData {
   final BigInt? income;
   final int? percentUsed;
   final BigInt? forecastEnd;
+  final BigInt? spentToday;
+
+  /// Tháng này đã chi vượt mức (không còn gì để chi an toàn).
+  final bool overMonth;
+
+  /// Số tiền tháng này đang vượt (spendable âm); null/0 khi chưa vượt.
+  final BigInt? monthOver;
+
+  /// "Còn chi được hôm nay" = mức an toàn hôm nay trừ đã chi hôm nay, không âm.
+  BigInt get remainingToday {
+    final left = (perDay ?? BigInt.zero) - (spentToday ?? BigInt.zero);
+    return left < BigInt.zero ? BigInt.zero : left;
+  }
 
   bool get hasBudget => perDay != null;
+
+  /// Đáng báo đỏ: tháng đã vượt, hoặc riêng hôm nay đã chi quá mức an toàn.
+  bool get over => hasBudget && (overMonth || (percentUsed ?? 0) >= 100);
 
   static WidgetPreviewData compute({
     required SpendableEntity spendable,
@@ -48,10 +68,12 @@ class WidgetPreviewData {
     BigInt? forecastEnd,
     DateTime? now,
   }) {
-    final today = now ?? DateTime.now();
-    final daysRemaining = DateTime(today.year, today.month + 1, 0).day - today.day + 1;
     final spendableCents = spendable.spendableCents;
     final income = spendable.incomeCents;
+    // Cùng điều kiện ẩn với thẻ "Chi an toàn hôm nay" ở Trang chủ: chưa biết thu nhập hoặc server chưa gửi mức hôm nay.
+    final safeToday = spendableCents == null ? null : spendable.safeTodayCents;
+    final overMonth = safeToday != null && safeToday <= BigInt.zero;
+    final spentToday = spendable.spentTodayCents;
 
     BigInt? balance;
     String? label;
@@ -65,11 +87,14 @@ class WidgetPreviewData {
     return WidgetPreviewData(
       accountLabel: label,
       balance: balance,
-      perDay: spendableCents == null ? null : spendableCents ~/ BigInt.from(daysRemaining),
+      perDay: safeToday == null ? null : (overMonth ? BigInt.zero : safeToday),
       spent: spendable.spentCents,
       income: income,
-      percentUsed: (income == null || income == BigInt.zero) ? 0 : (spendable.spentCents * BigInt.from(100) ~/ income).toInt(),
+      percentUsed: safeToday == null ? 0 : (overMonth ? 100 : (spentToday * BigInt.from(100) ~/ safeToday).toInt()),
       forecastEnd: forecastEnd,
+      spentToday: spentToday,
+      overMonth: overMonth,
+      monthOver: spendableCents != null && spendableCents < BigInt.zero ? -spendableCents : BigInt.zero,
     );
   }
 }
@@ -304,9 +329,9 @@ class _SizeSection extends StatelessWidget {
             Expanded(
               child: _SizeCard(
                 icon: LucideIcons.square,
-                title: '2 × 2',
-                subtitle: 'Chi an toàn',
-                hint: 'Nhỏ gọn, đơn giản',
+                title: '2 × 1',
+                subtitle: 'Hôm nay',
+                hint: 'Còn chi được hôm nay',
                 selected: selected == HomeWidgetKind.safeSpend,
                 onTap: () => onSelected(HomeWidgetKind.safeSpend),
               ),
@@ -316,8 +341,8 @@ class _SizeSection extends StatelessWidget {
               child: _SizeCard(
                 icon: LucideIcons.rectangleHorizontal,
                 title: '4 × 2',
-                subtitle: 'Tổng quan',
-                hint: 'Số dư & thao tác',
+                subtitle: 'Ghi nhanh',
+                hint: 'Số dư & 2 nút',
                 badge: 'Khuyến dùng',
                 selected: selected == HomeWidgetKind.overview,
                 onTap: () => onSelected(HomeWidgetKind.overview),
@@ -328,8 +353,8 @@ class _SizeSection extends StatelessWidget {
               child: _SizeCard(
                 icon: LucideIcons.layoutDashboard,
                 title: '4 × 4',
-                subtitle: 'Chi tiết',
-                hint: 'Dự báo & sổ phụ',
+                subtitle: 'Tổng quan',
+                hint: 'Số liệu cả ngày',
                 selected: selected == HomeWidgetKind.detail,
                 onTap: () => onSelected(HomeWidgetKind.detail),
               ),
@@ -424,7 +449,7 @@ class _PreviewSection extends ConsumerWidget {
   final WidgetConfig config;
 
   String get _sizeLabel => switch (kind) {
-        HomeWidgetKind.safeSpend => '2×2',
+        HomeWidgetKind.safeSpend => '2×1',
         HomeWidgetKind.overview => '4×2',
         HomeWidgetKind.detail => '4×4',
       };
@@ -527,81 +552,39 @@ class _EmptyNote extends StatelessWidget {
       );
 }
 
-Color _ringColor(int percent) => percent >= 100 ? GlassColors.danger : (percent >= 80 ? GlassColors.warning : GlassColors.success);
-
-class _Ring extends StatelessWidget {
-  const _Ring({required this.percent});
-
-  final int percent;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = _ringColor(percent);
-    return Semantics(
-      label: '$percent% ngân sách tháng đã dùng',
-      child: SizedBox(
-        width: 52,
-        height: 52,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            SizedBox.expand(
-              child: CircularProgressIndicator(
-                value: (percent / 100).clamp(0.0, 1.0),
-                strokeWidth: 5,
-                color: color,
-                backgroundColor: color.withValues(alpha: 0.2),
-              ),
-            ),
-            Text('$percent%', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: color)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Hai nút thao tác của widget — chỉ minh họa, không bấm được.
+/// Hai nút thao tác của widget — chỉ minh họa, không bấm được. "Quét QR" là nút chính (nền tối).
 class _ActionButtons extends StatelessWidget {
   const _ActionButtons();
 
   @override
   Widget build(BuildContext context) {
-    Widget pill(IconData icon, String label, {required bool filled}) => Expanded(
+    Widget pill(String label, {required bool filled}) => Expanded(
           child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
             decoration: BoxDecoration(
               color: filled ? GlassColors.ink : GlassColors.secondarySurface,
               borderRadius: AppSpacing.roundedMedium,
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(icon, size: 16, color: filled ? GlassColors.onInk : GlassColors.textPrimary),
-                const SizedBox(width: 6),
-                Flexible(
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: filled ? GlassColors.onInk : GlassColors.textPrimary),
-                  ),
-                ),
-              ],
+            child: Text(
+              label,
+              maxLines: 1,
+              textAlign: TextAlign.center,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: filled ? GlassColors.onInk : GlassColors.textPrimary),
             ),
           ),
         );
     return ExcludeSemantics(
       child: Row(children: [
-        pill(LucideIcons.plus, 'Ghi chép', filled: false),
+        pill('Chat', filled: false),
         const SizedBox(width: AppSpacing.sm),
-        pill(LucideIcons.qrCode, 'Quét QR', filled: true),
+        pill('Quét QR', filled: true),
       ]),
     );
   }
 }
 
-/// W1 "Chi an toàn" (2×2) — bản Flutter đơn giản hoá của SafeSpendWidget.kt.
+/// W1 "Hôm nay" (2×1) — bản Flutter đơn giản hoá của SafeSpendWidget.kt.
 class _SafeSpendPreview extends StatelessWidget {
   const _SafeSpendPreview({required this.data, required this.config});
 
@@ -610,48 +593,44 @@ class _SafeSpendPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final over = data.hasBudget && (data.percentUsed ?? 0) >= 100;
+    final over = data.over;
+    final percent = data.percentUsed ?? 0;
+    final label = !data.hasBudget
+        ? 'Chưa đặt ngân sách'
+        : data.overMonth
+            ? 'Vượt mức tháng này'
+            : over
+                ? 'Quá mức an toàn hôm nay'
+                : 'Hôm nay · đã dùng $percent%';
+    final big = !data.hasBudget
+        ? '—'
+        : data.overMonth
+            ? ((data.monthOver ?? BigInt.zero) > BigInt.zero ? 'Vượt ${_vnd(data.monthOver)}' : 'Hết mức')
+            : _vnd(data.remainingToday);
     return Align(
       alignment: Alignment.centerLeft,
       child: SizedBox(
         width: 220,
         child: _Panel(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Row(
                 children: [
-                  Icon(over ? LucideIcons.triangleAlert : LucideIcons.shieldCheck, size: 14, color: GlassColors.textSecondary),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(over ? 'Cần điều chỉnh' : 'FinMate • Chi an toàn', maxLines: 1, overflow: TextOverflow.ellipsis, style: _muted()),
-                  ),
+                  Icon(over ? LucideIcons.triangleAlert : LucideIcons.shieldCheck, size: 12, color: GlassColors.textSecondary),
+                  const SizedBox(width: 4),
+                  Expanded(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: _muted())),
                 ],
               ),
-              const SizedBox(height: AppSpacing.sm),
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        FittedBox(
-                          fit: BoxFit.scaleDown,
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            data.hasBudget ? _vnd(data.perDay) : '—',
-                            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: over ? GlassColors.danger : GlassColors.textPrimary),
-                          ),
-                        ),
-                        Text(data.hasBudget ? 'Hôm nay có thể chi tiêu an toàn' : 'Chưa đặt ngân sách', style: _muted()),
-                      ],
-                    ),
-                  ),
-                  if (config.aiSuggestionsEnabled && data.hasBudget) ...[
-                    const SizedBox(width: 6),
-                    _Ring(percent: data.percentUsed ?? 0),
-                  ],
-                ],
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  big,
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: over ? GlassColors.danger : GlassColors.textPrimary),
+                ),
               ),
               if (!data.hasBudget) const _EmptyNote('Chưa có dữ liệu — khung xem trước, không phải số thật.'),
             ],
@@ -662,7 +641,7 @@ class _SafeSpendPreview extends StatelessWidget {
   }
 }
 
-/// W2 "Tổng quan" (4×2) — nội dung theo OverviewWidget.kt.
+/// W2 "Ghi nhanh" (4×2) — số dư các ví + ba nút thao tác, theo OverviewWidget.kt.
 class _OverviewPreview extends StatelessWidget {
   const _OverviewPreview({required this.data, required this.config});
 
@@ -692,33 +671,13 @@ class _OverviewPreview extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('SỐ DƯ KHẢ DỤNG', style: TextStyle(fontSize: 12, color: GlassColors.textSecondary, letterSpacing: 0.5)),
-                    const SizedBox(height: 4),
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(_vnd(data.balance), style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: GlassColors.textPrimary)),
-                    ),
-                    if (data.hasBudget) ...[
-                      Text('Đã chi tháng này: ${_vnd(data.spent)}', style: _muted(), maxLines: 1, overflow: TextOverflow.ellipsis),
-                      Text('Chi an toàn: ${_vnd(data.perDay)}/ngày', style: _muted(), maxLines: 1, overflow: TextOverflow.ellipsis),
-                    ],
-                  ],
-                ),
-              ),
-              if (config.aiSuggestionsEnabled && data.hasBudget) ...[
-                const SizedBox(width: AppSpacing.sm),
-                _Ring(percent: data.percentUsed ?? 0),
-              ],
-            ],
+          Text('SỐ DƯ CÁC VÍ', style: TextStyle(fontSize: 12, color: GlassColors.textSecondary, letterSpacing: 0.5)),
+          const SizedBox(height: 4),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(_vnd(data.balance), style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: GlassColors.textPrimary)),
           ),
-          if (config.aiSuggestionsEnabled && !data.hasBudget) Text('Chưa đặt ngân sách tháng', style: _muted()),
           if (!hasAccount) const _EmptyNote('Chưa có tài khoản — khung xem trước, không phải số thật.'),
           const SizedBox(height: AppSpacing.md),
           const _ActionButtons(),
@@ -728,8 +687,8 @@ class _OverviewPreview extends StatelessWidget {
   }
 }
 
-/// Widget "Chi tiết" (4×4) — số dư + dự báo cuối tháng + hạn mức, theo DetailWidget.kt. Danh sách giao
-/// dịch gần đây của widget thật không dựng ở đây (xem ghi chú dưới thẻ).
+/// Widget "Tổng quan" (4×4) — còn chi được hôm nay, số dư, đã chi tháng này, dự báo cuối tháng, theo DetailWidget.kt.
+/// Giao dịch gần nhất và khoản sắp đến hạn của widget thật không dựng ở đây (xem ghi chú dưới thẻ).
 class _DetailPreview extends StatelessWidget {
   const _DetailPreview({required this.data, required this.config});
 
@@ -738,20 +697,33 @@ class _DetailPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Widget metric(String label, String value, double size) => Expanded(
+    Widget metric(String label, String value, {String? sub, bool red = false}) => Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: GlassColors.textSecondary, letterSpacing: 0.5)),
-              const SizedBox(height: 4),
+              Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: GlassColors.textSecondary, letterSpacing: 0.4)),
+              const SizedBox(height: 2),
               FittedBox(
                 fit: BoxFit.scaleDown,
                 alignment: Alignment.centerLeft,
-                child: Text(value, style: TextStyle(fontSize: size, fontWeight: FontWeight.w800, color: GlassColors.textPrimary)),
+                child: Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: red ? GlassColors.danger : GlassColors.textPrimary)),
               ),
+              if (sub != null) Text(sub, maxLines: 2, overflow: TextOverflow.ellipsis, style: _muted(11)),
             ],
           ),
         );
+    final todayValue = !data.hasBudget
+        ? '—'
+        : data.overMonth
+            ? ((data.monthOver ?? BigInt.zero) > BigInt.zero ? 'Vượt ${_vnd(data.monthOver)}' : 'Hết mức')
+            : _vnd(data.remainingToday);
+    final todaySub = !data.hasBudget
+        ? 'chưa có thu nhập dự kiến'
+        : data.overMonth
+            ? 'tháng này · hôm nay đã chi ${_vnd(data.spentToday)}'
+            : data.over
+                ? 'hôm nay đã chi quá mức an toàn'
+                : 'đã chi hôm nay ${_vnd(data.spentToday)}';
     return _Panel(
       padding: const EdgeInsets.all(AppSpacing.lg),
       child: Column(
@@ -765,25 +737,31 @@ class _DetailPreview extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.sm),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              metric('SỐ DƯ KHẢ DỤNG', _vnd(data.balance), 22),
+              metric('CÒN CHI ĐƯỢC HÔM NAY', todayValue, sub: todaySub, red: data.over),
               const SizedBox(width: AppSpacing.sm),
-              metric('DỰ BÁO CUỐI THÁNG', _vnd(data.forecastEnd), 16),
-              if (config.aiSuggestionsEnabled && data.hasBudget) ...[
-                const SizedBox(width: AppSpacing.sm),
-                _Ring(percent: data.percentUsed ?? 0),
-              ],
+              metric('SỐ DƯ CÁC VÍ', _vnd(data.balance)),
             ],
           ),
-          if (data.hasBudget) ...[
-            const SizedBox(height: AppSpacing.sm),
-            Text('Đã chi: ${_vnd(data.spent)} / Ngân sách: ${_vnd(data.income)}', style: _muted(12)),
-          ],
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              metric(
+                'ĐÃ CHI THÁNG NÀY',
+                _vnd(data.spent),
+                sub: (data.income ?? BigInt.zero) > BigInt.zero ? 'trên thu nhập dự kiến ${_vnd(data.income)}' : null,
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              metric('DỰ BÁO CUỐI THÁNG', _vnd(data.forecastEnd), sub: 'số dư dự kiến ngày cuối tháng'),
+            ],
+          ),
           if (data.balance == null) const _EmptyNote('Chưa có tài khoản — khung xem trước, không phải số thật.'),
           const SizedBox(height: AppSpacing.md),
           const _ActionButtons(),
           const SizedBox(height: AppSpacing.sm),
-          Text('Giao dịch vừa ghi nhận sẽ hiện trên widget thật.', style: _muted()),
+          Text('Biểu đồ dự báo, giao dịch gần nhất, khoản sắp đến hạn và nút Hỏi FinMate / mic / camera / QR chỉ hiện trên widget thật.', style: _muted()),
         ],
       ),
     );

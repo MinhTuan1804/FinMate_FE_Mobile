@@ -80,7 +80,7 @@ void main() {
 
       expect(find.text('Chia thu nhập'), findsOneWidget);
       expect(find.text('Nhu cầu'), findsOneWidget);
-      expect(find.text('90% · thiếu 10%'), findsOneWidget);
+      expect(find.text('90% · còn 10% chưa phân bổ'), findsOneWidget);
       expect(find.byKey(const ValueKey('method-block-goals')), findsOneWidget);
     });
 

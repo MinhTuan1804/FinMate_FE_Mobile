@@ -89,7 +89,8 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
   }
 
   Future<void> _contribute(SavingsGoalEntity goal) async {
-    final amount = await showGoalContributeDialog(context, goal.title);
+    final remaining = goal.targetAmountCents > goal.currentAmountCents ? goal.targetAmountCents - goal.currentAmountCents : BigInt.zero;
+    final amount = await showGoalContributeDialog(context, goal.title, remainingCents: remaining);
     if (amount == null || !mounted) return;
 
     final result = await _run(() => ref.read(planningControllerProvider.notifier).contributeToGoal(goal.id, amount));

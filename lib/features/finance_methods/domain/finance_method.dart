@@ -238,14 +238,22 @@ class SpendableEntity {
   final BigInt? spendableCents;
   final List<SpendableGoalEntity> goals;
 
-  const SpendableEntity({
+  /// Đã chi HÔM NAY (giờ VN); 0 với server cũ chưa trả trường này
+  final BigInt spentTodayCents;
+
+  /// Mức chi an toàn của hôm nay (cố định suốt ngày, sang ngày mới tính lại); âm khi tháng đã chi vượt; null khi chưa khai thu nhập hoặc server cũ
+  final BigInt? safeTodayCents;
+
+  SpendableEntity({
     required this.goalMode,
     required this.incomeCents,
     required this.spentCents,
     required this.goalSetAsideCents,
     required this.spendableCents,
     required this.goals,
-  });
+    BigInt? spentTodayCents,
+    this.safeTodayCents,
+  }) : spentTodayCents = spentTodayCents ?? BigInt.zero;
 
   factory SpendableEntity.fromJson(Map<String, dynamic> json) => SpendableEntity(
         goalMode: json['goalMode'] as String?,
@@ -254,6 +262,8 @@ class SpendableEntity {
         goalSetAsideCents: parseCents(json['goalSetAsideCents']),
         spendableCents: json['spendableCents'] == null ? null : parseCents(json['spendableCents']),
         goals: (json['goals'] as List).map((e) => SpendableGoalEntity.fromJson(e as Map<String, dynamic>)).toList(),
+        spentTodayCents: json['spentTodayCents'] == null ? null : parseCents(json['spentTodayCents']),
+        safeTodayCents: json['safeTodayCents'] == null ? null : parseCents(json['safeTodayCents']),
       );
 }
 

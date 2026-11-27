@@ -26,6 +26,13 @@ object DetailPrefs {
     private const val KEY_HAS_BUDGET = "w4x4_hasBudget"
     private const val KEY_SPENT_CENTS = "w4x4_spentCents"
     private const val KEY_INCOME_CENTS = "w4x4_incomeCents"
+    private const val KEY_SPENT_TODAY_CENTS = "w4x4_spentTodayCents"
+    private const val KEY_SAFE_TODAY_CENTS = "w4x4_safeTodayCents"
+    private const val KEY_OVER_MONTH = "w4x4_overMonth"
+    private const val KEY_MONTH_OVER_CENTS = "w4x4_monthOverCents"
+    private const val KEY_UPCOMING_LIST = "w4x4_upcomingList"
+    private const val KEY_FORECAST_SERIES = "w4x4_forecastSeries"
+    private const val KEY_FORECAST_CONFIDENCE = "w4x4_forecastConfidence"
     private const val KEY_RECENT_TRANSACTIONS = "w4x4_recentTransactions"
 
     /** 1 dòng trong "GIAO DỊCH VỪA GHI NHẬN" (xem design_reference/W_widgets/w_4x4_detail.png) —
@@ -39,6 +46,30 @@ object DetailPrefs {
         val isIncome: Boolean,
     )
 
+    const val UPCOMING_LIMIT = 3
+    const val SERIES_POINTS = 24
+
+    data class Upcoming(val name: String, val amountCents: Long, val dueDate: String)
+
+    private fun readUpcoming(prefs: android.content.SharedPreferences): List<Upcoming> {
+        val raw = prefs.getString(KEY_UPCOMING_LIST, null) ?: return emptyList()
+        return try {
+            val arr = JSONArray(raw)
+            (0 until arr.length()).map { i ->
+                val o = arr.getJSONObject(i)
+                Upcoming(o.optString("name"), o.optLong("amountCents"), o.optString("dueDate"))
+            }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    private fun writeUpcoming(items: List<Upcoming>): String {
+        val arr = JSONArray()
+        items.forEach { arr.put(JSONObject().put("name", it.name).put("amountCents", it.amountCents).put("dueDate", it.dueDate)) }
+        return arr.toString()
+    }
+
     data class Data(
         val balanceCents: Long,
         val forecastEndBalanceCents: Long,
@@ -51,7 +82,20 @@ object DetailPrefs {
         val spentCents: Long,
         val incomeCents: Long,
         val recentTransactions: List<RecentTxn>,
-    )
+        val spentTodayCents: Long = 0L,
+        val safeTodayCents: Long = 0L,
+        val overMonth: Boolean = false,
+        val monthOverCents: Long = 0L,
+        /** Các khoản định kỳ (loại chi) sắp đến hạn, gần nhất trước, tối đa [UPCOMING_LIMIT]; rỗng = không có. */
+        val upcomingItems: List<Upcoming> = emptyList(),
+        /** Số dư dự kiến từng ngày tới cuối tháng (lấy mẫu tối đa [SERIES_POINTS] điểm) để vẽ đường biểu đồ nhỏ. */
+        val forecastSeries: List<Long> = emptyList(),
+        /** "high" | "medium" | "low" từ `/forecast/cashflow`; rỗng = không rõ. */
+        val forecastConfidence: String = "",
+    ) {
+        /** Báo đỏ khi tháng đã vượt mức hoặc riêng hôm nay đã chi quá mức an toàn (xem [DailySafeSpend.over]). */
+        val over: Boolean get() = hasBudget && (overMonth || percentUsed >= 100f)
+    }
 
     fun read(context: Context): Data? {
         val prefs = context.getSharedPreferences(SafeSpendPrefs.FILE, Context.MODE_PRIVATE)
@@ -69,6 +113,13 @@ object DetailPrefs {
             spentCents = prefs.getLong(KEY_SPENT_CENTS, 0L),
             incomeCents = prefs.getLong(KEY_INCOME_CENTS, 0L),
             recentTransactions = readRecentTransactions(prefs),
+            spentTodayCents = prefs.getLong(KEY_SPENT_TODAY_CENTS, 0L),
+            safeTodayCents = prefs.getLong(KEY_SAFE_TODAY_CENTS, 0L),
+            overMonth = prefs.getBoolean(KEY_OVER_MONTH, false),
+            monthOverCents = prefs.getLong(KEY_MONTH_OVER_CENTS, 0L),
+            upcomingItems = readUpcoming(prefs),
+            forecastSeries = (prefs.getString(KEY_FORECAST_SERIES, "") ?: "").split(",").mapNotNull { it.toLongOrNull() },
+            forecastConfidence = prefs.getString(KEY_FORECAST_CONFIDENCE, "") ?: "",
         )
     }
 
@@ -119,6 +170,13 @@ object DetailPrefs {
             .putLong(KEY_SPENT_CENTS, data.spentCents)
             .putLong(KEY_INCOME_CENTS, data.incomeCents)
             .putString(KEY_RECENT_TRANSACTIONS, writeRecentTransactions(data.recentTransactions))
+            .putLong(KEY_SPENT_TODAY_CENTS, data.spentTodayCents)
+            .putLong(KEY_SAFE_TODAY_CENTS, data.safeTodayCents)
+            .putBoolean(KEY_OVER_MONTH, data.overMonth)
+            .putLong(KEY_MONTH_OVER_CENTS, data.monthOverCents)
+            .putString(KEY_UPCOMING_LIST, writeUpcoming(data.upcomingItems))
+            .putString(KEY_FORECAST_SERIES, data.forecastSeries.joinToString(","))
+            .putString(KEY_FORECAST_CONFIDENCE, data.forecastConfidence)
             .commit()
     }
 
@@ -137,6 +195,7 @@ object DetailPrefs {
  * khi app đã bị kill. */
 object DetailSync {
     private const val TIMEOUT_MS = 15_000
+    private const val RECENT_LIMIT = 4
 
     /** true = đã đồng bộ thành công (hoặc không có phiên đăng nhập, không tính là lỗi). suspend vì
      * [readSourceAccountId] gọi `GlanceAppWidgetManager.getGlanceIds` (suspend), luôn được gọi từ
@@ -152,7 +211,7 @@ object DetailSync {
             val sourceAccountId = readSourceAccountId(context)
             var accounts = fetchJson(baseUrl, token, "/api/v1/financial-accounts")
             var forecast = fetchJson(baseUrl, token, forecastPath(sourceAccountId))
-            var transactions = fetchJson(baseUrl, token, transactionsTodayPath(sourceAccountId))
+            var transactions = fetchJson(baseUrl, token, recentTransactionsPath(sourceAccountId))
             // /me/spendable không nhận query param nào (không có accountId) — xem MyFinanceController,
             // cùng cách SafeSpendSync/OverviewSync đang gọi, nên KHÔNG truyền sourceAccountId ở đây
             // dù 3 call còn lại có lọc theo nó.
@@ -165,13 +224,15 @@ object DetailSync {
                         token = r.accessToken
                         accounts = fetchJson(baseUrl, token, "/api/v1/financial-accounts")
                         forecast = fetchJson(baseUrl, token, forecastPath(sourceAccountId))
-                        transactions = fetchJson(baseUrl, token, transactionsTodayPath(sourceAccountId))
+                        transactions = fetchJson(baseUrl, token, recentTransactionsPath(sourceAccountId))
                         spendable = fetchJson(baseUrl, token, "/api/v1/me/spendable")
                     }
                     else -> { /* giữ nguyên kết quả 401 cũ, rơi vào nhánh lỗi bên dưới */ }
                 }
             }
             if (accounts is FetchResult.Ok && forecast is FetchResult.Ok && transactions is FetchResult.Ok && spendable is FetchResult.Ok) {
+                // Khoản sắp đến hạn chỉ là phần thêm: lỗi ở đây không được làm hỏng cả widget.
+                val recurring = try { fetchJson(baseUrl, token, "/api/v1/recurring-items?status=Active") } catch (e: Exception) { FetchResult.Failed }
                 DetailPrefs.write(
                     context,
                     computeFrom(
@@ -180,6 +241,7 @@ object DetailSync {
                         transactions = transactions.body as JSONArray,
                         spendable = spendable.body as JSONObject,
                         sourceAccountId = sourceAccountId,
+                        upcoming = (recurring as? FetchResult.Ok)?.body?.let { nextUpcoming(it as? JSONArray) } ?: emptyList(),
                     ),
                 )
                 true
@@ -213,22 +275,35 @@ object DetailSync {
     private fun forecastPath(sourceAccountId: String?): String =
         if (sourceAccountId != null) "/api/v1/forecast/cashflow?accountId=$sourceAccountId" else "/api/v1/forecast/cashflow"
 
-    /// Khoảng [00:00 hôm nay, 00:00 ngày mai) theo múi giờ máy, encode ISO 8601 cho fromDate/toDate
-    /// (BE không có tham số "date=today" riêng — xem audit API).
-    private fun transactionsTodayPath(sourceAccountId: String?): String {
-        val cal = Calendar.getInstance()
-        cal.set(Calendar.HOUR_OF_DAY, 0)
-        cal.set(Calendar.MINUTE, 0)
-        cal.set(Calendar.SECOND, 0)
-        cal.set(Calendar.MILLISECOND, 0)
-        val from = cal.time
-        cal.add(Calendar.DAY_OF_MONTH, 1)
-        val to = cal.time
-        val fmt = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.US)
-        val fromEnc = URLEncoder.encode(fmt.format(from), "UTF-8")
-        val toEnc = URLEncoder.encode(fmt.format(to), "UTF-8")
+    /// Vài giao dịch GẦN NHẤT, không giới hạn ngày: trước đây chỉ lấy của hôm nay nên nửa dưới widget trống hầu hết thời gian
+    /// trong ngày. Danh sách trả về sắp xếp mới nhất trước.
+    private fun recentTransactionsPath(sourceAccountId: String?): String {
         val accountParam = if (sourceAccountId != null) "&accountId=$sourceAccountId" else ""
-        return "/api/v1/transactions?fromDate=$fromEnc&toDate=$toEnc&limit=200$accountParam"
+        return "/api/v1/transactions?limit=$RECENT_LIMIT$accountParam"
+    }
+
+    /// Số dư dự kiến từng ngày, lấy mẫu đều để còn tối đa [DetailPrefs.SERIES_POINTS] điểm (luôn giữ điểm cuối).
+    private fun forecastSeries(days: JSONArray?): List<Long> {
+        if (days == null || days.length() == 0) return emptyList()
+        val all = (0 until days.length()).map { days.getJSONObject(it).optLong("expectedBalanceCents", 0L) }
+        if (all.size <= DetailPrefs.SERIES_POINTS) return all
+        val step = (all.size - 1).toDouble() / (DetailPrefs.SERIES_POINTS - 1)
+        return (0 until DetailPrefs.SERIES_POINTS).map { all[Math.round(it * step).toInt()] }
+    }
+
+    /// Khoản định kỳ đang hoạt động, loại CHI (Outflow), có hạn từ hôm nay trở đi: gần nhất trước, lấy tối đa [DetailPrefs.UPCOMING_LIMIT].
+    private fun nextUpcoming(items: JSONArray?): List<DetailPrefs.Upcoming> {
+        if (items == null) return emptyList()
+        val today = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(java.util.Date())
+        val found = ArrayList<DetailPrefs.Upcoming>()
+        for (i in 0 until items.length()) {
+            val o = items.getJSONObject(i)
+            if (!o.optString("direction").equals("Outflow", ignoreCase = true)) continue
+            val due = o.optString("nextDueDate")
+            if (due.length < 10 || due.substring(0, 10) < today) continue
+            found.add(DetailPrefs.Upcoming(o.optString("name"), o.optLong("amountCents", 0L), due.substring(0, 10)))
+        }
+        return found.sortedBy { it.dueDate }.take(DetailPrefs.UPCOMING_LIMIT)
     }
 
     private sealed interface FetchResult {
@@ -268,6 +343,7 @@ object DetailSync {
         transactions: JSONArray,
         spendable: JSONObject,
         sourceAccountId: String?,
+        upcoming: List<DetailPrefs.Upcoming>,
     ): DetailPrefs.Data {
         var balanceCents = 0L
         var accountLabel = "Tất cả tài khoản"
@@ -279,12 +355,11 @@ object DetailSync {
             if (sourceAccountId != null) accountLabel = account.optString("accountName", accountLabel)
         }
 
-        val spendableCents = spendable.optLong("spendableCents", Long.MIN_VALUE)
-            .takeIf { !spendable.isNull("spendableCents") && it != Long.MIN_VALUE }
+        // Cùng công thức với Trang chủ và W1/W2 (xem [DailySafeSpend]): mức an toàn hôm nay do server tính, vòng tròn = đã chi hôm nay ÷ mức đó.
+        val daily = DailySafeSpend.from(spendable)
         val incomeCents = spendable.optLong("incomeCents", Long.MIN_VALUE)
             .takeIf { !spendable.isNull("incomeCents") && it != Long.MIN_VALUE }
         val spentCents = spendable.optLong("spentCents", 0L)
-        val percentUsed = if (incomeCents == null || incomeCents == 0L) 0f else (spentCents.toFloat() / incomeCents.toFloat() * 100f)
 
         return DetailPrefs.Data(
             balanceCents = balanceCents,
@@ -293,11 +368,18 @@ object DetailSync {
             accountLabel = accountLabel,
             lastSyncAtMillis = System.currentTimeMillis(),
             syncError = false,
-            percentUsed = percentUsed,
-            hasBudget = spendableCents != null,
+            percentUsed = daily.percentUsed,
+            hasBudget = daily.hasBudget,
             spentCents = spentCents,
             incomeCents = incomeCents ?: 0L,
             recentTransactions = extractRecentTransactions(transactions, accounts),
+            spentTodayCents = daily.spentTodayCents,
+            safeTodayCents = daily.safeTodayCents,
+            overMonth = daily.overMonth,
+            monthOverCents = daily.monthOverCents,
+            upcomingItems = upcoming,
+            forecastSeries = forecastSeries(forecast.optJSONArray("days")),
+            forecastConfidence = forecast.optString("confidence", ""),
         )
     }
 

@@ -20,6 +20,8 @@ object OverviewPrefs {
     private const val KEY_SYNC_ERROR = "w2_syncError"
     private const val KEY_SPENT_CENTS = "w2_spentCents"
     private const val KEY_PER_DAY_CENTS = "w2_perDayCents"
+    private const val KEY_SPENT_TODAY_CENTS = "w2_spentTodayCents"
+    private const val KEY_OVER_MONTH = "w2_overMonth"
 
     data class Data(
         val balanceCents: Long,
@@ -30,7 +32,12 @@ object OverviewPrefs {
         val syncError: Boolean,
         val spentCents: Long,
         val perDayCents: Long,
-    )
+        val spentTodayCents: Long = 0L,
+        val overMonth: Boolean = false,
+    ) {
+        /** Báo đỏ khi tháng đã vượt mức hoặc riêng hôm nay đã chi quá mức an toàn (xem [DailySafeSpend.over]). */
+        val over: Boolean get() = hasBudget && (overMonth || percentUsed >= 100f)
+    }
 
     fun read(context: Context): Data? {
         val prefs = context.getSharedPreferences(SafeSpendPrefs.FILE, Context.MODE_PRIVATE)
@@ -45,6 +52,8 @@ object OverviewPrefs {
             syncError = prefs.getBoolean(KEY_SYNC_ERROR, false),
             spentCents = prefs.getLong(KEY_SPENT_CENTS, 0L),
             perDayCents = prefs.getLong(KEY_PER_DAY_CENTS, 0L),
+            spentTodayCents = prefs.getLong(KEY_SPENT_TODAY_CENTS, 0L),
+            overMonth = prefs.getBoolean(KEY_OVER_MONTH, false),
         )
     }
 
@@ -58,6 +67,8 @@ object OverviewPrefs {
             .putBoolean(KEY_SYNC_ERROR, false)
             .putLong(KEY_SPENT_CENTS, data.spentCents)
             .putLong(KEY_PER_DAY_CENTS, data.perDayCents)
+            .putLong(KEY_SPENT_TODAY_CENTS, data.spentTodayCents)
+            .putBoolean(KEY_OVER_MONTH, data.overMonth)
             .commit()
     }
 
@@ -155,7 +166,7 @@ object OverviewSync {
         }
     }
 
-    /// Cùng công thức percentUsed với SafeSpendSync (spent/income*100); số dư = tổng balanceCents các
+    /// Số dư = tổng balanceCents các
     /// tài khoản, lọc theo [sourceAccountId] nếu có chọn 1 tài khoản cụ thể (null = tất cả).
     private fun computeFrom(accounts: JSONArray, spendable: JSONObject, sourceAccountId: String?): OverviewPrefs.Data {
         var balanceCents = 0L
@@ -168,27 +179,21 @@ object OverviewSync {
             if (sourceAccountId != null) accountLabel = account.optString("accountName", accountLabel)
         }
 
-        val incomeCents = spendable.optLong("incomeCents", Long.MIN_VALUE).takeIf { !spendable.isNull("incomeCents") && it != Long.MIN_VALUE }
+        // Cùng công thức với Trang chủ và W1 (xem [DailySafeSpend]): mức an toàn hôm nay do server tính, vòng tròn = đã chi hôm nay ÷ mức đó.
+        val daily = DailySafeSpend.from(spendable)
         val spentCents = spendable.optLong("spentCents", 0L)
-        val percentUsed = if (incomeCents == null || incomeCents == 0L) 0f else (spentCents.toFloat() / incomeCents.toFloat() * 100f)
-        val spendableCents = spendable.optLong("spendableCents", Long.MIN_VALUE).takeIf { !spendable.isNull("spendableCents") && it != Long.MIN_VALUE }
-        val hasBudget = spendableCents != null
-
-        // Cùng công thức với SafeSpendSync.computeFrom: perDay = spendableCents / số ngày còn lại trong tháng.
-        val cal = java.util.Calendar.getInstance()
-        val lastDay = cal.getActualMaximum(java.util.Calendar.DAY_OF_MONTH)
-        val daysRemaining = lastDay - cal.get(java.util.Calendar.DAY_OF_MONTH) + 1
-        val perDayCents = if (spendableCents != null && daysRemaining > 0) spendableCents / daysRemaining else 0L
 
         return OverviewPrefs.Data(
             balanceCents = balanceCents,
-            percentUsed = percentUsed,
-            hasBudget = hasBudget,
+            percentUsed = daily.percentUsed,
+            hasBudget = daily.hasBudget,
             accountLabel = accountLabel,
             lastSyncAtMillis = System.currentTimeMillis(),
             syncError = false,
             spentCents = spentCents,
-            perDayCents = perDayCents,
+            perDayCents = daily.safeTodayCents,
+            spentTodayCents = daily.spentTodayCents,
+            overMonth = daily.overMonth,
         )
     }
 }

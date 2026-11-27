@@ -38,11 +38,6 @@ import 'package:finmate/features/support/presentation/screens/support_ticket_det
 import 'package:finmate/features/support/presentation/screens/support_access_log_screen.dart';
 import 'package:finmate/features/subscriptions/presentation/screens/subscriptions_screen.dart';
 
-import 'package:finmate/features/community/presentation/screens/community_screen.dart';
-import 'package:finmate/features/community/presentation/screens/community_post_detail_screen.dart';
-import 'package:finmate/features/community/presentation/screens/community_places_screen.dart';
-import 'package:finmate/features/community/presentation/screens/community_place_detail_screen.dart';
-import 'package:finmate/features/community/presentation/screens/community_profile_screen.dart';
 import 'package:finmate/features/categories/presentation/screens/categories_screen.dart';
 import 'package:finmate/features/recurring/presentation/screens/recurring_items_screen.dart';
 import 'package:finmate/features/groups/presentation/screens/create_bill_screen.dart';
@@ -515,26 +510,6 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/subscriptions',
         builder: (context, state) => const SubscriptionsScreen(),
-      ),
-      GoRoute(
-        path: '/community',
-        builder: (context, state) => const CommunityScreen(),
-      ),
-      GoRoute(
-        path: '/community-post',
-        builder: (context, state) => CommunityPostDetailScreen(postId: state.extra as String),
-      ),
-      GoRoute(
-        path: '/community-places',
-        builder: (context, state) => const CommunityPlacesScreen(),
-      ),
-      GoRoute(
-        path: '/community-place',
-        builder: (context, state) => CommunityPlaceDetailScreen(placeId: state.extra as String),
-      ),
-      GoRoute(
-        path: '/community-profile',
-        builder: (context, state) => const CommunityProfileScreen(),
       ),
       GoRoute(
         path: '/accept-invitation',

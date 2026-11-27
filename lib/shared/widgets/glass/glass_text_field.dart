@@ -46,6 +46,13 @@ class GlassTextField extends StatefulWidget {
 
 class _GlassTextFieldState extends State<GlassTextField> {
   bool _obscure = true;
+  final FocusNode _eyeFocus = FocusNode(skipTraversal: true, debugLabel: 'password-visibility');
+
+  @override
+  void dispose() {
+    _eyeFocus.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -64,6 +71,8 @@ class _GlassTextFieldState extends State<GlassTextField> {
         isDense: false,
         hintText: widget.hintText,
         hintStyle: GlassTypography.bodyLg(color: GlassColors.textMuted),
+        // Màu lỗi cố định, đủ tương phản (mặc định của theme nhạt, khó đọc trên nền kính).
+        errorStyle: GlassTypography.bodySm(color: GlassColors.danger),
         filled: true,
         fillColor: GlassColors.fieldFill,
         contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
@@ -72,6 +81,9 @@ class _GlassTextFieldState extends State<GlassTextField> {
             : null,
         suffixIcon: widget.isPassword
             ? IconButton(
+                // Nhãn cho trình đọc màn hình; bỏ qua khi bấm Enter/Tab chuyển ô (không thì tiêu điểm nhảy vào nút con mắt thay vì ô kế tiếp).
+                tooltip: _obscure ? 'Hiện mật khẩu' : 'Ẩn mật khẩu',
+                focusNode: _eyeFocus,
                 icon: Icon(_obscure ? LucideIcons.eyeOff : LucideIcons.eye, size: 20, color: GlassColors.textMuted),
                 onPressed: () => setState(() => _obscure = !_obscure),
               )

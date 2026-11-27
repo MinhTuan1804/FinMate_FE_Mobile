@@ -20,14 +20,19 @@ import 'package:finmate/shared/widgets/glass/glass_card.dart';
 import 'package:finmate/shared/widgets/glass/glass_circular_progress.dart';
 import 'package:finmate/shared/widgets/glass/glass_loading_spinner.dart';
 
+BigInt _remainingOf(SavingsGoalEntity goal) =>
+    goal.targetAmountCents > goal.currentAmountCents ? goal.targetAmountCents - goal.currentAmountCents : BigInt.zero;
+
 /// Hộp thoại nhập số tiền nạp vào mục tiêu; trả về null nếu hủy. Dùng chung cho G2 và G4.
-Future<BigInt?> showGoalContributeDialog(BuildContext context, String goalTitle) {
-  return showDialog<BigInt>(context: context, builder: (_) => _ContributeDialog(goalTitle: goalTitle));
+/// [remainingCents]: phần còn lại của mục tiêu — server từ chối góp nhiều hơn, nên chặn luôn ở đây.
+Future<BigInt?> showGoalContributeDialog(BuildContext context, String goalTitle, {BigInt? remainingCents}) {
+  return showDialog<BigInt>(context: context, builder: (_) => _ContributeDialog(goalTitle: goalTitle, remainingCents: remainingCents));
 }
 
 class _ContributeDialog extends StatefulWidget {
   final String goalTitle;
-  const _ContributeDialog({required this.goalTitle});
+  final BigInt? remainingCents;
+  const _ContributeDialog({required this.goalTitle, this.remainingCents});
 
   @override
   State<_ContributeDialog> createState() => _ContributeDialogState();
@@ -45,8 +50,11 @@ class _ContributeDialogState extends State<_ContributeDialog> {
 
   void _submit() {
     final value = parseAmountInput(_amount.text);
+    final remaining = widget.remainingCents;
     if (value == null) {
       setState(() => _error = 'Vui lòng nhập số tiền hợp lệ');
+    } else if (remaining != null && value > remaining) {
+      setState(() => _error = 'Tối đa ${formatVnd(remaining)} (phần còn lại của mục tiêu)');
     } else {
       Navigator.pop(context, value);
     }
@@ -93,7 +101,7 @@ class _SavingsGoalDetailScreenState extends ConsumerState<SavingsGoalDetailScree
   }
 
   Future<void> _contribute(SavingsGoalEntity goal) async {
-    final amount = await showGoalContributeDialog(context, goal.title);
+    final amount = await showGoalContributeDialog(context, goal.title, remainingCents: _remainingOf(goal));
     if (amount == null || !mounted) return;
     final messenger = ScaffoldMessenger.of(context);
     try {

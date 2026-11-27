@@ -92,6 +92,11 @@ object SafeSpendColors {
         night = androidx.compose.ui.graphics.Color(night),
     )
     val cardBg = pair(0xFFF8FAFC, 0xFF1E293B)
+    /** Nền thẻ con nằm trong thẻ widget (số dư, dự báo, từng giao dịch). */
+    val softBg = pair(0xFFEEF2F7, 0xFF283548)
+    val chipGreenBg = pair(0xFFDCFCE7, 0xFF14532D)
+    val chipRedBg = pair(0xFFFEE2E2, 0xFF7F1D1D)
+    val chipAmberBg = pair(0xFFFEF3C7, 0xFF78350F)
     val textPrimary = pair(0xFF0F172A, 0xFFF1F5F9)
     val textSecondary = pair(0xFF64748B, 0xFF94A3B8)
     val chipBg = pair(0xFFE2E8F0, 0xFF334155)

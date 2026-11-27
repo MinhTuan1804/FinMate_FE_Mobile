@@ -94,16 +94,18 @@ double _contrast(Color a, Color b) {
 }
 
 void main() {
-  testWidgets('chọn kích thước 2×2 / 4×2 / 4×4 đổi phần xem trước', (tester) async {
+  testWidgets('chọn kích thước 2×1 / 4×2 / 4×4 đổi phần xem trước', (tester) async {
     await _pump(tester);
     expect(find.text('Cỡ 4×2'), findsOneWidget);
-    expect(find.text('SỐ DƯ KHẢ DỤNG'), findsOneWidget);
+    expect(find.text('SỐ DƯ CÁC VÍ'), findsOneWidget);
 
-    await tester.tap(find.text('2 × 2'));
+    await tester.tap(find.text('2 × 1'));
     await tester.pumpAndSettle();
-    expect(find.text('Cỡ 2×2'), findsOneWidget);
-    expect(find.text('Hôm nay có thể chi tiêu an toàn'), findsOneWidget);
-    expect(find.text('SỐ DƯ KHẢ DỤNG'), findsNothing);
+    expect(find.text('Cỡ 2×1'), findsOneWidget);
+    // mức an toàn hôm nay 2.000.000, đã chi hôm nay 1.000.000: còn 1.000.000, đã dùng 50%
+    expect(find.text('Hôm nay · đã dùng 50%'), findsOneWidget);
+    expect(find.text(formatVnd(BigInt.from(1000000))), findsOneWidget);
+    expect(find.text('SỐ DƯ CÁC VÍ'), findsNothing);
 
     await tester.tap(find.text('4 × 4'));
     await tester.pumpAndSettle();
@@ -119,8 +121,6 @@ void main() {
     expect(find.text('FinMate • Tất cả tài khoản'), findsOneWidget);
     expect(find.textContaining('42.850.000'), findsNothing);
     expect(find.textContaining('FinMate AI: Bạn đã tiêu'), findsNothing);
-    expect(find.text('Đã chi tháng này: ${formatVnd(BigInt.from(8000000))}'), findsOneWidget);
-    expect(find.text('40%'), findsOneWidget); // 8.000.000 / 20.000.000
 
     await tester.tap(find.text('Vietcombank'));
     await tester.pumpAndSettle();
@@ -128,12 +128,10 @@ void main() {
     expect(find.text(formatVnd(BigInt.from(30955000))), findsOneWidget);
   });
 
-  testWidgets('tắt gợi ý thông minh ẩn vòng % trong xem trước', (tester) async {
+  testWidgets('tắt gợi ý thông minh không làm mất số dư trong xem trước', (tester) async {
     await _pump(tester);
-    expect(find.text('40%'), findsOneWidget);
     await tester.tap(find.byType(Switch));
     await tester.pumpAndSettle();
-    expect(find.text('40%'), findsNothing);
     // widget thật không có chế độ ẩn số dư, nên số dư vẫn hiện
     expect(find.text(formatVnd(BigInt.from(34955000))), findsOneWidget);
   });
@@ -178,7 +176,7 @@ void main() {
 
     expect(tester.widget<Switch>(find.byType(Switch)).value, isFalse); // lấy từ cấu hình đã lưu
     expect(find.text('DÙNG MẶC ĐỊNH'), findsOneWidget);
-    expect(find.text('Cỡ 2×2'), findsOneWidget);
+    expect(find.text('Cỡ 2×1'), findsOneWidget);
 
     await tester.tap(find.text('Hoàn tất'));
     await tester.pumpAndSettle();
@@ -192,7 +190,7 @@ void main() {
       spendableProvider.overrideWith((ref) => Completer<SpendableEntity>().future),
     ]);
     expect(find.text('Đang tải dữ liệu xem trước…'), findsOneWidget);
-    expect(find.text('SỐ DƯ KHẢ DỤNG'), findsNothing);
+    expect(find.text('SỐ DƯ CÁC VÍ'), findsNothing);
     await tester.pump(const Duration(seconds: 1)); // để timer của client HTTP giả chạy xong
   });
 
@@ -211,17 +209,17 @@ void main() {
     await tester.tap(find.text('Thử lại'));
     await tester.pumpAndSettle();
     expect(find.text('Không tải được dữ liệu xem trước.'), findsNothing);
-    expect(find.text('SỐ DƯ KHẢ DỤNG'), findsOneWidget);
+    expect(find.text('SỐ DƯ CÁC VÍ'), findsOneWidget);
   });
 
   testWidgets('xem trước: chưa có tài khoản/ngân sách -> khung trống có nhãn, không số giả', (tester) async {
     await _pump(tester, routes: _routes(spendable: 'finance_spendable_no_income', emptyAccounts: true));
     expect(find.textContaining('Chưa có tài khoản'), findsOneWidget);
-    expect(find.text('Chưa đặt ngân sách tháng'), findsOneWidget);
     expect(find.textContaining('₫'), findsNothing);
 
-    await tester.tap(find.text('2 × 2'));
+    await tester.tap(find.text('2 × 1'));
     await tester.pumpAndSettle();
+    expect(find.text('Chưa đặt ngân sách'), findsOneWidget);
     expect(find.textContaining('Chưa có dữ liệu'), findsOneWidget);
     expect(find.textContaining('₫'), findsNothing);
   });
@@ -230,7 +228,7 @@ void main() {
     for (final dark in [false, true]) {
       testWidgets('không tràn ở ${width.toInt()}dp ${dark ? 'chế độ tối' : 'chế độ sáng'} (cả 3 kích thước)', (tester) async {
         await _pump(tester, width: width, dark: dark);
-        for (final k in ['2 × 2', '4 × 2', '4 × 4']) {
+        for (final k in ['2 × 1', '4 × 2', '4 × 4']) {
           await tester.tap(find.text(k));
           await tester.pumpAndSettle();
           expect(tester.takeException(), isNull, reason: 'tràn ở $k, ${width}dp');

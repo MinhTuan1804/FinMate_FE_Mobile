@@ -682,7 +682,7 @@ class _ParamsCard extends StatelessWidget {
                 text: total == 100
                     ? 'Đủ 100%'
                     : (total < 100
-                          ? '$total% · thiếu ${100 - total}%'
+                          ? '$total% · còn ${100 - total}% chưa phân bổ'
                           : '$total% · vượt ${total - 100}%'),
                 color: total == 100 ? GlassColors.success : GlassColors.warning,
               ),

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:finmate/core/native/widget_refresh_bridge.dart';
 import 'package:finmate/features/auth/presentation/controllers/auth_controller.dart';
+import 'package:finmate/features/finance_methods/presentation/controllers/finance_methods_controller.dart';
 import 'package:finmate/features/planning/data/planning_repository.dart';
 import 'package:finmate/features/planning/domain/entities/budget_entity.dart';
 import 'package:finmate/features/planning/domain/entities/savings_goal_entity.dart';
@@ -32,13 +33,23 @@ final planningControllerProvider = StateNotifierProvider<PlanningController, Asy
   return PlanningController(
     repository: ref.watch(planningRepositoryProvider),
     enabled: signedIn,
+    // Ngân sách/mục tiêu đổi thì "Chi an toàn hôm nay" của server (Trang chủ, widget) đổi theo.
+    onChanged: () => ref.invalidate(spendableProvider),
   );
 });
 
+/// "Chi an toàn hôm nay": ưu tiên số của server (cùng nguồn với Trang chủ và widget); chưa có thì tính tại máy.
+BigInt effectiveDailySafeLimit(WidgetRef ref, PlanningState planning) {
+  final server = ref.watch(spendableProvider).valueOrNull?.safeTodayCents;
+  if (server != null) return server < BigInt.zero ? BigInt.zero : server;
+  return planning.dailySafeLimit;
+}
+
 class PlanningController extends StateNotifier<AsyncValue<PlanningState>> {
   final PlanningRepository repository;
+  final void Function()? onChanged;
 
-  PlanningController({required this.repository, bool enabled = true})
+  PlanningController({required this.repository, this.onChanged, bool enabled = true})
       : super(const AsyncValue.loading()) {
     if (enabled) {
       loadPlanningData();
@@ -50,8 +61,8 @@ class PlanningController extends StateNotifier<AsyncValue<PlanningState>> {
   int _calculateDaysRemaining() {
     final now = DateTime.now();
     final lastDayOfMonth = DateTime(now.year, now.month + 1, 0).day;
-    final remaining = lastDayOfMonth - now.day;
-    return remaining > 0 ? remaining : 1;
+    // Tính cả hôm nay, giống server (SpendableCalculator, SafeToday): ngày 27/30 còn 4 ngày chứ không phải 3.
+    return lastDayOfMonth - now.day + 1;
   }
 
   /// [silent]: giữ nguyên dữ liệu đang hiển thị trong lúc tải lại (dùng sau khi tạo/sửa)
@@ -71,6 +82,7 @@ class PlanningController extends StateNotifier<AsyncValue<PlanningState>> {
         ),
       );
       // await (không fire-and-forget nữa) — cùng lý do với accounts_controller.dart's load().
+      onChanged?.call();
       await syncAllWidgets();
     } catch (e, st) {
       if (mounted) state = AsyncValue.error(e, st);
@@ -114,7 +126,7 @@ class PlanningController extends StateNotifier<AsyncValue<PlanningState>> {
     return result;
   }
 
-  /// Xoá một ngân sách theo hạng mục (không áp dụng cho ngân sách tổng)
+  /// Xoá một ngân sách (theo hạng mục hoặc ngân sách tổng)
   Future<void> deleteBudget(String id) async {
     await repository.deleteBudget(id);
     await loadPlanningData(silent: true);

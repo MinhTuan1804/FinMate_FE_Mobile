@@ -1,12 +1,8 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:finmate/features/auth/domain/entities/consent.dart';
 import 'package:finmate/features/auth/presentation/controllers/auth_controller.dart';
-import 'package:finmate/features/community/domain/community.dart';
-import 'package:finmate/features/community/presentation/controllers/community_controller.dart';
 import 'package:finmate/features/profile/presentation/screens/consent_management_screen.dart';
 import '../auth/consent_fakes.dart';
 
@@ -20,8 +16,6 @@ void main() {
     await tester.pumpWidget(ProviderScope(
       overrides: [
         authControllerProvider.overrideWith((ref) => auth),
-        // Trạng thái Cộng đồng đọc từ API riêng: giữ ở trạng thái đang tải thay vì gọi mạng thật.
-        communityProfileProvider.overrideWith((ref) => Completer<CommunityProfileEntity>().future),
       ],
       child: const MaterialApp(home: ConsentManagementScreen()),
     ));
@@ -33,8 +27,7 @@ void main() {
   testWidgets('chỉ hiện 3 quyền thật, trạng thái lấy từ hồ sơ; điều khoản không tắt được', (tester) async {
     await pump(tester, ConsentRepo(consentTestUser(terms: true, ai: true)));
 
-    expect(find.byType(Switch), findsNWidgets(4)); // điều khoản, AI, huấn luyện, cộng đồng (chỉ đọc)
-    expect(tester.widget<Switch>(find.byKey(const ValueKey('consent-community'))).onChanged, isNull);
+    expect(find.byType(Switch), findsNWidgets(3)); // điều khoản, AI, huấn luyện
     expect(find.text('Bắt buộc'), findsOneWidget);
     expect(find.text('Bản v${ConsentVersions.terms}'), findsOneWidget);
     expect(isOn(tester, 'consent-terms'), isTrue);

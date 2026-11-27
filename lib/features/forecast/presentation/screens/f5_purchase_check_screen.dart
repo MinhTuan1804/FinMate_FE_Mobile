@@ -336,7 +336,8 @@ class _F5PurchaseCheckScreenState extends ConsumerState<F5PurchaseCheckScreen> {
                       b.isOver ? LucideIcons.trendingDown : LucideIcons.trendingUp,
                       b.isOver ? GlassColors.danger : GlassColors.success,
                       [
-                        TextSpan(text: b.isOver ? 'Mua ngay sẽ vượt ngân sách danh mục "${b.name}"' : 'Vẫn trong ngân sách danh mục "${b.name}"'),
+                        // Ngân sách tổng không có tên danh mục: nói "ngân sách tổng chi tiêu", không in "null".
+                        TextSpan(text: '${b.isOver ? 'Mua ngay sẽ vượt' : 'Vẫn trong'} ${(b.name?.trim().isNotEmpty ?? false) ? 'ngân sách danh mục "${b.name}"' : 'ngân sách tổng chi tiêu'}'),
                         if (b.isOver && over != null && over > BigInt.zero) ...[
                           const TextSpan(text: ' thêm '),
                           TextSpan(text: formatVnd(over), style: strong.copyWith(color: GlassColors.danger)),

@@ -11,7 +11,6 @@ import 'package:finmate/features/auth/domain/entities/consent.dart';
 import 'package:finmate/features/auth/domain/entities/user_profile.dart';
 import 'package:finmate/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:finmate/features/auth/presentation/screens/training_consent_screen.dart';
-import 'package:finmate/features/community/presentation/controllers/community_controller.dart';
 
 /// Màn H11: Quản lý quyền đồng ý. Trạng thái lấy từ hồ sơ người dùng (server tính), bật/tắt gọi server ngay;
 /// lỗi thì công tắc giữ nguyên. Điều khoản là bắt buộc nên không rút lại được ở đây.
@@ -140,7 +139,7 @@ class _ConsentManagementScreenState extends ConsumerState<ConsentManagementScree
         Row(
           children: [
             Expanded(child: Text('Cài đặt sự đồng ý', style: AppTypography.h2(context).copyWith(fontSize: 18, fontWeight: FontWeight.w700))),
-            Text('4 mục cấu hình', style: AppTypography.caption(context).copyWith(fontSize: 12)),
+            Text('3 mục cấu hình', style: AppTypography.caption(context).copyWith(fontSize: 12)),
           ],
         ),
         const SizedBox(height: 12),
@@ -173,7 +172,6 @@ class _ConsentManagementScreenState extends ConsumerState<ConsentManagementScree
           onText: 'Đang đóng góp',
           offText: 'Chưa kích hoạt',
         ),
-        _communityRow(context),
         const SizedBox(height: 4),
         Container(
           padding: const EdgeInsets.all(16),
@@ -267,27 +265,6 @@ class _ConsentManagementScreenState extends ConsumerState<ConsentManagementScree
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  /// Quyền Cộng đồng nằm ở hồ sơ Cộng đồng (không có trong hồ sơ người dùng): chỉ hiện trạng thái, bấm để mở màn đó.
-  Widget _communityRow(BuildContext context) {
-    final profile = ref.watch(communityProfileProvider);
-    return _row(
-      context,
-      switchKey: 'consent-community',
-      title: 'Tính năng Cộng đồng FinMate',
-      description: 'Cho phép hiển thị tên hiển thị và bài viết nếu bạn tham gia thảo luận tài chính cộng đồng.',
-      granted: profile.valueOrNull?.consentGranted ?? false,
-      onChanged: null,
-      onText: 'Đã tham gia',
-      offText: profile.isLoading ? 'Đang kiểm tra...' : (profile.hasError ? 'Không tải được trạng thái' : 'Chưa tham gia'),
-      footerAction: TextButton(
-        key: const ValueKey('open-community-profile'),
-        onPressed: () => context.push('/community-profile'),
-        style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
-        child: const Text('Quản lý'),
       ),
     );
   }

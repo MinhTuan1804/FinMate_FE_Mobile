@@ -134,11 +134,24 @@ class _CreateTransactionBottomSheetState
     }
   }
 
+  final _errorKey = GlobalKey();
+
+  /// Báo lỗi kiểm tra: chữ đỏ ở cuối form nằm dưới phần nhìn thấy khi form dài (thông báo nổi cũng bị tờ này che), nên cuộn tới chữ đỏ ngay.
+  void _fail(String message) {
+    setState(() => _classicError = message);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final target = _errorKey.currentContext;
+      if (target != null && mounted) {
+        Scrollable.ensureVisible(target, duration: const Duration(milliseconds: 250), alignment: 0.5);
+      }
+    });
+  }
+
   Future<void> _handleClassicSave(List<FinancialAccount> accounts) async {
     if (_isSaving) return;
     final amount = parseAmountInput(_amountController.text);
     if (amount == null) {
-      setState(() => _classicError = 'Vui lòng nhập số tiền hợp lệ');
+      _fail('Vui lòng nhập số tiền hợp lệ');
       return;
     }
 
@@ -146,14 +159,21 @@ class _CreateTransactionBottomSheetState
     final to = _effectiveId(_toAccountId, accounts, fallbackIndex: 1);
     final isTransfer = _type == TransactionType.transfer;
     if (isTransfer && accounts.length < 2) {
-      setState(() => _classicError = 'Cần ít nhất 2 tài khoản để chuyển tiền');
+      _fail('Cần ít nhất 2 tài khoản để chuyển tiền');
       return;
     }
     if (isTransfer && from == to) {
-      setState(
-        () => _classicError = 'Tài khoản nguồn và đích không được trùng nhau',
-      );
+      _fail('Tài khoản nguồn và đích không được trùng nhau');
       return;
+    }
+
+    // Chuyển tiền không được vượt số dư ví nguồn (server cũng từ chối; chặn sớm để báo ngay, không chờ mạng).
+    if (isTransfer) {
+      final source = accounts.where((a) => a.id == from).firstOrNull;
+      if (source != null && amount > source.balanceCents) {
+        _fail('Số dư ví nguồn không đủ: còn ${formatVnd(source.balanceCents < BigInt.zero ? BigInt.zero : source.balanceCents)}');
+        return;
+      }
     }
 
     final messenger = ScaffoldMessenger.of(context);
@@ -392,6 +412,7 @@ class _CreateTransactionBottomSheetState
   }
 
   Widget _errorText(String message) => Padding(
+    key: _errorKey,
     padding: const EdgeInsets.only(top: 12),
     child: Text(
       message,

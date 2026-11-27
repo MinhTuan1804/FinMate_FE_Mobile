@@ -68,6 +68,7 @@ class HomeScreen extends ConsumerWidget {
                     Row(
                       children: [
                         IconButton(
+                          tooltip: 'Thông báo',
                           icon: Icon(
                             LucideIcons.bell,
                             size: 22,
@@ -76,6 +77,7 @@ class HomeScreen extends ConsumerWidget {
                           onPressed: () => context.push('/notifications'),
                         ),
                         IconButton(
+                          tooltip: 'Hồ sơ và cài đặt',
                           icon: Icon(
                             LucideIcons.circleUser,
                             size: 24,
@@ -296,17 +298,14 @@ class HomeScreen extends ConsumerWidget {
       loading: () => const SizedBox.shrink(),
       error: (_, __) => const SizedBox.shrink(),
       data: (s) {
-        if (s.spendableCents == null) return const SizedBox.shrink();
-        final now = DateTime.now();
-        final lastDayOfMonth = DateTime(now.year, now.month + 1, 0).day;
-        final daysRemaining = lastDayOfMonth - now.day + 1;
-        final perDay = daysRemaining > 0
-            ? s.spendableCents! ~/ BigInt.from(daysRemaining)
-            : BigInt.zero;
-        final percentUsed =
-            s.incomeCents == null || s.incomeCents == BigInt.zero
-            ? 0.0
-            : (s.spentCents.toDouble() / s.incomeCents!.toDouble() * 100);
+        final safeToday = s.safeTodayCents;
+        if (s.spendableCents == null || safeToday == null) return const SizedBox.shrink();
+        // Theo NGÀY: mức an toàn hôm nay do server tính (phần còn lại của tháng tính đến đầu ngày ÷ số ngày còn lại), vòng tròn = đã chi hôm nay ÷ mức đó, sang ngày mới về 0.
+        final overMonth = safeToday <= BigInt.zero;
+        final perDay = overMonth ? BigInt.zero : safeToday;
+        final percentUsed = overMonth
+            ? 100.0
+            : (s.spentTodayCents.toDouble() / safeToday.toDouble() * 100);
 
         return GlassCard(
           child: Row(
@@ -326,7 +325,9 @@ class HomeScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Đã chi: ${formatVnd(s.spentCents)}',
+                      overMonth
+                          ? 'Tháng này đã chi vượt mức. Đã chi hôm nay: ${formatVnd(s.spentTodayCents)}'
+                          : 'Đã chi hôm nay: ${formatVnd(s.spentTodayCents)}',
                       style: GlassTypography.bodySm(),
                     ),
                   ],

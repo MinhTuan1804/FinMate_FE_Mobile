@@ -43,13 +43,12 @@ import java.util.Locale
 /**
  * W2 "Tổng quan" (4×2) — nội dung thật (đợt build riêng cho W2, xem kế hoạch chia nhỏ Luồng 9):
  * số dư khả dụng (tổng hoặc theo "Nguồn tiền" đã chọn trong màn cấu hình) + % ngân sách tháng đã
- * dùng + 2 nút hành động "Ghi chép"/"Quét QR". KHÔNG có chế độ ẩn số dư (đã chốt bỏ hẳn tính năng
+ * dùng + 3 nút "Ghi chi tiêu"/"Chat"/"Quét QR". KHÔNG có chế độ ẩn số dư (đã chốt bỏ hẳn tính năng
  * này cho cả 3 widget, 2026-11-17) — số dư luôn hiện rõ khi đã đồng bộ.
  */
 class OverviewWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val data = OverviewPrefs.read(context)
-        val aiSuggestionsEnabled = readAiSuggestionsEnabled(context, id)
 
         provideContent {
             GlanceTheme {
@@ -61,19 +60,9 @@ class OverviewWidget : GlanceAppWidget() {
                         .clickable(actionRunCallback<OpenOverviewAppCallback>())
                         .padding(14.dp),
                 ) {
-                    if (data == null) SyncingContent() else OverviewContent(data, aiSuggestionsEnabled)
+                    if (data == null) SyncingContent() else OverviewContent(data)
                 }
             }
-        }
-    }
-
-    private fun readAiSuggestionsEnabled(context: Context, id: GlanceId): Boolean {
-        return try {
-            val widgetId = GlanceAppWidgetManager(context).getAppWidgetId(id)
-            context.getSharedPreferences(SafeSpendPrefs.FILE, Context.MODE_PRIVATE)
-                .getBoolean("aiSuggestionsEnabled_$widgetId", true)
-        } catch (e: Exception) {
-            true
         }
     }
 }
@@ -90,11 +79,38 @@ class OpenOverviewSettingsCallback : ActionCallback {
     }
 }
 
-/** "Ghi chép": mở thẳng CreateTransactionBottomSheet (cùng sheet dùng ở Trang chủ/D1), không phải
- * 1 route điều hướng thật — notification_capture_scope.dart xử lý riêng route ảo "/quick-create". */
-class OpenQuickCreateCallback : ActionCallback {
+/** "Chat": mở màn chat với FinMate AI (route thật "/assistant", đi qua push như các route widget khác). */
+class OpenChatCallback : ActionCallback {
+    override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
+        openAppAtRoute(context, "/assistant")
+    }
+}
+
+/** "Ghi chi tiêu": mở thẳng sheet tạo giao dịch (route ảo "/quick-create", notification_capture_scope.dart mở CreateTransactionBottomSheet). */
+class OpenQuickAddCallback : ActionCallback {
     override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
         openAppAtRoute(context, "/quick-create")
+    }
+}
+
+/** Mic: mở chat và bắt đầu ghi âm ngay (AssistantScreen xử lý `start=voice`). */
+class OpenVoiceCallback : ActionCallback {
+    override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
+        openAppAtRoute(context, "/assistant?start=voice")
+    }
+}
+
+/** Camera: mở chat và chọn ảnh hóa đơn để đọc (AssistantScreen xử lý `start=scan`). */
+class OpenReceiptScanCallback : ActionCallback {
+    override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
+        openAppAtRoute(context, "/assistant?start=scan")
+    }
+}
+
+/** "Chi tiết" cạnh tiêu đề danh sách giao dịch: mở màn Giao dịch. */
+class OpenTransactionsCallback : ActionCallback {
+    override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
+        openAppAtRoute(context, "/transactions")
     }
 }
 
@@ -119,10 +135,10 @@ private fun SyncingContent() {
     }
 }
 
+/** W2 "Ghi nhanh": hai nút Chat (ghi chi tiêu bằng lời) và Quét QR nằm giữa; số dư thu nhỏ ở trên cho biết đang có bao nhiêu.
+ * (Mức chi an toàn hôm nay và vòng tròn đã chuyển sang widget 2×2 "Hôm nay", không lặp lại ở đây.) */
 @Composable
-private fun OverviewContent(data: OverviewPrefs.Data, aiSuggestionsEnabled: Boolean) {
-    val over = data.hasBudget && data.percentUsed >= 100f
-    val caution = data.hasBudget && !over && data.percentUsed >= 80f
+private fun OverviewContent(data: OverviewPrefs.Data) {
     Column(modifier = GlanceModifier.fillMaxSize()) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -142,63 +158,15 @@ private fun OverviewContent(data: OverviewPrefs.Data, aiSuggestionsEnabled: Bool
             )
         }
         Spacer(modifier = GlanceModifier.height(6.dp))
-        Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Column(modifier = GlanceModifier.defaultWeight()) {
-                Text(
-                    text = "SỐ DƯ KHẢ DỤNG",
-                    style = TextStyle(fontSize = 10.sp, color = SafeSpendColors.textSecondary),
-                )
-                Text(
-                    text = formatVnd(data.balanceCents),
-                    style = TextStyle(fontSize = 22.sp, fontWeight = FontWeight.Bold, color = SafeSpendColors.textPrimary),
-                    maxLines = 1,
-                )
-                if (data.hasBudget) {
-                    Text(
-                        text = "Đã chi tháng này: ${formatVnd(data.spentCents)}",
-                        style = TextStyle(fontSize = 10.sp, color = SafeSpendColors.textSecondary),
-                        maxLines = 1,
-                    )
-                    Text(
-                        text = "Chi an toàn: ${formatVnd(data.perDayCents)}/ngày",
-                        style = TextStyle(fontSize = 10.sp, color = SafeSpendColors.textSecondary),
-                        maxLines = 1,
-                    )
-                }
-            }
-            if (aiSuggestionsEnabled && data.hasBudget) {
-                val ringColor = when {
-                    over -> SafeSpendColors.OVER
-                    caution -> SafeSpendColors.CAUTION
-                    else -> SafeSpendColors.SAFE
-                }
-                Spacer(modifier = GlanceModifier.width(6.dp))
-                Image(
-                    provider = ImageProvider(
-                        ProgressRing.draw(
-                            sizePx = 160,
-                            strokeWidthPx = 14f,
-                            percent = data.percentUsed,
-                            trackColor = withAlpha(ringColor, 40),
-                            progressColor = ringColor,
-                            percentText = "${data.percentUsed.toInt()}%",
-                            subLabel = "ngân sách",
-                            subLabelColor = SafeSpendColors.secondaryInt(androidx.glance.LocalContext.current),
-                        ),
-                    ),
-                    contentDescription = "${data.percentUsed.toInt()}% ngân sách tháng đã dùng",
-                    modifier = GlanceModifier.size(56.dp),
-                )
-            }
-        }
-        Spacer(modifier = GlanceModifier.height(4.dp))
-        if (aiSuggestionsEnabled && !data.hasBudget) {
-            Text(
-                text = "Chưa đặt ngân sách tháng",
-                style = TextStyle(fontSize = 11.sp, color = SafeSpendColors.textSecondary),
-                maxLines = 1,
-            )
-        }
+        Text(
+            text = "SỐ DƯ CÁC VÍ",
+            style = TextStyle(fontSize = 10.sp, color = SafeSpendColors.textSecondary),
+        )
+        Text(
+            text = formatVnd(data.balanceCents),
+            style = TextStyle(fontSize = 22.sp, fontWeight = FontWeight.Bold, color = SafeSpendColors.textPrimary),
+            maxLines = 1,
+        )
         if (data.syncError) {
             Text(
                 text = "Dữ liệu cũ — mất kết nối lần đồng bộ gần nhất",
@@ -208,9 +176,9 @@ private fun OverviewContent(data: OverviewPrefs.Data, aiSuggestionsEnabled: Bool
         }
         Spacer(modifier = GlanceModifier.defaultWeight())
         Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            ActionButton(label = "Ghi chép", filled = false, modifier = GlanceModifier.defaultWeight())
+            ActionPill("Chat", filled = false, action = actionRunCallback<OpenChatCallback>(), modifier = GlanceModifier.defaultWeight())
             Spacer(modifier = GlanceModifier.width(8.dp))
-            ActionButtonQr(modifier = GlanceModifier.defaultWeight())
+            ActionPill("Quét QR", filled = true, action = actionRunCallback<OpenQrScanCallback>(), modifier = GlanceModifier.defaultWeight())
         }
         Spacer(modifier = GlanceModifier.height(4.dp))
         Text(
@@ -220,40 +188,25 @@ private fun OverviewContent(data: OverviewPrefs.Data, aiSuggestionsEnabled: Bool
     }
 }
 
+/** Nút thao tác dùng chung cho W2 và widget 4×4: nút chính (filled) nền tối, nút phụ nền nhạt. */
 @Composable
-private fun ActionButton(label: String, filled: Boolean, modifier: GlanceModifier) {
+internal fun ActionPill(label: String, filled: Boolean, action: androidx.glance.action.Action, modifier: GlanceModifier) {
     Box(
         modifier = modifier
             .cornerRadius(10.dp)
             .background(if (filled) SafeSpendColors.textPrimary else SafeSpendColors.chipBg)
-            .clickable(actionRunCallback<OpenQuickCreateCallback>())
+            .clickable(action)
             .padding(vertical = 8.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             text = label,
             style = TextStyle(
-                fontSize = 12.sp,
+                fontSize = 11.sp,
                 fontWeight = FontWeight.Medium,
                 color = if (filled) SafeSpendColors.onPrimary else SafeSpendColors.textPrimary,
             ),
-        )
-    }
-}
-
-@Composable
-private fun ActionButtonQr(modifier: GlanceModifier) {
-    Box(
-        modifier = modifier
-            .cornerRadius(10.dp)
-            .background(SafeSpendColors.textPrimary)
-            .clickable(actionRunCallback<OpenQrScanCallback>())
-            .padding(vertical = 8.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = "Quét QR",
-            style = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Medium, color = SafeSpendColors.onPrimary),
+            maxLines = 1,
         )
     }
 }

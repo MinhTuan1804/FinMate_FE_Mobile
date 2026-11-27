@@ -83,6 +83,16 @@ class ForecastRepository {
     return response.data!;
   }
 
+  /// Số tiền có thể chi nếu có thêm các khoản giả định [items] (chỉ khoản rơi vào kỳ tính mới ảnh hưởng). Không lưu gì ở BE.
+  Future<SafeToSpendEntity> runSpendableScenario({required List<ScenarioItemInput> items}) async {
+    final response = await apiClient.post(
+      '$_path/spendable/scenario',
+      data: {'items': items.map((i) => i.toJson()).toList()},
+      fromJsonT: (json) => SafeToSpendEntity.fromJson(json as Map<String, dynamic>),
+    );
+    return response.data!;
+  }
+
   /// Số tiền có thể chi trong kỳ và mỗi ngày, kèm bảng cách tính.
   Future<SafeToSpendEntity> getSpendable() async {
     final response = await apiClient.get(

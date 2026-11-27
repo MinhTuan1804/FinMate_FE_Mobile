@@ -6,6 +6,8 @@
     "spentCents": 8000000,
     "goalSetAsideCents": 2000000,
     "spendableCents": 10000000,
+    "spentTodayCents": 1000000,
+    "safeTodayCents": 2000000,
     "goals": [
       {"goalId": "goal-1", "name": "Quỹ dự phòng", "requiredPerMonthCents": 1500000, "depositedThisMonthCents": 1500000, "setAsideCents": 1500000},
       {"goalId": "goal-2", "name": "Quỹ du lịch", "requiredPerMonthCents": 500000, "depositedThisMonthCents": 500000, "setAsideCents": 500000}

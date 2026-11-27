@@ -82,13 +82,13 @@ Color _colorOf(BudgetEntity b) => switch (b.statusLevel) {
       BudgetStatusLevel.safe => GlassColors.success,
     };
 
-class _DailyLimitCard extends StatelessWidget {
+class _DailyLimitCard extends ConsumerWidget {
   final PlanningState planning;
 
   const _DailyLimitCard({required this.planning});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final overall = planning.overallBudget;
     if (overall == null) {
       return GlassCard(
@@ -140,7 +140,7 @@ class _DailyLimitCard extends StatelessWidget {
           Text.rich(
             TextSpan(
               children: [
-                TextSpan(text: formatVnd(planning.dailySafeLimit), style: GlassTypography.displayHero()),
+                TextSpan(text: formatVnd(effectiveDailySafeLimit(ref, planning)), style: GlassTypography.displayHero()),
                 TextSpan(text: '  còn lại khả dụng', style: GlassTypography.bodyMd()),
               ],
             ),
