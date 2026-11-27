@@ -34,28 +34,24 @@ class ReportsRepository {
     return response.data ?? CategoryBreakdown.empty;
   }
 
-  /// Cộng dồn thu/chi trong [from]..[to] (2 đầu bao gồm) qua GET /reports/timeline, phân trang theo
-  /// cursor cho tới khi hết (dùng cho F1 tab Ngày/Tuần/Năm — timeline không giới hạn khoảng ngày,
-  /// chỉ giới hạn số giao dịch mỗi trang, nên "Năm" cần nhiều trang).
-  Future<MonthlySummary> getPeriodSummary({required DateTime from, required DateTime to}) async {
-    var spent = BigInt.zero;
-    var income = BigInt.zero;
-    var count = 0;
-    for (final day in await getTimelineDays(from: from, to: to)) {
-      spent += day.totalSpentCents;
-      income += day.totalIncomeCents;
-      count += day.transactionCount;
-    }
-
-    return MonthlySummary(
-      totalSpentCents: spent,
-      totalIncomeCents: income,
-      netCents: income - spent,
-      prevMonthSpentCents: BigInt.zero,
-      transactionCount: count,
-      changePercent: null,
+  /// Tổng thu/chi trong [from]..[to] (2 đầu bao gồm, tính theo ngày) và kỳ liền trước dài bằng kỳ này,
+  /// do BE tính (GET /reports/period-summary, tối đa 1100 ngày). Dùng cho F1 tab Ngày/Tuần/Năm và
+  /// thẻ tổng của màn Lịch sử. Giờ trong [from]/[to] bị bỏ: BE chỉ nhận ngày.
+  Future<MonthlySummary> getPeriodSummary({required DateTime from, required DateTime to, String? accountId}) async {
+    final response = await apiClient.get(
+      '/api/v1/reports/period-summary',
+      queryParameters: {
+        'fromDate': _dateOnly(from),
+        'toDate': _dateOnly(to),
+        if (accountId != null) 'accountId': accountId,
+      },
+      fromJsonT: (json) => MonthlySummary.fromPeriodJson(json as Map<String, dynamic>),
     );
+    return response.data ?? MonthlySummary.empty;
   }
+
+  static String _dateOnly(DateTime d) =>
+      '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
   /// Các ngày có giao dịch trong [from]..[to] (GET /reports/timeline, phân trang theo cursor).
   /// Ngày không có giao dịch không có trong kết quả — nơi dùng tự coi là 0.

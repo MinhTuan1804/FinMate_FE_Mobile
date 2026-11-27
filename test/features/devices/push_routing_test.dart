@@ -20,6 +20,13 @@ void main() {
     expect(routeForPush({'action': 'goal_deadline', 'goalId': 'x'}), ('/planning/goals', null));
     expect(routeForPush({'action': 'loan_due', 'loanId': 'x'}), ('/planning/loans', null));
     expect(routeForPush({}), ('/notifications', null));
+    expect(routeForPush({'action': 'data_export_ready', 'exportId': 'e1'}), ('/profile/backup', null));
+    for (final action in ['review_duplicate', 'choose_refund_link', 'review_transfer', 'choose_loan_link']) {
+      expect(routeForPush({'type': 'transaction_review', 'action': action, 'transactionId': 't1'}), ('/transaction/t1', null));
+    }
+    // Không có id thì vẫn về tab Chờ duyệt
+    expect(routeForPush({'type': 'transaction_review', 'action': 'review_duplicate'}), ('/transactions', null));
+    expect(routeForPush({'action': 'forecast_alert', 'kind': 'listener_health'}), ('/accounts', null));
   });
 
   test('bấm thông báo trong hộp thư mở đúng màn theo loại', () {

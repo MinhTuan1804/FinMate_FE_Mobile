@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:finmate/core/network/api_exceptions.dart';
 import 'package:finmate/core/network/api_response.dart';
@@ -161,6 +162,22 @@ class ApiClient {
         code: 'INVALID_RESPONSE',
         statusCode: response.statusCode,
       );
+    }
+  }
+
+  /// Tải tệp nhị phân (CSV, ZIP). Lỗi BE vẫn là JSON nên được giải mã lại trước khi đổi thành [ApiException] như các lệnh khác.
+  Future<List<int>> getBytes(String path, {Map<String, dynamic>? queryParameters}) async {
+    try {
+      final response = await dio.get<List<int>>(path, queryParameters: queryParameters, options: Options(responseType: ResponseType.bytes));
+      return response.data ?? const [];
+    } on DioException catch (e) {
+      final body = e.response?.data;
+      if (body is List<int>) {
+        try {
+          e.response!.data = jsonDecode(utf8.decode(body));
+        } catch (_) {}
+      }
+      throw _handleError(e);
     }
   }
 

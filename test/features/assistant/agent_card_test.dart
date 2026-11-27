@@ -486,6 +486,62 @@ void main() {
       expect(find.textContaining('%'), findsNothing);
     });
 
+    testWidgets('dự báo mục tiêu chưa khả thi: kết luận trước, lý do ngắn, số chính nổi bật, gợi ý kéo dài thời hạn; chi tiết số liệu không lộ mã kỹ thuật', (tester) async {
+      Map<String, dynamic> ev(String id, int? value, String text, {String source = 'estimated'}) =>
+          {'id': id, 'key': id, 'valueVnd': value, 'text': text, 'unit': value == null ? 'label' : 'VND', 'source': source, 'asOf': '2026-11-26T10:00:00+07:00', 'confidence': 0.7};
+      final forecast = {
+        'status': 'answered',
+        'message': null,
+        'claims': [
+          {'text': 'Mục tiêu 600.000.000 đồng trong 24 tháng khó đạt với mức tiết kiệm hiện tại.', 'evidenceIds': ['price']},
+          {'text': 'Theo kịch bản cơ sở, sau 24 tháng bạn còn thiếu 264.000.000 đồng.', 'evidenceIds': ['shortfall_base']},
+          {'text': 'Nếu kéo dài lên 5 năm thì mỗi tháng cần góp 8.333.334 đồng.', 'evidenceIds': ['alt_1_monthly']},
+        ],
+        'evidence': [
+          ev('price', 600000000, 'Giá mục tiêu do người dùng nêu'),
+          ev('shortfall_base', 264000000, 'Kịch bản base: còn thiếu sau 24 tháng'),
+          ev('scenario_base', 10000000, 'Kịch bản base: dư mỗi tháng'),
+          ev('alt_1_monthly', 8333334, 'Nếu kéo dài lên 60 tháng (5 năm) thì cần góp mỗi tháng'),
+          ev('assumption:general_price_growth:v1', null, 'Giá cả nói chung tăng khoảng 3,31% mỗi năm', source: 'document'),
+          ev('verdict', null, 'verdict: infeasible (horizon 24 tháng, nhóm thu nhập stable)'),
+        ],
+        'verdict': 'infeasible',
+        'suggestedActions': [
+          {'kind': 'create_goal', 'title': 'Tạo mục tiêu tiết kiệm 600.000.000 đồng trong 24 tháng', 'amountVnd': 600000000, 'date': '2028-11-26', 'evidenceIds': ['price']},
+          {'kind': 'create_goal', 'title': 'Tạo mục tiêu 5 năm · góp 8.333.334 đồng/tháng', 'amountVnd': 600000000, 'date': '2031-11-26', 'evidenceIds': ['alt_1_monthly']},
+        ],
+      };
+      await pump(tester, forecast);
+
+      expect(find.text('Khó đạt'), findsOneWidget);
+      expect(find.text('Mục tiêu 600.000.000 đồng trong 24 tháng khó đạt với mức tiết kiệm hiện tại.'), findsOneWidget, reason: 'kết luận đứng đầu');
+      expect(find.text('Vì sao'), findsOneWidget);
+      expect(find.text('Theo kịch bản cơ sở, sau 24 tháng bạn còn thiếu 264.000.000 đồng.'), findsOneWidget);
+      // hai số chính nổi bật
+      expect(find.byKey(const ValueKey('forecast-shortfall')), findsOneWidget);
+      expect(find.text('264.000.000 ₫'), findsOneWidget);
+      expect(find.text('10.000.000 ₫'), findsOneWidget);
+      // gợi ý kéo dài thời hạn: tiêu đề, câu giải thích và nút tạo mục tiêu với hạn mới
+      expect(find.byKey(const ValueKey('agent-suggestion-title')), findsOneWidget);
+      expect(find.text('Nếu kéo dài lên 5 năm thì mỗi tháng cần góp 8.333.334 đồng.'), findsOneWidget);
+      expect(find.text('Tạo mục tiêu 5 năm · góp 8.333.334 đồng/tháng'), findsOneWidget);
+      // con số trong câu chữ được làm nổi (đậm)
+      final rich = tester.widgetList<RichText>(find.byType(RichText)).where((r) => r.text.toPlainText().startsWith('Mục tiêu 600.000.000')).single;
+      final bold = <String>[];
+      rich.text.visitChildren((span) {
+        if (span is TextSpan && span.style?.fontWeight == FontWeight.w800 && span.text != null) bold.add(span.text!);
+        return true;
+      });
+      expect(bold, containsAll(['600.000.000 đồng', '24 tháng']));
+
+      await tester.tap(find.byKey(const ValueKey('agent-why')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Giá cả nói chung tăng khoảng 3,31% mỗi năm'), findsOneWidget);
+      expect(find.textContaining('verdict'), findsNothing, reason: 'mã kết luận kỹ thuật đã thành nhãn ở đầu thẻ');
+      expect(find.textContaining('general_price_growth'), findsNothing);
+    });
+
     testWidgets('bấm Đặt hạn mức: gọi hàm đặt hạn mức rồi hiện "Đã đặt"; thẻ wait_until có nút "Nhắc tôi"', (tester) async {
       await pump(tester, _answeredJson);
 

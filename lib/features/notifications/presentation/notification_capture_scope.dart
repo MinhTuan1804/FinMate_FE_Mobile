@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -79,6 +80,9 @@ class _NotificationCaptureScopeState extends ConsumerState<NotificationCaptureSc
       final bridge = ref.read(notificationBridgeProvider);
       try {
         await bridge.flushQueue();
+        // Quyền đọc thông báo có thể vừa đổi trong Cài đặt: báo cho BE để nó nhắc đúng lúc (BR-LH-01). Không await: native
+        // gọi mạng, không được làm chậm việc tải lại số liệu bên dưới; lỗi bị nuốt, lần báo hằng ngày ở native sẽ bù.
+        unawaited(bridge.reportListenerStatus().catchError((Object _) => 'error'));
         if (await bridge.consumeSessionExpired() && mounted) {
           // Native bị từ chối refresh lúc app đóng: dọn gói theo dõi/baseUrl còn sót TRƯỚC khi báo hết phiên.
           await bridge.clearSession();

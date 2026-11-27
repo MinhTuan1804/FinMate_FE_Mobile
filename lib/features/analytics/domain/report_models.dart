@@ -1,5 +1,52 @@
 import 'package:finmate/core/format/money.dart';
 
+/// Dòng tiền của kỳ (Phase 90): chi/thu không gồm vay nợ, quỹ nhóm, chuyển ví; các khoản đó nằm ở đây.
+/// [netCents] là số dư thực sự thay đổi (có thể âm), luôn bằng thu − chi ± các phần còn lại.
+class CashFlow {
+  final BigInt netCents;
+  final BigInt loanOutflowCents;
+  final BigInt loanInflowCents;
+  final BigInt groupFundOutflowCents;
+  final BigInt groupFundInflowCents;
+  final BigInt transferOutflowCents;
+  final BigInt transferInflowCents;
+  final BigInt refundSurplusCents;
+  final BigInt reversalNetCents;
+
+  const CashFlow({
+    required this.netCents,
+    required this.loanOutflowCents,
+    required this.loanInflowCents,
+    required this.groupFundOutflowCents,
+    required this.groupFundInflowCents,
+    required this.transferOutflowCents,
+    required this.transferInflowCents,
+    required this.refundSurplusCents,
+    required this.reversalNetCents,
+  });
+
+  factory CashFlow.fromJson(Map<String, dynamic> json) => CashFlow(
+        netCents: parseCents(json['netCents']),
+        loanOutflowCents: parseCents(json['loanOutflowCents']),
+        loanInflowCents: parseCents(json['loanInflowCents']),
+        groupFundOutflowCents: parseCents(json['groupFundOutflowCents']),
+        groupFundInflowCents: parseCents(json['groupFundInflowCents']),
+        transferOutflowCents: parseCents(json['transferOutflowCents']),
+        transferInflowCents: parseCents(json['transferInflowCents']),
+        refundSurplusCents: parseCents(json['refundSurplusCents']),
+        reversalNetCents: parseCents(json['reversalNetCents']),
+      );
+
+  /// Các phần ngoài thu/chi có tác động (khác 0), có dấu: dương = tiền vào ví. Để giải thích vì sao số dư đổi khác thu − chi.
+  List<(String, BigInt)> get otherParts => [
+        ('Cho vay / trả nợ', loanInflowCents - loanOutflowCents),
+        ('Quỹ nhóm', groupFundInflowCents - groupFundOutflowCents),
+        ('Chuyển giữa các ví', transferInflowCents - transferOutflowCents),
+        ('Hoàn tiền vượt chi', refundSurplusCents),
+        ('Giao dịch bị đảo', reversalNetCents),
+      ].where((p) => p.$2 != BigInt.zero).toList();
+}
+
 /// Tổng hợp thu/chi tháng (GET /reports/monthly-summary)
 class MonthlySummary {
   final BigInt totalSpentCents;
@@ -11,6 +58,15 @@ class MonthlySummary {
   /// % thay đổi chi tiêu so với tháng trước; null nếu tháng trước không có dữ liệu
   final double? changePercent;
 
+  /// Tổng thu kỳ liền trước; null khi BE không trả (bản cũ).
+  final BigInt? prevMonthIncomeCents;
+
+  /// % thay đổi tổng thu so với kỳ liền trước; null khi kỳ trước không có thu.
+  final double? incomeChangePercent;
+
+  /// Dòng tiền của kỳ; null khi BE không trả (period-summary, bản cũ).
+  final CashFlow? cashFlow;
+
   const MonthlySummary({
     required this.totalSpentCents,
     required this.totalIncomeCents,
@@ -18,6 +74,9 @@ class MonthlySummary {
     required this.prevMonthSpentCents,
     required this.transactionCount,
     this.changePercent,
+    this.prevMonthIncomeCents,
+    this.incomeChangePercent,
+    this.cashFlow,
   });
 
   static final empty = MonthlySummary(
@@ -35,6 +94,21 @@ class MonthlySummary {
         prevMonthSpentCents: parseCents(json['prevMonthSpentCents']),
         transactionCount: (json['transactionCount'] as num?)?.toInt() ?? 0,
         changePercent: (json['changePercent'] as num?)?.toDouble(),
+        prevMonthIncomeCents: json['prevMonthIncomeCents'] == null ? null : parseCents(json['prevMonthIncomeCents']),
+        incomeChangePercent: (json['incomeChangePercent'] as num?)?.toDouble(),
+        cashFlow: json['cashFlow'] is Map<String, dynamic> ? CashFlow.fromJson(json['cashFlow'] as Map<String, dynamic>) : null,
+      );
+
+  /// GET /reports/period-summary: kỳ này và kỳ liền trước dài bằng kỳ này (Ngày/Tuần/Năm).
+  factory MonthlySummary.fromPeriodJson(Map<String, dynamic> json) => MonthlySummary(
+        totalSpentCents: parseCents(json['totalSpentCents']),
+        totalIncomeCents: parseCents(json['totalIncomeCents']),
+        netCents: parseCents(json['netCents']),
+        prevMonthSpentCents: parseCents(json['prevTotalSpentCents']),
+        transactionCount: (json['transactionCount'] as num?)?.toInt() ?? 0,
+        changePercent: (json['spentChangePercent'] as num?)?.toDouble(),
+        prevMonthIncomeCents: json['prevTotalIncomeCents'] == null ? null : parseCents(json['prevTotalIncomeCents']),
+        incomeChangePercent: (json['incomeChangePercent'] as num?)?.toDouble(),
       );
 }
 

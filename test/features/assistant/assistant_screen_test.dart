@@ -66,7 +66,13 @@ void main() {
 
   setUp(() => assistant = _TestAssistant());
 
-  Future<void> pumpChat(WidgetTester tester, {Widget? home, GoRouter? router, ReceiptImageSource? images}) async {
+  Future<void> pumpChat(
+    WidgetTester tester, {
+    Widget? home,
+    GoRouter? router,
+    ReceiptImageSource? images,
+    List<AssistantSuggestion> suggestions = const [],
+  }) async {
     tester.view.physicalSize = const Size(800, 2000);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -77,6 +83,7 @@ void main() {
       assistantControllerProvider.overrideWith((ref) => assistant),
       accountsControllerProvider.overrideWith((ref) => _MockAccounts(AsyncValue.data(_accounts))),
       categoriesProvider.overrideWith((ref) async => _categories),
+      assistantSuggestionsProvider.overrideWith((ref) async => suggestions),
       if (images != null) receiptImageSourceProvider.overrideWithValue(images),
     ];
     await tester.pumpWidget(ProviderScope(
@@ -85,6 +92,28 @@ void main() {
     ));
     await tester.pumpAndSettle();
   }
+
+  testWidgets('khung chat trống: hiện chip gợi ý từ BE, bấm một chip gửi đúng câu đó', (tester) async {
+    final suggestions = (fixtureData('assistant_suggestions') as List)
+        .map((e) => AssistantSuggestion.fromJson(e as Map<String, dynamic>))
+        .toList();
+    await pumpChat(tester, suggestions: suggestions);
+
+    expect(find.byKey(const ValueKey('suggestion-add_coffee')), findsOneWidget);
+    expect(find.text('Tháng này mình đã chi bao nhiêu?'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('suggestion-spent_month')));
+    await tester.pump();
+
+    expect(assistant.sent, ['Tháng này mình đã chi bao nhiêu?']);
+  });
+
+  testWidgets('khung chat trống mà BE không có gợi ý: không có chip, lời chào vẫn hiện', (tester) async {
+    await pumpChat(tester);
+
+    expect(find.byType(ActionChip), findsNothing);
+    expect(find.text('Bạn muốn ghi gì hôm nay?'), findsOneWidget);
+  });
 
   testWidgets('đang gõ: nút + và mic thu lại thành ">", bấm ">" mở lại', (tester) async {
     await pumpChat(tester);

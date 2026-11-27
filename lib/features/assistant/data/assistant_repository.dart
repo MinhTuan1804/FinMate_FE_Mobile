@@ -180,4 +180,25 @@ class AssistantRepository {
     );
     return response.data ?? ReceiptScan.fromJson(const {});
   }
+
+  /// Câu gợi ý theo ngữ cảnh của người dùng; BE có thể trả rỗng. Bỏ các mục không có chữ.
+  Future<List<AssistantSuggestion>> getSuggestions() async {
+    final response = await apiClient.get(
+      '/api/v1/assistant/suggestions',
+      fromJsonT: (json) =>
+          (json as List).map((e) => AssistantSuggestion.fromJson(e as Map<String, dynamic>)).toList(),
+    );
+    return (response.data ?? const <AssistantSuggestion>[]).where((s) => s.text.trim().isNotEmpty).toList();
+  }
 }
+
+/// Gợi ý cho khung chat trống. Chỉ là phần trang trí nên lỗi (mạng, 4xx, 5xx) cho ra danh sách rỗng
+/// chứ không báo lỗi: không có gợi ý thì khung chat vẫn dùng được như cũ.
+final assistantSuggestionsProvider = FutureProvider.autoDispose<List<AssistantSuggestion>>((ref) async {
+  if (ref.watch(currentUserIdProvider) == null) return const [];
+  try {
+    return await ref.watch(assistantRepositoryProvider).getSuggestions();
+  } on Object {
+    return const [];
+  }
+});

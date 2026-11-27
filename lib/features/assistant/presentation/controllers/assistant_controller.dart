@@ -229,6 +229,13 @@ class GoalDraftCard extends ChatMessage {
 
 enum PurchaseCardStatus { pending, checking, assessed, cancelled }
 
+/// Khoản chi lớn kiểu "mua xe 600 triệu": chưa rõ đã mua hay định mua nên chat hỏi lại, người dùng chọn Ghi khoản chi hoặc Hỏi có nên mua. Chưa ghi gì cho tới khi chọn.
+class ClarifyPurchaseCard extends ChatMessage {
+  final DraftTransaction draft;
+  final bool resolved;
+  const ClarifyPurchaseCard(super.id, this.draft, {this.resolved = false});
+}
+
 /// Câu "mua X được không?": thẻ khoản ĐỊNH mua. Không ghi gì; thẻ tự gọi backend (`POST /forecast/purchase-check`) và hiện kết luận ngay trên thẻ.
 /// Lỗi thì thẻ về `pending` kèm lý do để bấm "Thử lại".
 class PurchaseCard extends ChatMessage {
@@ -678,6 +685,7 @@ const _outOfScopeIntent = 'out_of_scope';
 
 /// `intent` của server khi nó vừa hỏi giá một khoản định mua
 const _purchaseNeedsAmount = 'purchase_needs_amount';
+const _ambiguousPurchaseIntent = 'ambiguous_purchase';
 
 /// `intent` của server cho câu tạo ngân sách / khoản định kỳ / vay nợ (có `item` khi đủ thông tin, không thì `replyText` là câu hỏi lại)
 const _createItemIntent = 'create_item';
@@ -1093,23 +1101,35 @@ class AssistantController extends StateNotifier<AssistantState> {
       .where((m) => m.id == messageId)
       .firstOrNull;
 
-  /// Chat có chuyển câu này sang AI Financial Agent không: server gắn `ask_agent` cho câu kế hoạch/dự báo ("nếu thu nhập giảm 30% thì sao",
-  /// "bao lâu đủ tiền mua nhà"), và `out_of_scope` cho câu chat không hiểu (agent có lời từ chối và tra tri thức tốt hơn câu "chỉ giúp ghi chi tiêu").
-  /// Một ô nhập cho cả hai: người dùng không phải chọn chế độ.
-  static bool _wantsAgent(ChatReply reply) =>
-      reply.action == ChatAction.reply && (reply.intent == _askAgentIntent || reply.intent == _outOfScopeIntent);
+  /// Chat có chuyển câu này sang AI Financial Agent không. Trợ lý trước, chat dự phòng: server gắn `ask_agent` cho câu kế hoạch/dự báo ("nếu thu nhập
+  /// giảm 30% thì sao"), `out_of_scope` cho câu chat không hiểu (agent có lời từ chối và tra tri thức tốt hơn câu "chỉ giúp ghi chi tiêu"), và câu thống kê /
+  /// "mua X được không" (action summary, purchase) cũng hỏi trợ lý trước; trợ lý chưa trả lời được thì hiện thẻ số liệu của chat ([_hasChatCard]).
+  /// Một ô nhập cho tất cả: người dùng không phải chọn chế độ.
+  static bool _wantsAgent(ChatReply reply) => switch (reply.action) {
+    ChatAction.reply => reply.intent == _askAgentIntent || reply.intent == _outOfScopeIntent,
+    ChatAction.summary || ChatAction.purchase => true,
+    _ => false,
+  };
 
-  /// Hỏi agent (`POST /agent/ask`) và thêm [AgentCard]; không ghi giao dịch. Agent lỗi (429 vượt hạn mức, 503 AI không dùng được...):
-  /// câu chat không hiểu thì giữ lời đáp cũ của chat, câu kế hoạch thì hiện lỗi thành một dòng của trợ lý.
+  /// Chat đã dựng sẵn thẻ cho câu này (tổng kết, khoản định mua): làm chỗ dự phòng khi trợ lý không trả lời được.
+  static bool _hasChatCard(ChatReply reply) => reply.action == ChatAction.summary || reply.action == ChatAction.purchase;
+
+  /// Hỏi agent (`POST /agent/ask`) và thêm [AgentCard]; không ghi giao dịch. Câu chat đã có thẻ riêng (thống kê, mua X): agent chưa đủ dữ liệu / từ chối / lỗi thì
+  /// hiện thẻ của chat. Câu chat không hiểu: agent lỗi thì giữ lời đáp cũ của chat. Câu kế hoạch: lỗi (429 vượt hạn mức, 503 AI không dùng được...) hiện thành một dòng của trợ lý.
   Future<void> _answerWithAgent(String question, ChatReply chatReply, DraftSource source) async {
     state = state.copyWith(isAskingAgent: true);
     try {
       final answer = await repository.askAgent(question);
       if (!mounted) return;
-      _add(AgentCard(_nextId++, answer));
+      final unanswered = answer.status == AgentAnswer.insufficientData || answer.status == AgentAnswer.refused;
+      if (_hasChatCard(chatReply) && unanswered) {
+        await _present(chatReply, source);
+      } else {
+        _add(AgentCard(_nextId++, answer));
+      }
     } catch (e) {
       if (!mounted) return;
-      if (chatReply.intent == _outOfScopeIntent) {
+      if (chatReply.intent == _outOfScopeIntent || _hasChatCard(chatReply)) {
         await _present(chatReply, source);
       } else {
         _add(AssistantText(_nextId++, errorMessage(e)));
@@ -1353,6 +1373,12 @@ class AssistantController extends StateNotifier<AssistantState> {
         _add(SummaryCard(_nextId++, reply.summary!));
       case ChatAction.confirm:
         final drafts = reply.drafts.isEmpty ? [reply.draft!] : reply.drafts;
+        if (reply.intent == _ambiguousPurchaseIntent && drafts.length == 1 && drafts.first.amountCents != null) {
+          // Câu mơ hồ: không dựng thẻ ghi chi ngay, hỏi lại bằng hai nút (lời hỏi do server gửi)
+          if (reply.replyText != null) _add(AssistantText(_nextId++, reply.replyText!));
+          _add(ClarifyPurchaseCard(_nextId++, drafts.first.copyWith(source: source)));
+          return;
+        }
         // Nhiều khoản trong một câu: lời báo của BE rồi mỗi khoản một thẻ, người dùng rà soát và lưu từng khoản.
         if (reply.replyText != null) {
           _add(
@@ -1602,6 +1628,33 @@ class AssistantController extends StateNotifier<AssistantState> {
     } catch (e) {
       if (mounted) _replace(card.copyWith(error: e is StateError ? e.message : errorMessage(e)));
     }
+  }
+
+  ClarifyPurchaseCard? _clarifyCard(int messageId) => state.messages
+      .whereType<ClarifyPurchaseCard>()
+      .where((m) => m.id == messageId && !m.resolved)
+      .firstOrNull;
+
+  /// Chọn "Ghi khoản chi": hiện thẻ ghi chi như mọi khoản khác (vẫn phải bấm Lưu).
+  void logClarifiedPurchase(int messageId) {
+    final card = _clarifyCard(messageId);
+    if (card == null) return;
+    _replace(ClarifyPurchaseCard(card.id, card.draft, resolved: true));
+    addBatch([card.draft]);
+  }
+
+  /// Chọn "Hỏi có nên mua": đi đường "mua X được không" (chỉ đọc, không ghi giao dịch).
+  void askClarifiedPurchase(int messageId) {
+    final card = _clarifyCard(messageId);
+    if (card == null) return;
+    _replace(ClarifyPurchaseCard(card.id, card.draft, resolved: true));
+    final id = _nextId++;
+    _add(PurchaseCard(id, PurchaseDraft(
+      item: card.draft.description ?? card.draft.merchantName,
+      amountCents: card.draft.amountCents!,
+      categorySlug: card.draft.categorySlug,
+    )));
+    unawaited(assessPurchase(id));
   }
 
   PurchaseCard? _purchaseCard(int messageId) => state.messages

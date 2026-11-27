@@ -34,6 +34,8 @@ class RecurringItemsRepository {
     required DateTime nextDueDate,
     String? categoryId,
     String? financialAccountId,
+    int? totalOccurrences,
+    int? prepaidOccurrences,
   }) async {
     final response = await apiClient.post(
       '/api/v1/recurring-items',
@@ -46,7 +48,29 @@ class RecurringItemsRepository {
         'nextDueDate': _dateOnly(nextDueDate),
         if (categoryId != null) 'categoryId': categoryId,
         if (financialAccountId != null) 'financialAccountId': financialAccountId,
+        if (totalOccurrences != null) 'totalOccurrences': totalOccurrences,
+        if (prepaidOccurrences != null && prepaidOccurrences > 0) 'prepaidOccurrences': prepaidOccurrences,
       },
+      fromJsonT: (json) => RecurringItemEntity.fromJson(json as Map<String, dynamic>),
+    );
+    return response.data!;
+  }
+
+  /// Đánh dấu đã trả kỳ đang đến hạn (trả tiền mặt hoặc không có giao dịch): BE ghi một kỳ và đẩy ngày đến hạn sang kỳ sau.
+  Future<RecurringItemEntity> markPaid(String id) async {
+    final response = await apiClient.post(
+      '/api/v1/recurring-items/$id/payments',
+      data: const <String, dynamic>{},
+      fromJsonT: (json) => RecurringItemEntity.fromJson(json as Map<String, dynamic>),
+    );
+    return response.data!;
+  }
+
+  /// Tất toán sớm khoản trả góp: chuyển sang `completed`, dự báo không trừ tiền các kỳ sau nữa.
+  Future<RecurringItemEntity> settle(String id) async {
+    final response = await apiClient.post(
+      '/api/v1/recurring-items/$id/settle',
+      data: const <String, dynamic>{},
       fromJsonT: (json) => RecurringItemEntity.fromJson(json as Map<String, dynamic>),
     );
     return response.data!;

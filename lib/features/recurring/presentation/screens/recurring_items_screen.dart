@@ -138,6 +138,7 @@ class RecurringItemsScreen extends ConsumerWidget {
         RecurringStatus.paused => AppColors.textMutedLight,
         RecurringStatus.rejected => AppColors.danger,
         RecurringStatus.cancelled => AppColors.danger,
+        RecurringStatus.completed => AppColors.safe,
       };
 
   Widget _buildCard(BuildContext context, WidgetRef ref, RecurringItemEntity item, bool isDark) {
@@ -167,6 +168,8 @@ class RecurringItemsScreen extends ConsumerWidget {
                   children: [
                     Text(item.name, style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w700)),
                     Text('${item.cadence.label} · Đến hạn ${DateFormat('dd/MM/yyyy').format(item.nextDueDate)}', style: AppTypography.caption(context)),
+                    if (_installmentLine(item) case final line?)
+                      Text(line, key: ValueKey('installment-${item.id}'), style: AppTypography.caption(context).copyWith(fontWeight: FontWeight.w600)),
                   ],
                 ),
               ),
@@ -214,6 +217,21 @@ class RecurringItemsScreen extends ConsumerWidget {
         ];
       case RecurringStatus.active:
         return [
+          if (item.hasFinal) ...[
+            AsyncActionBuilder(
+              onPressed: () => _runAction(context, ref, () => ref.read(recurringItemsControllerProvider.notifier).markPaid(item.id), 'Đã ghi một kỳ'),
+              builder: (_, onTap, running) => TextButton(
+                key: ValueKey('mark-paid-${item.id}'),
+                onPressed: onTap,
+                child: running ? const ButtonLoadingIndicator() : const Text('Đã trả kỳ này'),
+              ),
+            ),
+            TextButton(
+              key: ValueKey('settle-${item.id}'),
+              onPressed: () => _settle(context, ref, item),
+              child: const Text('Tất toán'),
+            ),
+          ],
           AsyncActionBuilder(
             onPressed: () => _runAction(context, ref, () => ref.read(recurringItemsControllerProvider.notifier).pause(item.id), 'Đã tạm dừng'),
             builder: (_, onTap, running) => TextButton(
@@ -261,8 +279,38 @@ class RecurringItemsScreen extends ConsumerWidget {
         ];
       case RecurringStatus.rejected:
       case RecurringStatus.cancelled:
+      case RecurringStatus.completed:
         return const [];
     }
+  }
+
+  /// "Đã trả 9/12 kỳ · còn 3.600.000 ₫ (đến 15/03/2027)": số BE tính, app chỉ ghép chữ.
+  String? _installmentLine(RecurringItemEntity item) {
+    if (!item.hasFinal) return null;
+    final parts = <String>[
+      if (item.totalOccurrences != null) 'Đã trả ${item.paidOccurrences}/${item.totalOccurrences} kỳ'
+      else if (item.remainingOccurrences != null) 'Còn ${item.remainingOccurrences} kỳ',
+      if (item.status != RecurringStatus.completed && item.remainingAmountCents != null) 'còn ${formatVnd(item.remainingAmountCents!)}',
+      if (item.status != RecurringStatus.completed && item.finalDueDate != null) 'kỳ cuối ${DateFormat('dd/MM/yyyy').format(item.finalDueDate!)}',
+      if (item.settledEarly) 'đã tất toán sớm',
+    ];
+    return parts.join(' · ');
+  }
+
+  Future<void> _settle(BuildContext context, WidgetRef ref, RecurringItemEntity item) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Tất toán khoản này?'),
+        content: const Text('Khoản sẽ chuyển sang "Đã trả xong" và dự báo không trừ tiền các kỳ sau nữa.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
+          TextButton(key: const ValueKey('confirm-settle'), onPressed: () => Navigator.pop(ctx, true), child: const Text('Tất toán')),
+        ],
+      ),
+    );
+    if (ok != true || !context.mounted) return;
+    await _runAction(context, ref, () => ref.read(recurringItemsControllerProvider.notifier).settle(item.id), 'Đã tất toán');
   }
 }
 

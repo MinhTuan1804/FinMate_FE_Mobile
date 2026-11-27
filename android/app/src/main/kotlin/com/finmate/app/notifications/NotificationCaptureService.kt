@@ -21,6 +21,10 @@ class NotificationCaptureService : NotificationListenerService() {
             val runtime = NotificationRuntime.get(applicationContext)
             if (!runtime.monitored.contains(sbn.packageName)) return
 
+            // Ghi nhận TRƯỚC mọi bộ lọc bên dưới: "listener vẫn thấy thông báo của app này" là bằng chứng nó còn sống, kể cả khi
+            // thông báo rỗng/chưa đăng nhập nên không được gửi đi. Chỉ lưu giờ, không lưu nội dung.
+            runtime.statusStore.recordPosted(sbn.packageName, System.currentTimeMillis())
+
             val extras = sbn.notification?.extras ?: return
             val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString().orEmpty()
             val big = extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString()
@@ -43,6 +47,7 @@ class NotificationCaptureService : NotificationListenerService() {
     }
 
     override fun onListenerConnected() {
+        markConnected(true)
         unregisterNetworkCallback()
         try {
             val cm = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
@@ -67,6 +72,7 @@ class NotificationCaptureService : NotificationListenerService() {
     }
 
     override fun onListenerDisconnected() {
+        markConnected(false)
         unregisterNetworkCallback()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             requestRebind(ComponentName(this, javaClass))
@@ -74,8 +80,26 @@ class NotificationCaptureService : NotificationListenerService() {
     }
 
     override fun onDestroy() {
+        // Service bị hệ thống dừng mà không gọi onListenerDisconnected: không còn đọc thông báo nữa. Không báo mạng ở đây
+        // (đang bị hủy); trạng thái này đi kèm lần báo kế tiếp.
+        try {
+            NotificationRuntime.get(applicationContext).statusStore.listenerConnected = false
+        } catch (e: Exception) {
+            // Bỏ qua im lặng.
+        }
         unregisterNetworkCallback()
         super.onDestroy()
+    }
+
+    /** Lưu cờ "đang kết nối" rồi báo lên BE nếu trạng thái đổi (BR-LH-01: báo ngay khi service mất/lấy lại kết nối). */
+    private fun markConnected(connected: Boolean) {
+        try {
+            val runtime = NotificationRuntime.get(applicationContext)
+            runtime.statusStore.listenerConnected = connected
+            runtime.reportListenerStatusAsync()
+        } catch (e: Exception) {
+            // Callback của hệ thống: không được ném. Không log.
+        }
     }
 
     private fun unregisterNetworkCallback() {

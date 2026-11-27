@@ -309,6 +309,19 @@ class ReceiptScan {
   }
 }
 
+/// Một câu gợi ý cho khung chat (GET /assistant/suggestions). Bấm thì gửi [text] như người dùng gõ.
+class AssistantSuggestion {
+  final String key;
+  final String text;
+
+  const AssistantSuggestion({required this.key, required this.text});
+
+  factory AssistantSuggestion.fromJson(Map<String, dynamic> json) => AssistantSuggestion(
+        key: json['key'] as String? ?? '',
+        text: json['text'] as String? ?? '',
+      );
+}
+
 class ChatSummaryItem {
   final String slug;
   final String name;

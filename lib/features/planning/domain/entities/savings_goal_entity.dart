@@ -11,6 +11,9 @@ class SavingsGoalEntity {
   final DateTime? targetDate;
   final String status;
 
+  /// Mã chủ đề giá thị trường mà mục tiêu đang theo (ví dụ `gold`); null = không theo.
+  final String? marketTopic;
+
   const SavingsGoalEntity({
     required this.id,
     required this.title,
@@ -18,6 +21,7 @@ class SavingsGoalEntity {
     required this.currentAmountCents,
     this.targetDate,
     this.status = 'active',
+    this.marketTopic,
   });
 
   factory SavingsGoalEntity.fromJson(Map<String, dynamic> json) {
@@ -29,6 +33,7 @@ class SavingsGoalEntity {
       currentAmountCents: parseCents(json['savedCents']),
       targetDate: deadline == null ? null : DateTime.tryParse(deadline)?.toLocal(),
       status: (json['status'] as String? ?? 'active').toLowerCase(),
+      marketTopic: json['marketTopic'] as String?,
     );
   }
 
@@ -40,6 +45,9 @@ class SavingsGoalEntity {
   }
 
   bool get isCancelled => status == 'cancelled';
+
+  /// Bản nháp: chưa tính vào kế hoạch, dự báo hay nhắc hạn và chưa nạp tiền được cho tới khi kích hoạt.
+  bool get isDraft => status == 'draft';
 
   bool get isCompleted => status == 'completed' || (targetAmountCents > BigInt.zero && currentAmountCents >= targetAmountCents);
 
@@ -81,6 +89,7 @@ class SavingsGoalEntity {
     BigInt? currentAmountCents,
     DateTime? targetDate,
     String? status,
+    String? marketTopic,
   }) {
     return SavingsGoalEntity(
       id: id ?? this.id,
@@ -89,6 +98,7 @@ class SavingsGoalEntity {
       currentAmountCents: currentAmountCents ?? this.currentAmountCents,
       targetDate: targetDate ?? this.targetDate,
       status: status ?? this.status,
+      marketTopic: marketTopic ?? this.marketTopic,
     );
   }
 }

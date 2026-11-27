@@ -112,9 +112,6 @@ void main() {
     await tester.enterText(find.byKey(const ValueKey('category-budget')), '1500000');
     await tester.pumpAndSettle();
     expect(find.text('1.500.000'), findsOneWidget, reason: 'tự thêm dấu chấm phần nghìn');
-    await tester.ensureVisible(find.byKey(const ValueKey('category-favorite')));
-    await tester.tap(find.byKey(const ValueKey('category-favorite')));
-    await tester.pumpAndSettle();
     await tester.ensureVisible(find.byKey(const ValueKey('category-save')));
     await tester.tap(find.byKey(const ValueKey('category-save')));
     await tester.pumpAndSettle();
@@ -126,7 +123,6 @@ void main() {
       'kind': 'expense',
       'parentCategoryId': foodId,
       'suggestedBudgetCents': 1500000,
-      'isFavorite': true,
     });
   });
 
@@ -181,7 +177,6 @@ void main() {
       'kind': 'expense',
       'parentCategoryId': kNoParentId,
       'suggestedBudgetCents': 0,
-      'isFavorite': false,
     });
   });
 
@@ -194,7 +189,7 @@ void main() {
 
     expect(find.text('Màu B'), findsOneWidget);
     expect(find.text('500.000'), findsOneWidget);
-    expect(tester.widget<SwitchListTile>(find.byKey(const ValueKey('category-favorite'))).value, isTrue);
+    expect(find.byKey(const ValueKey('category-favorite')), findsNothing);
 
     await tester.ensureVisible(find.byKey(const ValueKey('category-save')));
     await tester.tap(find.byKey(const ValueKey('category-save')));
@@ -207,7 +202,6 @@ void main() {
       'kind': 'expense',
       'parentCategoryId': foodId,
       'suggestedBudgetCents': 500000,
-      'isFavorite': true,
     });
   });
 

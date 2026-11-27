@@ -87,9 +87,15 @@ final pushMessagingProvider = Provider<void>((ref) {
     if (id != null) {
       _pushChannel.invokeMethod('show', {'id': id, 'title': n.title ?? 'FinMate', 'body': n.body ?? ''}).catchError((_) {});
     }
-    final (icon, color) = switch (m.data['type']) {
+    final (icon, color) = switch (m.data['type'] ?? m.data['action']) {
       'transaction_review' => (LucideIcons.clipboardCheck, GlassColors.warning),
       'transaction_auto_committed' => (LucideIcons.arrowLeftRight, GlassColors.accentSkyBlue),
+      'forecast_alert' => (LucideIcons.triangleAlert, GlassColors.warning),
+      'budget_alert' => (LucideIcons.triangleAlert, GlassColors.warning),
+      'loan_due' => (LucideIcons.calendarClock, GlassColors.warning),
+      'goal_completed' || 'goal_deadline' => (LucideIcons.target, GlassColors.success),
+      'data_export_ready' => (LucideIcons.archive, GlassColors.accentSkyBlue),
+      'subscription_activated' || 'subscription_expiring' => (LucideIcons.crown, GlassColors.accentDustyRose),
       _ => (LucideIcons.bell, GlassColors.slateAnchor),
     };
     messenger
@@ -147,12 +153,22 @@ Future<void> _openFrom(Ref ref, RemoteMessage message) async {
 (String, Object?) routeForPush(Map<String, dynamic> data) {
   final groupId = data['groupId'] as String?;
   final ticketId = data['ticketId'] as String?;
+  final transactionId = data['transactionId'] as String?;
+  // Nháp cần người dùng chọn (nghi trùng, hoàn tiền, chuyển ví, khoản vay): mở thẳng chi tiết giao dịch, nơi có các nút xử lý.
+  // BE gửi type = transaction_review kèm action riêng; không có id thì về tab Chờ duyệt như cũ.
+  if (data['type'] == 'transaction_review' &&
+      transactionId != null &&
+      const {'review_duplicate', 'choose_refund_link', 'review_transfer', 'choose_loan_link'}.contains(data['action'])) {
+    return ('/transaction/$transactionId', null);
+  }
   return switch (data['type'] ?? data['action']) {
     'transaction_review' || 'transaction_auto_committed' => ('/transactions', null),
     'forecast_alert' => switch (data['kind']) {
         'group_approval_req' when groupId != null => ('/group-approvals', groupId),
         String k when k.startsWith('group_') && groupId != null => ('/group-detail', groupId),
         'budget_risk' => ('/planning/budgets', null),
+        // Mất quyền đọc thông báo / ví im lặng: màn Tài khoản có thẻ độ phủ dữ liệu
+        'listener_health' => ('/accounts', null),
         'bill_due' || 'bill_status_check' => ('/planning/recurring', null),
         'low_balance' || 'income_late' => ('/forecast', null),
         'purchase_reminder' => ('/analytics/purchase-check', null),
@@ -164,6 +180,7 @@ Future<void> _openFrom(Ref ref, RemoteMessage message) async {
     'budget_alert' => ('/planning/budgets', null),
     'goal_completed' || 'goal_deadline' => ('/planning/goals', null),
     'loan_due' => ('/planning/loans', null),
+    'data_export_ready' => ('/profile/backup', null),
     'subscription_activated' || 'subscription_expiring' => ('/profile/subscription', null),
     // Yêu cầu truy cập hỗ trợ hiện ngay trong chi tiết phiếu
     'support_ticket' || 'support_access_request' when ticketId != null => ('/support-ticket', ticketId),

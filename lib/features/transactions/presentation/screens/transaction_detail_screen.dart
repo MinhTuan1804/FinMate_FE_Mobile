@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:finmate/core/network/api_exceptions.dart';
 import 'package:finmate/core/theme/app_colors.dart';
 import 'package:finmate/core/theme/app_spacing.dart';
@@ -11,9 +12,11 @@ import 'package:finmate/core/widgets/glass/liquid_glass.dart';
 import 'package:finmate/features/accounts/presentation/controllers/accounts_controller.dart';
 import 'package:finmate/features/categories/presentation/categories_provider.dart';
 import 'package:finmate/features/categories/presentation/category_icons.dart';
+import 'package:finmate/features/transactions/data/transaction_links_repository.dart';
 import 'package:finmate/features/transactions/domain/entities/transaction_entity.dart';
 import 'package:finmate/features/transactions/presentation/controllers/transaction_controller.dart';
 import 'package:finmate/features/transactions/presentation/widgets/draft_edit_sheet.dart';
+import 'package:finmate/features/transactions/presentation/widgets/transaction_links_section.dart';
 
 /// Màn D2: Chi tiết / Sửa giao dịch (Transaction Detail Screen)
 class TransactionDetailScreen extends ConsumerStatefulWidget {
@@ -28,13 +31,52 @@ class TransactionDetailScreen extends ConsumerStatefulWidget {
 
 class _TransactionDetailScreenState
     extends ConsumerState<TransactionDetailScreen> {
-  late final TransactionEntity _tx = widget.transaction;
+  /// Bản mới nhất từ server (đủ gợi ý trùng, gợi ý chuyển ví, mục tiêu...) nếu đã tải được; chưa có hoặc lỗi (mất mạng,
+  /// giao dịch chưa đồng bộ) thì dùng bản đã có từ danh sách. Đọc bằng `read`: [build] đã `watch` provider để dựng lại khi nó đổi.
+  TransactionEntity get _tx =>
+      (_onServer ? ref.read(transactionDetailProvider(widget.transaction.id)).valueOrNull : null) ?? widget.transaction;
+
+  /// Giao dịch chưa đồng bộ chỉ có ở máy: server chưa biết nó nên các thao tác liên kết (404) chưa dùng được.
+  bool get _onServer => widget.transaction.isSynced;
+
+  /// Sau mỗi thay đổi tại chỗ: tải lại chi tiết và danh sách để số liệu ở mọi nơi khớp với server.
+  Future<void> _reload() async {
+    final id = widget.transaction.id;
+    ref.invalidate(transactionDetailProvider(id));
+    ref.read(transactionControllerProvider.notifier).loadTransactions();
+    try {
+      await ref.read(transactionDetailProvider(id).future);
+    } catch (_) {
+      // Không tải lại được: giữ bản đang hiện, người dùng kéo/mở lại sau.
+    }
+  }
+
+  /// Giao dịch này không còn đứng một mình (đã gộp hoặc đã thành chuyển ví): danh sách đã tải lại, đóng màn chi tiết.
+  void _close() {
+    if (mounted) context.pop();
+  }
+
+  Future<void> _share() async {
+    try {
+      final receipt = await ref.read(transactionLinksRepositoryProvider).shareReceipt(widget.transaction.id);
+      await Share.share(receipt.text, subject: receipt.title);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Không thể chia sẻ biên lai: ${errorMessage(e)}'), behavior: SnackBarBehavior.floating),
+      );
+    }
+  }
 
   Future<void> _handleEdit() async {
     final updated = await DraftEditSheet.show(context, _tx);
     if (updated == true && mounted) {
-      ref.read(transactionControllerProvider.notifier).loadTransactions();
-      context.pop();
+      // Ở lại màn chi tiết với số liệu mới (không đóng như trước): người dùng thấy ngay kết quả sửa.
+      await _reload();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Đã lưu thay đổi'), behavior: SnackBarBehavior.floating),
+      );
     }
   }
 
@@ -103,6 +145,7 @@ class _TransactionDetailScreenState
 
   @override
   Widget build(BuildContext context) {
+    if (_onServer) ref.watch(transactionDetailProvider(widget.transaction.id));
     final isExpense = _tx.type == TransactionType.expense;
     final isTransfer = _tx.isInternalTransfer;
     final typeColor = isTransfer
@@ -124,6 +167,19 @@ class _TransactionDetailScreenState
         backgroundColor: Colors.transparent,
         title: const Text('Chi tiết giao dịch'),
         actions: [
+          IconButton(
+            key: const ValueKey('edit-transaction'),
+            tooltip: 'Sửa',
+            icon: const Icon(LucideIcons.pencil),
+            onPressed: _handleEdit,
+          ),
+          if (_onServer)
+            IconButton(
+              key: const ValueKey('share-receipt'),
+              tooltip: 'Chia sẻ biên lai',
+              icon: const Icon(LucideIcons.share2),
+              onPressed: _share,
+            ),
           IconButton(
             tooltip: 'Xóa',
             icon: const Icon(LucideIcons.trash2),
@@ -156,6 +212,7 @@ class _TransactionDetailScreenState
                       const SizedBox(height: 16),
                       _details(context),
                       const SizedBox(height: 16),
+                      if (_onServer) TransactionLinksSection(tx: _tx, onChanged: _reload, onGone: _close),
                       _actions(context),
                       const SizedBox(height: 12),
                       Center(

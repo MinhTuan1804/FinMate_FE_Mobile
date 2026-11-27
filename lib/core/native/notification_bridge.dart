@@ -88,6 +88,14 @@ class NotificationBridge {
 
   Future<void> flushQueue() => _safe(() => _channel.invokeMethod<void>('flushQueue'), null);
 
+  /// Báo trạng thái dịch vụ đọc thông báo (quyền, đang kết nối, lần cuối thấy thông báo của từng ví) lên BE
+  /// (PUT /devices/listener-status, BR-LH-01). Native tự giới hạn tần suất: chỉ gửi khi trạng thái vừa đổi hoặc đã lâu chưa báo.
+  /// Trả `sent` | `skipped` | `nosession` | `retry`; `unavailable` khi không có kênh (iOS/test).
+  Future<String> reportListenerStatus() => _safe(
+        () async => await _channel.invokeMethod<String>('reportListenerStatus') ?? 'skipped',
+        'unavailable',
+      );
+
   Future<bool> consumeSessionExpired() => _safe(
         () async => await _channel.invokeMethod<bool>('consumeSessionExpired') ?? false,
         false,

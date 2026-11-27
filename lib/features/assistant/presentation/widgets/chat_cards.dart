@@ -1380,7 +1380,7 @@ class AgentCardView extends ConsumerWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(child: Text(e.text, style: AppTypography.body(context))),
+              Expanded(child: _rich(context, e.text)),
               if (value != null) ...[
                 const SizedBox(width: 8),
                 Text(
@@ -1390,9 +1390,97 @@ class AgentCardView extends ConsumerWidget {
               ],
             ],
           ),
-          Text(meta, style: AppTypography.caption(context)),
+          Text(meta, style: AppTypography.caption(context), maxLines: 2, overflow: TextOverflow.ellipsis),  // tên nguồn dài (tên văn bản) bị cắt gọn, không kéo dài thẻ
         ],
       ),
+    );
+  }
+
+  /// Con số làm nổi trong câu chữ: tiền, phần trăm, thời gian. Kết thúc bằng chữ số hoặc đơn vị, nên dấu chấm cuối câu không bị tô theo.
+  static final _figure = RegExp(r'\d(?:[\d.,]*\d)?(?:\s?(?:₫|đồng|%|tỷ|triệu|nghìn|tháng|năm))?');
+
+  /// Chữ thường, riêng các con số quan trọng được in đậm và đổi màu để lướt mắt là thấy.
+  static Widget _rich(BuildContext context, String text, {TextStyle? style, int? maxLines}) {
+    final base = style ?? AppTypography.body(context);
+    final strong = base.copyWith(fontWeight: FontWeight.w800, color: AppColors.primaryAction(context));
+    final spans = <InlineSpan>[];
+    var last = 0;
+    for (final m in _figure.allMatches(text)) {
+      if (m.start > last) spans.add(TextSpan(text: text.substring(last, m.start)));
+      spans.add(TextSpan(text: m.group(0), style: strong));
+      last = m.end;
+    }
+    if (last < text.length) spans.add(TextSpan(text: text.substring(last)));
+    return Text.rich(
+      TextSpan(style: base, children: spans),
+      maxLines: maxLines,
+      overflow: maxLines == null ? TextOverflow.clip : TextOverflow.ellipsis,
+    );
+  }
+
+  /// Một ô số liệu to, rõ (nhãn nhỏ, số đậm, dòng phụ tùy chọn); hai ô cùng hàng cao bằng nhau nhờ IntrinsicHeight ở nơi gọi.
+  static Widget _tile(BuildContext context, String key, String caption, String value, String? hint, {Color? valueColor}) => Expanded(
+    child: Container(
+      key: ValueKey(key),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(color: AppColors.slateOn(context).withValues(alpha: 0.08), borderRadius: BorderRadius.circular(12)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(caption, style: AppTypography.caption(context)),
+          const SizedBox(height: 2),
+          Text(value, style: AppTypography.tabular(AppTypography.bodyMedium(context)).copyWith(fontWeight: FontWeight.w800, fontSize: 18, color: valueColor)),
+          if (hint != null) Text(hint, style: AppTypography.caption(context)),
+        ],
+      ),
+    ),
+  );
+
+  /// Dự báo mục tiêu (`forecast_goal`): hai con số chính, còn thiếu bao nhiêu khi hết hạn và mỗi tháng dư được bao nhiêu (kịch bản cơ sở). Số lấy nguyên từ bằng chứng của backend.
+  Widget? _forecastSummary(BuildContext context, AgentAnswer answer, Color? verdictColor) {
+    final shortfall = answer.evidenceById('shortfall_base');
+    final capacity = answer.evidenceById('scenario_base')?.valueVnd;
+    if (shortfall == null || shortfall.valueVnd == null) return null;
+    final short = shortfall.valueVnd! > BigInt.zero;
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _tile(context, 'forecast-shortfall', 'Còn thiếu khi hết hạn', short ? formatVnd(shortfall.valueVnd!) : 'Đã đủ tiền', 'kịch bản cơ sở, ước tính', valueColor: short ? verdictColor : AppColors.safe),
+          const SizedBox(width: 8),
+          _tile(context, 'forecast-capacity', 'Dư mỗi tháng', capacity == null ? 'Chưa biết' : formatVnd(capacity), 'thu trừ chi điển hình'),
+        ],
+      ),
+    );
+  }
+
+  /// Phần chữ của câu trả lời: câu đầu là KẾT LUẬN (khi có kết luận), các câu sau là LÝ DO ngắn; câu gợi ý kéo dài thời hạn (căn cứ `alt_`) được tách ra cho khối gợi ý.
+  /// Không có kết luận (thống kê, tư vấn...) thì mọi câu là đoạn thường. Con số quan trọng luôn được làm nổi.
+  /// Trả về (kết luận, các phần còn lại) để số liệu chính chen vào giữa.
+  (List<Widget>, List<Widget>) _claimBlocks(BuildContext context, AgentAnswer answer) {
+    bool isAlt(AgentClaim c) => c.evidenceIds.any((id) => id.startsWith('alt_'));
+    final main = answer.claims.where((c) => !isAlt(c)).toList();
+    Widget paragraph(AgentClaim c, {TextStyle? style}) => Padding(padding: const EdgeInsets.only(bottom: 6), child: _rich(context, c.text, style: style));
+    if (answer.verdict == null || main.isEmpty) return ([], [for (final c in main) paragraph(c)]);
+    final reasons = main.skip(1).toList();
+    return (
+      [paragraph(main.first, style: AppTypography.bodyMedium(context))],
+      [
+        if (reasons.isNotEmpty) ...[
+          Padding(padding: const EdgeInsets.only(top: 2, bottom: 4), child: Text('Vì sao', style: AppTypography.caption(context).copyWith(fontWeight: FontWeight.w700))),
+          for (final c in reasons)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Padding(padding: EdgeInsets.only(top: 1), child: Text('•  ')),
+                  Expanded(child: _rich(context, c.text)),
+                ],
+              ),
+            ),
+        ],
+      ],
     );
   }
 
@@ -1555,20 +1643,31 @@ class AgentCardView extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (answer.verdict != null && verdictTitle.isNotEmpty) ...[
-            Row(
-              children: [
-                Icon(verdictIcon, size: 18, color: verdictColor),
-                const SizedBox(width: 8),
-                Text(
-                  verdictTitle,
-                  key: const ValueKey('agent-verdict'),
-                  style: AppTypography.bodyMedium(
-                    context,
-                  ).copyWith(fontWeight: FontWeight.w700, color: verdictColor),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: (verdictColor ?? AppColors.slateOn(context)).withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(999),
                 ),
-              ],
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(verdictIcon, size: 18, color: verdictColor),
+                    const SizedBox(width: 6),
+                    Text(
+                      verdictTitle,
+                      key: const ValueKey('agent-verdict'),
+                      style: AppTypography.bodyMedium(
+                        context,
+                      ).copyWith(fontWeight: FontWeight.w800, color: verdictColor),
+                    ),
+                  ],
+                ),
+              ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
           ],
           if (answer.isGoalPlan)
             // Đánh giá mục tiêu: hai con số chính thay cho đoạn văn dài (chi tiết nằm ở "Vì sao?")
@@ -1576,12 +1675,12 @@ class AgentCardView extends ConsumerWidget {
               padding: const EdgeInsets.only(bottom: 6),
               child: _goalSummary(context, answer, verdictColor),
             )
-          else
-            for (final claim in answer.claims)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Text(claim.text, style: AppTypography.body(context)),
-              ),
+          else ...[
+            ..._claimBlocks(context, answer).$1,
+            if (_forecastSummary(context, answer, verdictColor) case final summary?)
+              Padding(padding: const EdgeInsets.only(bottom: 8), child: summary),
+            ..._claimBlocks(context, answer).$2,
+          ],
           if (answer.evidence.isNotEmpty)
             // Material trong suốt: ExpansionTile (ListTile) cần Material tổ tiên, mà nền thẻ chỉ là DecoratedBox
             Material(
@@ -1595,13 +1694,14 @@ class AgentCardView extends ConsumerWidget {
                   tilePadding: EdgeInsets.zero,
                   childrenPadding: EdgeInsets.zero,
                   title: Text(
-                    'Vì sao?',
+                    'Chi tiết số liệu',
                     style: AppTypography.bodyMedium(
                       context,
                     ).copyWith(fontWeight: FontWeight.w600),
                   ),
                   children: [
-                    for (final e in answer.evidence) _evidenceRow(context, e),
+                    // Mã kết luận kỹ thuật ("verdict: ...") đã thành nhãn ở đầu thẻ; ghi chú sơ bộ hiện riêng dưới thẻ
+                    for (final e in answer.evidence.where((e) => e.id != 'verdict' && e.id != AgentAnswer.preliminaryNoteId)) _evidenceRow(context, e),
                   ],
                 ),
               ),
@@ -1615,7 +1715,20 @@ class AgentCardView extends ConsumerWidget {
                   context,
                 ).copyWith(fontWeight: FontWeight.w700),
               ),
+            )
+          else if (answer.suggestedActions.any((a) => a.isLongerHorizon)) ...[
+            // Mục tiêu chưa khả thi trong hạn đã hỏi: gợi ý kéo dài thời hạn, câu giải thích của trợ lý đứng ngay trên các nút
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: Text(
+                'Gợi ý điều chỉnh thời hạn',
+                key: const ValueKey('agent-suggestion-title'),
+                style: AppTypography.bodyMedium(context).copyWith(fontWeight: FontWeight.w700),
+              ),
             ),
+            for (final c in answer.claims.where((c) => c.evidenceIds.any((id) => id.startsWith('alt_'))))
+              Padding(padding: const EdgeInsets.only(top: 4), child: _rich(context, c.text)),
+          ],
           for (var i = 0; i < answer.suggestedActions.length; i++)
             _action(context, ref, i, answer.suggestedActions[i]),
           if (card.error != null)
@@ -1661,6 +1774,63 @@ class AgentCardView extends ConsumerWidget {
                 ? 'Mình không đưa lời khuyên đầu tư và không tự thay đổi dữ liệu của bạn.'
                 : 'Dải dự báo, chỉ để tham khảo. Mình không đưa lời khuyên đầu tư và không tự thay đổi dữ liệu của bạn.',
             style: AppTypography.caption(context),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Hỏi lại khi câu chưa rõ là khoản đã chi hay khoản định mua; chọn xong thì thẻ ẩn nút (không ghi gì trước khi chọn).
+class ClarifyPurchaseCardView extends ConsumerWidget {
+  final ClarifyPurchaseCard card;
+  const ClarifyPurchaseCardView({super.key, required this.card});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (card.resolved) return const SizedBox.shrink();
+    final controller = ref.read(assistantControllerProvider.notifier);
+    final draft = card.draft;
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.all(14),
+      decoration: _cardDecoration(context),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(LucideIcons.shoppingBag, size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  draft.description ?? draft.merchantName ?? 'Khoản chưa đặt tên',
+                  style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w600),
+                ),
+              ),
+              Text(
+                formatVnd(draft.amountCents!),
+                style: AppTypography.tabular(AppTypography.body(context)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            alignment: WrapAlignment.end,
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              TextButton(
+                key: const ValueKey('clarify-ask'),
+                onPressed: () => controller.askClarifiedPurchase(card.id),
+                child: const Text('Hỏi có nên mua'),
+              ),
+              ElevatedButton(
+                key: const ValueKey('clarify-log'),
+                onPressed: () => controller.logClarifiedPurchase(card.id),
+                child: const Text('Ghi khoản chi'),
+              ),
+            ],
           ),
         ],
       ),

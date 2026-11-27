@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:finmate/features/planning/data/planning_repository.dart';
+import 'package:finmate/features/planning/domain/entities/market_topic.dart';
 import 'package:finmate/features/planning/domain/entities/savings_goal_entity.dart';
 import 'package:finmate/features/planning/presentation/controllers/planning_controller.dart';
 import 'package:finmate/features/planning/presentation/screens/goal_form_screen.dart';
@@ -9,9 +11,13 @@ import 'package:finmate/features/planning/presentation/screens/savings_goal_deta
 
 class MockGoalController extends StateNotifier<AsyncValue<PlanningState>> implements PlanningController {
   final List<(String, BigInt)> contributions = [];
-  final List<({String id, String name, BigInt target, DateTime? deadline})> goalUpdates = [];
-  final List<({String title, BigInt target, DateTime? deadline})> goalCreates = [];
+  final List<({String id, String name, BigInt target, DateTime? deadline, String? marketTopic})> goalUpdates = [];
+  final List<({String title, BigInt target, DateTime? deadline, bool isDraft, String? marketTopic})> goalCreates = [];
   final List<String> cancelledGoalIds = [];
+  final List<String> activatedGoalIds = [];
+
+  /// Đặt để mô phỏng BE từ chối kích hoạt (ví dụ hạn chót đã qua).
+  Object? activateError;
   SavingsGoalEntity? nextResult;
   GoalProgressEntity? nextProgress;
   GoalFeasibilityEntity? nextFeasibility;
@@ -26,14 +32,32 @@ class MockGoalController extends StateNotifier<AsyncValue<PlanningState>> implem
   }
 
   @override
-  Future<String?> createSavingsGoal({required String title, required BigInt targetAmountCents, DateTime? targetDate}) async {
-    goalCreates.add((title: title, target: targetAmountCents, deadline: targetDate));
+  Future<String?> createSavingsGoal({
+    required String title,
+    required BigInt targetAmountCents,
+    DateTime? targetDate,
+    bool isDraft = false,
+    String? marketTopic,
+  }) async {
+    goalCreates.add((title: title, target: targetAmountCents, deadline: targetDate, isDraft: isDraft, marketTopic: marketTopic));
     return null;
   }
 
   @override
-  Future<void> updateGoal({required String id, required String name, required BigInt targetCents, DateTime? deadline}) async {
-    goalUpdates.add((id: id, name: name, target: targetCents, deadline: deadline));
+  Future<void> updateGoal({
+    required String id,
+    required String name,
+    required BigInt targetCents,
+    DateTime? deadline,
+    String? marketTopic,
+  }) async {
+    goalUpdates.add((id: id, name: name, target: targetCents, deadline: deadline, marketTopic: marketTopic));
+  }
+
+  @override
+  Future<void> activateGoal(String id) async {
+    if (activateError != null) throw activateError!;
+    activatedGoalIds.add(id);
   }
 
   @override
@@ -83,6 +107,7 @@ Future<MockGoalController> pumpGoalApp(
   required Widget home,
   required AsyncValue<PlanningState> state,
   void Function(MockGoalController mock)? prepare,
+  List<MarketTopic> marketTopics = const [],
 }) async {
   tester.view.physicalSize = const Size(360, 1400);
   tester.view.devicePixelRatio = 1;
@@ -98,7 +123,10 @@ Future<MockGoalController> pumpGoalApp(
   );
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [planningControllerProvider.overrideWith((ref) => mock)],
+      overrides: [
+        planningControllerProvider.overrideWith((ref) => mock),
+        marketTopicsProvider.overrideWith((ref) async => marketTopics),
+      ],
       child: MaterialApp.router(routerConfig: router),
     ),
   );

@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:finmate/core/theme/glass/glass_colors.dart';
 import 'package:finmate/core/theme/glass/glass_typography.dart';
 import 'package:finmate/shared/widgets/glass/glass_card.dart';
 
-/// Thẻ thông báo (B2): icon theo loại, tiêu đề/nội dung, dòng meta, chấm chưa đọc.
+/// Thẻ thông báo (B2): dải màu + icon theo loại, tiêu đề đậm, nội dung tối đa 2 dòng, dòng meta kèm "Xem", chấm chưa đọc cạnh tiêu đề.
 class GlassNotificationCard extends StatelessWidget {
   final IconData icon;
   final Color iconColor;
@@ -37,50 +38,81 @@ class GlassNotificationCard extends StatelessWidget {
       child: GlassCard(
         level: level,
         borderRadius: const BorderRadius.all(Radius.circular(22)),
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Stack(
-              clipBehavior: Clip.none,
+        padding: EdgeInsets.zero,
+        child: ClipRRect(
+          borderRadius: const BorderRadius.all(Radius.circular(22)),
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(color: iconColor.withValues(alpha: 0.14), shape: BoxShape.circle),
-                  child: Icon(icon, size: 20, color: iconColor),
-                ),
-                if (unread)
-                  Positioned(
-                    top: -2,
-                    right: -2,
-                    child: Container(
-                      width: 10,
-                      height: 10,
-                      decoration: BoxDecoration(color: GlassColors.danger, shape: BoxShape.circle),
+                // Dải màu theo loại: nhìn lướt là biết loại thông báo
+                Container(width: 5, color: iconColor.withValues(alpha: unread ? 1 : 0.45)),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 14, 6, 12),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 42,
+                          height: 42,
+                          decoration: BoxDecoration(color: iconColor.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(14)),
+                          child: Icon(icon, size: 20, color: iconColor),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      title,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GlassTypography.bodyLg(color: GlassColors.textPrimary).copyWith(fontWeight: unread ? FontWeight.w700 : FontWeight.w600),
+                                    ),
+                                  ),
+                                  if (unread)
+                                    Container(
+                                      margin: const EdgeInsets.only(left: 8),
+                                      width: 9,
+                                      height: 9,
+                                      decoration: BoxDecoration(color: GlassColors.danger, shape: BoxShape.circle),
+                                    ),
+                                ],
+                              ),
+                              if (body.isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                Text(body, maxLines: 2, overflow: TextOverflow.ellipsis, style: GlassTypography.bodyMd()),
+                              ],
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Expanded(child: Text(metaText, maxLines: 1, overflow: TextOverflow.ellipsis, style: GlassTypography.bodySm())),
+                                  if (onTap != null) ...[
+                                    Text('Xem', style: GlassTypography.bodySm(color: iconColor).copyWith(fontWeight: FontWeight.w600)),
+                                    Icon(LucideIcons.chevronRight, size: 14, color: iconColor),
+                                  ],
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (onDismiss != null)
+                          IconButton(
+                            visualDensity: VisualDensity.compact,
+                            icon: Icon(Icons.close, size: 18, color: GlassColors.textMuted),
+                            onPressed: onDismiss,
+                          ),
+                      ],
                     ),
                   ),
+                ),
               ],
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: GlassTypography.bodyLg(color: GlassColors.textPrimary).copyWith(fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 4),
-                  Text(body, style: GlassTypography.bodyMd()),
-                  const SizedBox(height: 8),
-                  Text(metaText, style: GlassTypography.bodySm()),
-                ],
-              ),
-            ),
-            if (onDismiss != null)
-              IconButton(
-                icon: Icon(Icons.close, size: 18, color: GlassColors.textMuted),
-                onPressed: onDismiss,
-              ),
-          ],
+          ),
         ),
       ),
     );

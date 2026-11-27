@@ -24,6 +24,16 @@ class GroupDebtsRepository {
     return (items: res.data ?? const <GroupBillEntity>[], nextCursor: res.meta?.nextCursor);
   }
 
+  /// Một hóa đơn kèm các phần chia (GET /groups/{id}/bills/{billId}). 404 nếu người xem không được thấy hóa đơn này
+  /// (chế độ chỉ xem tóm tắt chỉ thấy hóa đơn mình trả hoặc có phần).
+  Future<GroupBillEntity> getBill(String groupId, String billId) async {
+    final res = await apiClient.get<GroupBillEntity>(
+      '/api/v1/groups/$groupId/bills/$billId',
+      fromJsonT: (json) => GroupBillEntity.fromJson(json as Map<String, dynamic>),
+    );
+    return res.data as GroupBillEntity;
+  }
+
   /// `Equal`: chỉ cần userId (server tự chia, dồn phần dư cho người trả). `Custom`: tổng shareCents phải bằng [amountCents]
   /// (lỗi 422 GROUP_BILL_SPLIT_MISMATCH). Quyền ShareTransactions — Viewer bị 403.
   /// HTTP 202 = yêu cầu chờ duyệt (khoản từ ngưỡng do người không phải chủ nhóm tạo), KHÔNG phải hóa đơn.

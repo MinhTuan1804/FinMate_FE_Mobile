@@ -1,11 +1,9 @@
 package com.finmate.app.notifications
 
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.os.Handler
 import android.os.Looper
-import android.provider.Settings
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
@@ -57,6 +55,8 @@ class NotificationChannelHandler(private val context: Context) {
                     rt.store.saveTokens(access, refresh)
                     rt.store.sessionExpired = false
                 }
+                // Có phiên thì mới có ai để báo trạng thái listener thay.
+                ListenerStatusScheduler.schedule(context)
                 null
             }
             "clearSession" -> {
@@ -71,6 +71,9 @@ class NotificationChannelHandler(private val context: Context) {
                     }
                     rt.queue.clear()
                 }
+                ListenerStatusScheduler.cancel(context)
+                // Người dùng sau phải báo lại từ đầu, không kế thừa "đã báo" của tài khoản trước.
+                rt.statusStore.lastReportKey = null
                 null
             }
             "flushQueue" -> {
@@ -89,16 +92,12 @@ class NotificationChannelHandler(private val context: Context) {
                 rt.monitored.set(list)
                 null
             }
-            "isNotificationAccessEnabled" -> isNotificationAccessEnabled()
+            "isNotificationAccessEnabled" -> isNotificationAccessEnabled(context)
+            // Quyền có thể vừa đổi trong Cài đặt: Flutter gọi mỗi lần app mở lại; chỉ gửi khi trạng thái đổi hoặc đã lâu chưa báo.
+            "reportListenerStatus" -> rt.listenerStatus.report(force = false).name.lowercase()
             "consumeSessionExpired" -> rt.store.sessionExpired.also { if (it) rt.store.sessionExpired = false }
             else -> NOT_IMPLEMENTED
         }
-    }
-
-    private fun isNotificationAccessEnabled(): Boolean {
-        val flat = Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners") ?: return false
-        val self = ComponentName(context, NotificationCaptureService::class.java)
-        return flat.split(':').any { ComponentName.unflattenFromString(it) == self }
     }
 
     private companion object {

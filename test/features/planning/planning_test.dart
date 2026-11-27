@@ -38,7 +38,13 @@ class MockPlanningController extends StateNotifier<AsyncValue<PlanningState>> im
   }
 
   @override
-  Future<void> updateGoal({required String id, required String name, required BigInt targetCents, DateTime? deadline}) async {
+  Future<void> updateGoal({
+    required String id,
+    required String name,
+    required BigInt targetCents,
+    DateTime? deadline,
+    String? marketTopic,
+  }) async {
     goalUpdates.add((id: id, name: name, target: targetCents, deadline: deadline));
   }
 

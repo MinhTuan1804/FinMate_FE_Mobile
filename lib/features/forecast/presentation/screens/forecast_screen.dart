@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:finmate/features/accounts/data/data_coverage_repository.dart';
+import 'package:finmate/features/accounts/domain/data_coverage.dart';
+import 'package:finmate/features/accounts/presentation/widgets/data_coverage_banner.dart';
 import 'package:finmate/core/format/money.dart';
 import 'package:finmate/core/network/api_exceptions.dart';
 import 'package:finmate/core/theme/app_colors.dart';
@@ -305,6 +308,10 @@ class _ForecastScreenState extends ConsumerState<ForecastScreen> {
         child: ListView(
           padding: const EdgeInsets.all(AppSpacing.md),
           children: [
+            // Độ phủ dữ liệu thấp hoặc mất quyền đọc thông báo: dự báo có thể thiếu giao dịch (BE đã hạ độ tin cậy). Đủ tốt thì không chiếm chỗ.
+            if (ref.watch(dataCoverageProvider).valueOrNull case final coverage?
+                when coverage.hasPermissionLost || coverage.level == CoverageLevel.partial || coverage.level == CoverageLevel.poor)
+              if (dataCoverageBanner(context, coverage) case final banner?) ...[banner, const SizedBox(height: AppSpacing.lg)],
             _buildCashflowSection(context, cashflowAsync),
             const SizedBox(height: AppSpacing.lg),
             _buildSpendableSection(context, spendableAsync),

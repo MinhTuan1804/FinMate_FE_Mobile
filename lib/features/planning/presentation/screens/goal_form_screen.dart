@@ -7,6 +7,8 @@ import 'package:finmate/core/network/api_exceptions.dart';
 import 'package:finmate/core/theme/glass/glass_colors.dart';
 import 'package:finmate/core/theme/glass/glass_radius.dart';
 import 'package:finmate/core/theme/glass/glass_typography.dart';
+import 'package:finmate/features/planning/data/planning_repository.dart';
+import 'package:finmate/features/planning/domain/entities/market_topic.dart';
 import 'package:finmate/features/planning/domain/entities/savings_goal_entity.dart';
 import 'package:finmate/features/planning/presentation/controllers/planning_controller.dart';
 import 'package:finmate/shared/widgets/glass/glass_app_bar.dart';
@@ -42,6 +44,17 @@ class _GoalFormScreenState extends ConsumerState<GoalFormScreen> {
   bool _saving = false;
 
   bool get _editing => widget.goal != null;
+
+  /// Chủ đề giá thị trường đang chọn (null = không theo) và chủ đề lúc mở form, để biết người dùng có đổi không.
+  late String? _topic = widget.goal?.marketTopic;
+  late final String? _originalTopic = widget.goal?.marketTopic;
+
+  @override
+  void initState() {
+    super.initState();
+    // Gợi ý "theo giá vàng" phụ thuộc tên đang gõ.
+    _name.addListener(() => setState(() {}));
+  }
 
   @override
   void dispose() {
@@ -98,7 +111,7 @@ class _GoalFormScreenState extends ConsumerState<GoalFormScreen> {
     }
   }
 
-  Future<void> _submit() async {
+  Future<void> _submit({bool draft = false}) async {
     final name = _name.text.trim();
     final target = parseAmountInput(_target.text);
     if (name.isEmpty) {
@@ -123,12 +136,16 @@ class _GoalFormScreenState extends ConsumerState<GoalFormScreen> {
           name: name,
           targetCents: target,
           deadline: _deadline,
+          // BE: null = giữ nguyên, chuỗi rỗng = bỏ theo giá. Chỉ gửi khi người dùng đổi lựa chọn.
+          marketTopic: _topic == _originalTopic ? null : (_topic ?? ''),
         );
       } else {
         await controller.createSavingsGoal(
           title: name,
           targetAmountCents: target,
           targetDate: _deadline,
+          isDraft: draft,
+          marketTopic: _topic,
         );
       }
     } catch (e) {
@@ -144,12 +161,56 @@ class _GoalFormScreenState extends ConsumerState<GoalFormScreen> {
     messenger.showSnackBar(
       SnackBar(
         content: Text(
-          _editing ? 'Đã lưu mục tiêu' : 'Đã tạo mục tiêu tiết kiệm',
+          _editing ? 'Đã lưu mục tiêu' : (draft ? 'Đã lưu bản nháp' : 'Đã tạo mục tiêu tiết kiệm'),
         ),
       ),
     );
     final popped = await navigator.maybePop();
     if (!popped && mounted) setState(() => _saving = false);
+  }
+
+  /// Lựa chọn "theo giá thị trường" (vàng...). Chỉ hiện khi BE có chủ đề nào đang bật và đã có giá. Tên mục tiêu có nhắc tới chủ đề
+  /// thì chỉ GỢI Ý bằng một nút bấm, không bao giờ tự gắn.
+  Widget _topicSection() {
+    final topics = ref.watch(marketTopicsProvider).valueOrNull ?? const <MarketTopic>[];
+    if (topics.isEmpty) return const SizedBox.shrink();
+    final suggested = _topic == null ? topics.where((t) => t.suggestedFor(_name.text)).firstOrNull : null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 20),
+        const _FieldLabel('Theo giá thị trường (tùy chọn)'),
+        const SizedBox(height: 8),
+        if (suggested != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: ActionChip(
+              key: ValueKey('suggest-topic-${suggested.key}'),
+              label: Text('Gợi ý: theo giá ${suggested.label}'),
+              onPressed: () => setState(() => _topic = suggested.key),
+            ),
+          ),
+        _FieldBox(
+          key: const ValueKey('market-topic'),
+          child: DropdownButtonFormField<String?>(
+            key: ValueKey('market-topic-$_topic'),
+            initialValue: _topic,
+            isExpanded: true,
+            decoration: const InputDecoration(border: InputBorder.none, enabledBorder: InputBorder.none, focusedBorder: InputBorder.none),
+            items: [
+              const DropdownMenuItem<String?>(value: null, child: Text('Không theo giá thị trường')),
+              for (final t in topics) DropdownMenuItem<String?>(value: t.key, child: Text('${t.label} • ${formatVnd(t.priceCents)}')),
+            ],
+            onChanged: (v) => setState(() => _topic = v),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'FinMate lấy giá hiện tại làm mốc; khi giá đổi, số tiền cần góp và ngày đạt mục tiêu được tính lại.',
+          style: GlassTypography.bodySm(),
+        ),
+      ],
+    );
   }
 
   @override
@@ -176,6 +237,13 @@ class _GoalFormScreenState extends ConsumerState<GoalFormScreen> {
         ),
         bottomNavigationBar: GlassBottomDock(
           actions: [
+            // Bản nháp: lưu để xem lại, chưa tính vào kế hoạch hay dự báo cho tới khi kích hoạt ở danh sách mục tiêu.
+            if (!_editing)
+              GlassSecondaryButton(
+                key: const ValueKey('save-draft'),
+                label: 'Lưu bản nháp',
+                onPressed: _saving ? null : () => _submit(draft: true),
+              ),
             GlassPrimaryButton(
               key: const ValueKey('save-goal'),
               label: 'Lưu mục tiêu',
@@ -271,6 +339,7 @@ class _GoalFormScreenState extends ConsumerState<GoalFormScreen> {
                               _feasibilityChecked = false;
                             }),
                     ),
+                    _topicSection(),
                   ],
                 ),
               ),
@@ -327,6 +396,7 @@ class _FieldBox extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
   const _FieldBox({
+    super.key,
     required this.child,
     this.padding = const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
   });

@@ -15,10 +15,14 @@ private const val TIMEOUT_MS = 15_000
  * Đọc thân 2xx lỗi/quá hạn thì trả null thay vì ném: BE có thể đã xử lý xong (vd. xoay refresh token), người gọi cần biết mã.
  * Không log URL, thân yêu cầu hay token.
  */
-private fun postJson(url: String, body: JSONObject, bearer: String?, readBody: Boolean): Pair<Int, String?> {
+private fun postJson(url: String, body: JSONObject, bearer: String?, readBody: Boolean): Pair<Int, String?> =
+    requestJson("POST", url, body, bearer, readBody)
+
+/** Như [postJson] nhưng cho phép chọn phương thức (PUT cho báo trạng thái listener). */
+internal fun requestJson(method: String, url: String, body: JSONObject, bearer: String?, readBody: Boolean): Pair<Int, String?> {
     val conn = URL(url).openConnection() as HttpURLConnection
     try {
-        conn.requestMethod = "POST"
+        conn.requestMethod = method
         conn.connectTimeout = TIMEOUT_MS
         conn.readTimeout = TIMEOUT_MS
         conn.instanceFollowRedirects = false
@@ -41,7 +45,7 @@ private fun postJson(url: String, body: JSONObject, bearer: String?, readBody: B
     }
 }
 
-private fun joinUrl(baseUrl: String, path: String) = baseUrl.trimEnd('/') + path
+internal fun joinUrl(baseUrl: String, path: String) = baseUrl.trimEnd('/') + path
 
 /**
  * 404 (trang endpoint-offline của ngrok), 429 và 502..504 nghĩa là tunnel/BE đang tắt: giữ mục và dừng lượt xả,
@@ -99,5 +103,27 @@ class UrlConnectionRefreshHttp : RefreshHttp {
         interpretRefreshResponse(code, text)
     } catch (e: Exception) {
         RefreshHttpResult.NetworkError
+    }
+}
+
+/**
+ * 2xx là xong (BE trả 204). 401 -> làm mới token. 404 (trang endpoint-offline của ngrok), 429 và 5xx nghĩa là BE/tunnel đang tắt nên thử lại
+ * sau; 4xx khác (400 thiếu cờ, 422 quá số thiết bị) là bị từ chối, gửi lại y hệt cũng vậy.
+ */
+internal fun mapStatusResponse(code: Int): StatusOutcome = when {
+    code in 200..299 -> StatusOutcome.Success
+    code == 401 -> StatusOutcome.Unauthorized
+    code == 404 || code == 429 || code in 500..599 -> StatusOutcome.Retry
+    code in 400..499 -> StatusOutcome.Rejected
+    else -> StatusOutcome.Retry
+}
+
+/** Mọi exception (mạng, URL sai...) -> Retry; không bao giờ ném ra ngoài. */
+class UrlConnectionListenerStatusHttp : ListenerStatusHttp {
+    override fun put(baseUrl: String, accessToken: String, body: JSONObject): StatusOutcome = try {
+        val (code, _) = requestJson("PUT", joinUrl(baseUrl, "/api/v1/devices/listener-status"), body, accessToken, readBody = false)
+        mapStatusResponse(code)
+    } catch (e: Exception) {
+        StatusOutcome.Retry
     }
 }

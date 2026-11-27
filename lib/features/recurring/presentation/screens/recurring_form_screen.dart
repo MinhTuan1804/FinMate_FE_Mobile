@@ -40,6 +40,9 @@ class _RecurringFormScreenState extends ConsumerState<RecurringFormScreen> {
   late String? _categoryId = widget.item?.categoryId;
   late String? _accountId = widget.item?.financialAccountId;
   late bool _paused = widget.item?.status == RecurringStatus.paused;
+  // Trả góp: chỉ nhập khi tạo mới (sửa kỳ cuối cần PATCH riêng, chưa làm ở màn này).
+  final _total = TextEditingController();
+  final _prepaid = TextEditingController();
   String? _error;
   bool _saving = false;
 
@@ -51,6 +54,8 @@ class _RecurringFormScreenState extends ConsumerState<RecurringFormScreen> {
     _name.dispose();
     _counterparty.dispose();
     _amount.dispose();
+    _total.dispose();
+    _prepaid.dispose();
     super.dispose();
   }
 
@@ -92,6 +97,8 @@ class _RecurringFormScreenState extends ConsumerState<RecurringFormScreen> {
           nextDueDate: due,
           categoryId: _categoryId,
           financialAccountId: _accountId,
+          totalOccurrences: int.tryParse(_total.text.trim()),
+          prepaidOccurrences: int.tryParse(_prepaid.text.trim()),
         );
       } else {
         await controller.update(
@@ -339,6 +346,35 @@ class _RecurringFormScreenState extends ConsumerState<RecurringFormScreen> {
                               ),
                             ),
                           ),
+                          if (!_isEdit) ...[
+                            const SizedBox(height: 20),
+                            _label('TRẢ GÓP (TÙY CHỌN)'),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: TextField(
+                                    key: const ValueKey('recurring-total'),
+                                    controller: _total,
+                                    keyboardType: TextInputType.number,
+                                    decoration: const InputDecoration(labelText: 'Tổng số kỳ', hintText: 'vd 12'),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: TextField(
+                                    key: const ValueKey('recurring-prepaid'),
+                                    controller: _prepaid,
+                                    keyboardType: TextInputType.number,
+                                    decoration: const InputDecoration(labelText: 'Đã trả trước', hintText: 'vd 0'),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.only(top: 6),
+                              child: Text('Để trống nếu khoản này lặp mãi. Có số kỳ thì dự báo ngừng trừ tiền sau kỳ cuối.', style: GlassTypography.bodySm()),
+                            ),
+                          ],
                           if (accounts.isNotEmpty) ...[
                             const SizedBox(height: 20),
                             _label('NGUỒN THANH TOÁN MẶC ĐỊNH (TÙY CHỌN)'),

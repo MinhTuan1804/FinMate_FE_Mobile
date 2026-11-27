@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:finmate/core/theme/app_colors.dart';
 import 'package:finmate/core/theme/app_spacing.dart';
 import 'package:finmate/core/theme/app_typography.dart';
+import 'package:finmate/core/format/money.dart';
 import 'package:finmate/features/transactions/domain/entities/transaction_entity.dart';
+import 'package:finmate/features/transactions/domain/entities/transaction_links.dart';
 
 /// Một nháp giao dịch chờ duyệt: số tiền (màu theo thu/chi), người nhận/mô tả, danh mục, ngày và hai nút Xác nhận / Sửa.
 class DraftTransactionTile extends StatelessWidget {
@@ -80,6 +83,7 @@ class DraftTransactionTile extends StatelessWidget {
             ),
           ),
         ),
+        if (draft.links.duplicateCandidate case final dup?) _duplicateBanner(context, dup),
         Padding(
           padding: const EdgeInsets.fromLTRB(
             AppSpacing.lg,
@@ -120,6 +124,40 @@ class DraftTransactionTile extends StatelessWidget {
         ),
         Divider(height: 1, color: AppColors.border(context)),
       ],
+    );
+  }
+
+  /// Nháp bị nghi trùng (Phase 82): hiện khoản bị nghi trùng ngay trong danh sách và mở chi tiết để Gộp / Không trùng.
+  Widget _duplicateBanner(BuildContext context, DuplicateSummary dup) {
+    final what = dup.merchantName ?? dup.categoryName ?? 'một giao dịch';
+    final when = dup.transactedAt == null ? '' : ' • ${DateFormat('dd/MM HH:mm').format(dup.transactedAt!)}';
+    return Container(
+      key: ValueKey('draft-duplicate-${draft.id}'),
+      margin: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.sm),
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: AppColors.warning.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Icon(LucideIcons.copy, size: 16, color: AppColors.warning),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              'Có thể trùng với $what • ${formatVnd(dup.amountCents)}$when',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.caption(context),
+            ),
+          ),
+          TextButton(
+            key: ValueKey('draft-duplicate-review-${draft.id}'),
+            onPressed: busy ? null : () => context.push('/transaction-detail', extra: draft),
+            child: const Text('Xem'),
+          ),
+        ],
+      ),
     );
   }
 }

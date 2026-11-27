@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:finmate/core/network/api_exceptions.dart';
+import 'package:finmate/features/profile/data/data_export_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -15,34 +19,8 @@ final _pendingSyncProvider = FutureProvider.autoDispose<int>((ref) => ref.watch(
 
 enum _Range { month, quarter, year }
 
-enum _Format { xlsx, pdf, csv, json }
-
-extension on _Format {
-  String get label => switch (this) {
-        _Format.xlsx => 'Excel (.xlsx)',
-        _Format.pdf => 'PDF (.pdf)',
-        _Format.csv => 'CSV (.csv)',
-        _Format.json => 'JSON (.json)',
-      };
-
-  IconData get icon => switch (this) {
-        _Format.xlsx => LucideIcons.sheet,
-        _Format.pdf => LucideIcons.fileText,
-        _Format.csv => LucideIcons.fileSpreadsheet,
-        _Format.json => LucideIcons.fileJson,
-      };
-
-  String get short => switch (this) {
-        _Format.xlsx => 'Excel',
-        _Format.pdf => 'PDF',
-        _Format.csv => 'CSV',
-        _Format.json => 'JSON',
-      };
-}
-
 /// Màn H5: Sao lưu & Xuất dữ liệu (theo Figma). Phần trạng thái đồng bộ, tài khoản và danh sách ví là dữ liệu thật.
-/// BE chưa có API sao lưu và xuất tệp (`me/exports`), nên các lựa chọn xuất chỉ để chọn, còn nút thực hiện bị khóa kèm nhãn "Sắp có";
-/// không giả lập kết quả thành công như bản trước.
+/// Xuất CSV giao dịch và gói toàn bộ dữ liệu cá nhân dùng API thật (BE Phase 91). Sao lưu tự động chưa có API nên vẫn khóa kèm "Sắp có".
 class BackupExportScreen extends ConsumerStatefulWidget {
   const BackupExportScreen({super.key});
 
@@ -52,7 +30,8 @@ class BackupExportScreen extends ConsumerStatefulWidget {
 
 class _BackupExportScreenState extends ConsumerState<BackupExportScreen> {
   _Range _range = _Range.month;
-  _Format _format = _Format.xlsx;
+  bool _semicolon = true; // Excel đặt vùng Việt Nam tách cột bằng ';'
+  bool _exporting = false;
   String? _accountId;
 
   String _rangeLabel(_Range r) => switch (r) {
@@ -83,6 +62,8 @@ class _BackupExportScreenState extends ConsumerState<BackupExportScreen> {
             _statusCard(context, email: user?.email ?? '', walletCount: accounts.length, pending: pending),
             const SizedBox(height: 16),
             _exportCard(context, accounts.map((a) => (id: a.id, name: a.name)).toList()),
+            const SizedBox(height: 16),
+            _personalDataCard(context),
           ],
         ),
       ),
@@ -190,8 +171,7 @@ class _BackupExportScreenState extends ConsumerState<BackupExportScreen> {
             children: [
               Icon(LucideIcons.download, size: 20, color: AppColors.textSecondary(context)),
               const SizedBox(width: 8),
-              Expanded(child: Text('Tùy chọn xuất dữ liệu', style: AppTypography.h2(context).copyWith(fontSize: 18, fontWeight: FontWeight.w700))),
-              _soon(),
+              Expanded(child: Text('Xuất giao dịch (CSV)', style: AppTypography.h2(context).copyWith(fontSize: 18, fontWeight: FontWeight.w700))),
             ],
           ),
           const SizedBox(height: 14),
@@ -229,34 +209,27 @@ class _BackupExportScreenState extends ConsumerState<BackupExportScreen> {
             onChanged: (v) => setState(() => _accountId = v),
           ),
           const SizedBox(height: 16),
-          Text('Định dạng tệp xuất', style: AppTypography.caption(context).copyWith(fontSize: 12)),
-          const SizedBox(height: 8),
-          for (final f in _Format.values) _formatTile(context, f),
-          const SizedBox(height: 4),
           SwitchListTile.adaptive(
+            key: const ValueKey('export-semicolon'),
             contentPadding: EdgeInsets.zero,
-            secondary: Icon(LucideIcons.lock, size: 18, color: AppColors.textSecondary(context)),
-            title: Row(
-              children: [
-                Flexible(child: Text('Mã hóa tệp bằng mật khẩu', style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w600, fontSize: 14))),
-                const SizedBox(width: 8),
-                _soon(),
-              ],
-            ),
-            value: false,
-            onChanged: null,
+            title: Text('Mở bằng Excel tiếng Việt', style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w600, fontSize: 14)),
+            subtitle: Text('Tách cột bằng dấu ";" để Excel đặt vùng Việt Nam hiện đúng cột', style: AppTypography.caption(context).copyWith(fontSize: 12)),
+            value: _semicolon,
+            onChanged: (v) => setState(() => _semicolon = v),
           ),
           const SizedBox(height: 8),
           FilledButton.icon(
             key: const ValueKey('export-run'),
-            onPressed: null,
-            icon: const Icon(LucideIcons.download, size: 18),
-            label: FittedBox(fit: BoxFit.scaleDown, child: Text('Xuất và tải về (${_format.short})', maxLines: 1)),
+            onPressed: _exporting ? null : _exportCsv,
+            icon: _exporting
+                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(LucideIcons.download, size: 18),
+            label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Xuất CSV và chia sẻ', maxLines: 1)),
             style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52), shape: const StadiumBorder()),
           ),
           const SizedBox(height: 8),
           Text(
-            'Xuất tệp cần máy chủ hỗ trợ nên chưa dùng được. Dữ liệu của bạn vẫn an toàn trên tài khoản FinMate.',
+            'Chỉ gồm giao dịch đã xác nhận. Tệp mở được bằng Excel hoặc Google Sheets.',
             textAlign: TextAlign.center,
             style: AppTypography.caption(context).copyWith(fontSize: 12),
           ),
@@ -265,36 +238,134 @@ class _BackupExportScreenState extends ConsumerState<BackupExportScreen> {
     );
   }
 
-  Widget _formatTile(BuildContext context, _Format f) {
-    final selected = _format == f;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Semantics(
-        button: true,
-        selected: selected,
-        label: 'Định dạng ${f.label}',
-        child: InkWell(
-          key: ValueKey('format-${f.name}'),
-          borderRadius: AppSpacing.roundedLarge,
-          onTap: () => setState(() => _format = f),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-            decoration: BoxDecoration(
-              color: AppColors.inset(context, 0.6),
-              borderRadius: AppSpacing.roundedLarge,
-              border: Border.all(color: selected ? AppColors.textPrimary(context) : Colors.transparent, width: 2),
+  (DateTime, DateTime) _rangeDates() {
+    final now = DateTime.now();
+    return switch (_range) {
+      _Range.month => (DateTime(now.year, now.month), now),
+      _Range.quarter => (DateTime(now.year, ((now.month - 1) ~/ 3) * 3 + 1), now),
+      _Range.year => (DateTime(now.year), now),
+    };
+  }
+
+  Future<void> _exportCsv() async {
+    setState(() => _exporting = true);
+    try {
+      final (from, to) = _rangeDates();
+      final file = await ref
+          .read(dataExportRepositoryProvider)
+          .downloadTransactionsCsv(from: from, to: to, accountId: _accountId, semicolon: _semicolon);
+      await Share.shareXFiles([XFile(file.path, mimeType: 'text/csv')], subject: 'Giao dịch FinMate');
+    } catch (e) {
+      _snack(errorMessage(e));
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
+  }
+
+  void _snack(String text) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+  }
+
+  /// Gói toàn bộ dữ liệu cá nhân (quyền theo luật): xin mã email, nhập mã, máy chủ dựng gói nền, rồi tải ZIP.
+  Widget _personalDataCard(BuildContext context) {
+    final req = ref.watch(latestPersonalDataExportProvider).valueOrNull;
+    final fmt = DateFormat('HH:mm dd/MM/yyyy');
+    final String status = switch (req) {
+      null => 'Bạn chưa yêu cầu gói dữ liệu nào.',
+      final r when r.isWorking => 'Đang chuẩn bị gói dữ liệu. Bạn sẽ nhận thông báo khi xong.',
+      final r when r.isReady => 'Gói dữ liệu đã sẵn sàng${r.expiresAt == null ? '' : ', tải được đến ${fmt.format(r.expiresAt!)}'}.',
+      final r when r.status == 'Expired' => 'Gói lần trước đã hết hạn tải.',
+      _ => 'Lần chuẩn bị trước không thành công, bạn có thể yêu cầu lại.',
+    };
+    return LiquidGlassCard(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(children: [
+            Icon(LucideIcons.archive, size: 20, color: AppColors.textSecondary(context)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text('Tải toàn bộ dữ liệu cá nhân', style: AppTypography.h2(context).copyWith(fontSize: 18, fontWeight: FontWeight.w700)),
             ),
-            child: Row(
-              children: [
-                Icon(f.icon, size: 22, color: AppColors.textSecondary(context)),
-                const SizedBox(width: 14),
-                Expanded(child: Text(f.label, style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w700, fontSize: 15))),
-                Icon(selected ? LucideIcons.circleCheck : LucideIcons.circle, size: 22, color: selected ? AppColors.textPrimary(context) : AppColors.textMuted(context)),
-              ],
-            ),
+          ]),
+          const SizedBox(height: 8),
+          Text(
+            'Một tệp ZIP chứa mọi dữ liệu FinMate lưu về bạn. Cần xác nhận bằng mã gửi tới email.',
+            style: AppTypography.caption(context).copyWith(fontSize: 12),
           ),
-        ),
+          const SizedBox(height: 10),
+          Text(status, key: const ValueKey('personal-data-status'), style: AppTypography.body(context).copyWith(fontSize: 14)),
+          const SizedBox(height: 12),
+          if (req != null && req.isReady)
+            FilledButton.icon(
+              key: const ValueKey('personal-data-download'),
+              onPressed: _exporting ? null : () => _downloadPackage(req.id),
+              icon: const Icon(LucideIcons.download, size: 18),
+              label: const Text('Tải gói dữ liệu'),
+              style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48), shape: const StadiumBorder()),
+            )
+          else
+            OutlinedButton(
+              key: const ValueKey('personal-data-request'),
+              onPressed: _exporting || (req?.isWorking ?? false) ? null : _requestPackage,
+              style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48), shape: const StadiumBorder()),
+              child: const Text('Yêu cầu gói dữ liệu'),
+            ),
+        ],
       ),
     );
+  }
+
+  Future<void> _requestPackage() async {
+    final repo = ref.read(dataExportRepositoryProvider);
+    setState(() => _exporting = true);
+    try {
+      await repo.sendPersonalDataOtp();
+      if (!mounted) return;
+      final controller = TextEditingController();
+      final code = await showDialog<String>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Nhập mã xác nhận'),
+          content: TextField(
+            key: const ValueKey('personal-data-otp'),
+            controller: controller,
+            keyboardType: TextInputType.number,
+            maxLength: 6,
+            decoration: const InputDecoration(helperText: 'Mã 6 số vừa gửi tới email của bạn, hết hạn sau 10 phút.'),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+            TextButton(
+              key: const ValueKey('personal-data-otp-submit'),
+              onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+              child: const Text('Xác nhận'),
+            ),
+          ],
+        ),
+      );
+      if (code == null || code.isEmpty) return;
+      await repo.requestPersonalData(code);
+      _snack('Đã nhận yêu cầu. Bạn sẽ nhận thông báo khi gói dữ liệu sẵn sàng.');
+      ref.invalidate(latestPersonalDataExportProvider);
+    } catch (e) {
+      _snack(errorMessage(e));
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
+  }
+
+  Future<void> _downloadPackage(String id) async {
+    setState(() => _exporting = true);
+    try {
+      final file = await ref.read(dataExportRepositoryProvider).downloadPersonalData(id);
+      await Share.shareXFiles([XFile(file.path, mimeType: 'application/zip')], subject: 'Dữ liệu FinMate');
+    } catch (e) {
+      _snack(errorMessage(e));
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
   }
 }

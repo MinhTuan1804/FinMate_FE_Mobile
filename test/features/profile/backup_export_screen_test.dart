@@ -17,8 +17,14 @@ class _MockAuth extends StateNotifier<AsyncValue<UserProfile?>> implements AuthC
 
 void main() {
   late AppDatabase db;
+  late List<String> requests;
+  late List<Map<String, dynamic>> exports;
 
-  setUp(() => db = AppDatabase.forTesting(NativeDatabase.memory()));
+  setUp(() {
+    db = AppDatabase.forTesting(NativeDatabase.memory());
+    requests = [];
+    exports = [];
+  });
   tearDown(() => db.close());
 
   Future<void> pump(WidgetTester tester, {double width = 390}) async {
@@ -37,7 +43,11 @@ void main() {
       overrides: [
         authControllerProvider.overrideWith((ref) => _MockAuth(AsyncValue.data(user))),
         databaseProvider.overrideWithValue(db),
-        apiClientProvider.overrideWithValue(testApiClient(RouteAdapter((o) => respondFixture('accounts')))),
+        apiClientProvider.overrideWithValue(testApiClient(RouteAdapter((o) {
+          requests.add('${o.method} ${o.path}');
+          if (o.path.contains('/exports/personal-data')) return respondJson({'success': true, 'data': exports});
+          return respondFixture('accounts');
+        }))),
       ],
       child: const MaterialApp(home: BackupExportScreen()),
     ));
@@ -60,17 +70,24 @@ void main() {
     expect(find.text('1 GIAO DỊCH CHỜ ĐỒNG BỘ'), findsOneWidget);
   });
 
-  testWidgets('nút sao lưu và xuất bị khóa, không giả lập thành công; chọn định dạng đổi nhãn nút', (tester) async {
+  testWidgets('sao lưu tự động vẫn khóa; xuất CSV và gói dữ liệu cá nhân dùng được', (tester) async {
     await pump(tester);
 
     expect(tester.widget<OutlinedButton>(find.byKey(const ValueKey('backup-now'))).onPressed, isNull);
-    expect(tester.widget<FilledButton>(find.byKey(const ValueKey('export-run'))).onPressed, isNull);
-    expect(find.text('Xuất và tải về (Excel)'), findsOneWidget);
+    expect(tester.widget<FilledButton>(find.byKey(const ValueKey('export-run'))).onPressed, isNotNull);
+    expect(find.text('Bạn chưa yêu cầu gói dữ liệu nào.'), findsOneWidget);
+    expect(tester.widget<OutlinedButton>(find.byKey(const ValueKey('personal-data-request'))).onPressed, isNotNull);
+  });
 
-    await tester.tap(find.byKey(const ValueKey('format-pdf')));
-    await tester.pumpAndSettle();
-    expect(find.text('Xuất và tải về (PDF)'), findsOneWidget);
-    expect(find.textContaining('thành công'), findsNothing);
+  testWidgets('gói dữ liệu đang chuẩn bị thì khóa nút yêu cầu; sẵn sàng thì có nút tải', (tester) async {
+    exports = [{'id': 'e1', 'status': 'Running'}];
+    await pump(tester);
+    expect(find.textContaining('Đang chuẩn bị'), findsOneWidget);
+    expect(tester.widget<OutlinedButton>(find.byKey(const ValueKey('personal-data-request'))).onPressed, isNull);
+
+    exports = [{'id': 'e1', 'status': 'Ready', 'expiresAt': '2026-11-30T03:00:00Z'}];
+    await pump(tester);
+    expect(find.byKey(const ValueKey('personal-data-download')), findsOneWidget);
   });
 
   testWidgets('ở 320dp không tràn bố cục', (tester) async {

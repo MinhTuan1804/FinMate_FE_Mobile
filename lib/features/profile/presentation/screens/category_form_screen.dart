@@ -39,7 +39,6 @@ class _CategoryFormScreenState extends ConsumerState<CategoryFormScreen> {
   late String? _colorHex = widget.editing?.color;
   late String _kind = widget.editing?.kind ?? 'expense';
   late String? _parentId = widget.editing?.parentCategoryId;
-  late bool _favorite = widget.editing?.isFavorite ?? false;
   bool _busy = false;
 
   @override
@@ -75,7 +74,6 @@ class _CategoryFormScreenState extends ConsumerState<CategoryFormScreen> {
           kind: _kind,
           parentCategoryId: _parentId,
           suggestedBudgetCents: budget,
-          isFavorite: _favorite,
         );
       } else {
         // Sửa là gửi đủ trạng thái trên màn: bỏ nhóm cha = kNoParentId, bỏ hạn mức = 0.
@@ -87,7 +85,6 @@ class _CategoryFormScreenState extends ConsumerState<CategoryFormScreen> {
           kind: _kind,
           parentCategoryId: _parentId ?? kNoParentId,
           suggestedBudgetCents: budget ?? BigInt.zero,
-          isFavorite: _favorite,
         );
       }
       if (!mounted) return;
@@ -377,14 +374,6 @@ class _CategoryFormScreenState extends ConsumerState<CategoryFormScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text('Chỉ để tham khảo, không tự tạo ngân sách.', style: AppTypography.caption(context)),
-                      const SizedBox(height: 8),
-                      SwitchListTile(
-                        key: const ValueKey('category-favorite'),
-                        contentPadding: EdgeInsets.zero,
-                        value: _favorite,
-                        onChanged: (v) => setState(() => _favorite = v),
-                        title: Text('Đưa vào danh sách yêu thích', style: AppTypography.bodyMedium(context)),
-                      ),
                     ],
                   ),
                 ),

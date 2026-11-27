@@ -11,7 +11,9 @@ import 'package:finmate/core/theme/app_typography.dart';
 import 'package:finmate/core/widgets/glass/liquid_glass.dart';
 import 'package:finmate/features/accounts/domain/financial_account.dart';
 import 'package:finmate/features/accounts/presentation/controllers/accounts_controller.dart';
+import 'package:finmate/features/assistant/data/assistant_repository.dart';
 import 'package:finmate/features/assistant/data/receipt_image_source.dart';
+import 'package:finmate/features/assistant/domain/assistant_models.dart';
 import 'package:finmate/features/assistant/data/speech_end_detector.dart';
 import 'package:finmate/features/assistant/data/voice_recorder.dart';
 import 'package:finmate/features/assistant/data/assistant_bubble_bridge.dart';
@@ -384,6 +386,8 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
     final secondary = AppTypography.caption(context);
     return AppBar(
       backgroundColor: Colors.transparent,
+      // Nút quay lại (hoặc mở app đầy đủ) đã nằm trong hàng tiêu đề bên dưới; để AppBar tự thêm nút nữa thì có hai mũi tên.
+      automaticallyImplyLeading: false,
       titleSpacing: 0,
       title: Row(
         mainAxisSize: MainAxisSize.min,
@@ -575,6 +579,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
     GoalDraftCard m => AiRow(child: GoalDraftCardView(card: m)),
     ItemCard m => AiRow(child: ItemCardView(card: m)),
     PurchaseCard m => AiRow(child: PurchaseCardView(card: m)),
+    ClarifyPurchaseCard m => AiRow(child: ClarifyPurchaseCardView(card: m)),
     AgentCard m => AiRow(child: AgentCardView(card: m)),
     ErrorNote m => AiRow(
       child: ErrorNoteView(
@@ -586,6 +591,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
   };
 
   Widget _buildEmpty(BuildContext context) {
+    final suggestions = ref.watch(assistantSuggestionsProvider).valueOrNull ?? const <AssistantSuggestion>[];
     return Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
@@ -614,6 +620,26 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
               textAlign: TextAlign.center,
               style: AppTypography.caption(context),
             ),
+            if (suggestions.isNotEmpty) ...[
+              const SizedBox(height: 20),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                alignment: WrapAlignment.center,
+                children: [
+                  for (final s in suggestions)
+                    ActionChip(
+                      key: ValueKey('suggestion-${s.key}'),
+                      label: Text(s.text),
+                      labelStyle: AppTypography.caption(context),
+                      backgroundColor: AppColors.secondary.withValues(alpha: 0.25),
+                      side: BorderSide(color: AppColors.glassBorder(context)),
+                      // Gửi đúng như người dùng gõ (BE dặn: bấm gợi ý = gửi `text` vào chat).
+                      onPressed: () => ref.read(assistantControllerProvider.notifier).send(s.text),
+                    ),
+                ],
+              ),
+            ],
           ],
         ),
       ),

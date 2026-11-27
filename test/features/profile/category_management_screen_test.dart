@@ -11,6 +11,14 @@ import 'package:finmate/features/profile/presentation/screens/category_managemen
 const _system = Category(id: 's1', name: 'Di chuyển', slug: 'transport');
 const _mine = Category(id: 'm1', name: 'Cà phê', slug: 'ca-phe', iconName: 'coffee', isSystem: false);
 
+class _FakeCategoriesController implements CategoriesController {
+  final deleted = <String>[];
+  @override
+  Future<void> delete(String id) async => deleted.add(id);
+  @override
+  dynamic noSuchMethod(Invocation i) => super.noSuchMethod(i);
+}
+
 void main() {
   Object? extraOpened;
 
@@ -116,8 +124,7 @@ void main() {
     await pump(tester, () async => [_system, _mine, colored]);
 
     expect(find.text('Hạn mức gợi ý: 1.500.000 ₫/tháng'), findsOneWidget);
-    expect(find.byKey(const ValueKey('favorite-m2')), findsOneWidget);
-    expect(find.byKey(const ValueKey('favorite-m1')), findsNothing);
+    expect(find.byKey(const ValueKey('favorite-m2')), findsNothing);
     final row = find.descendant(of: find.byKey(const ValueKey('category-m2')), matching: find.byType(Container));
     final tinted = tester.widgetList<Container>(row).map((c) => c.decoration).whereType<BoxDecoration>().any((d) => d.color == const Color(0xFFF0C8A0).withValues(alpha: 0.35));
     expect(tinted, isTrue, reason: 'nền icon lấy màu danh mục');
@@ -145,5 +152,36 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Di chuyển'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('vuốt danh mục tự tạo để xóa: hỏi xác nhận, hủy thì không xóa; danh mục hệ thống không vuốt được', (tester) async {
+    final fake = _FakeCategoriesController();
+    tester.view.physicalSize = const Size(390, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        currentUserIdProvider.overrideWith((ref) => 'u1'),
+        categoriesProvider.overrideWith((ref) async => [_system, _mine]),
+        allCategoriesProvider.overrideWith((ref) async => [_system, _mine]),
+        categoriesControllerProvider.overrideWithValue(fake),
+      ],
+      child: const MaterialApp(home: CategoryManagementScreen()),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('dismiss-s1')), findsNothing);
+    await tester.drag(find.byKey(const ValueKey('dismiss-m1')), const Offset(-300, 0));
+    await tester.pumpAndSettle();
+    expect(find.text('Xóa "Cà phê"?'), findsOneWidget);
+    await tester.tap(find.text('Giữ lại'));
+    await tester.pumpAndSettle();
+    expect(fake.deleted, isEmpty);
+
+    await tester.drag(find.byKey(const ValueKey('dismiss-m1')), const Offset(-300, 0));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('confirm-delete-category')));
+    await tester.pumpAndSettle();
+    expect(fake.deleted, ['m1']);
   });
 }

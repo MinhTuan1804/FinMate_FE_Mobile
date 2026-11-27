@@ -15,6 +15,7 @@ import 'package:finmate/features/groups/domain/group.dart';
 import 'package:finmate/features/groups/domain/group_fund.dart';
 import 'package:finmate/features/groups/presentation/controllers/groups_controller.dart';
 import 'package:finmate/features/groups/presentation/screens/split_bill_widgets.dart';
+import 'package:finmate/features/groups/presentation/widgets/group_fund_manage.dart';
 import 'package:finmate/features/transactions/domain/entities/transaction_entity.dart';
 import 'package:finmate/shared/widgets/glass/glass_background.dart';
 import 'package:finmate/shared/widgets/glass/glass_badge.dart';
@@ -1059,7 +1060,13 @@ class _FundTab extends ConsumerWidget {
             ],
           );
         }
-        return _FundEntriesAndSummary(groupId: groupId, fundId: fund.id);
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            GroupFundHeader(groupId: groupId, fund: fund),
+            _FundEntriesAndSummary(groupId: groupId, fundId: fund.id),
+          ],
+        );
       },
     );
   }
@@ -1163,6 +1170,7 @@ class _FundEntriesAndSummary extends ConsumerWidget {
                                     : GlassColors.textPrimary,
                               ),
                             ),
+                            GroupFundEntryMenu(groupId: groupId, fundId: fundId, entry: entry),
                           ],
                         ),
                       ),

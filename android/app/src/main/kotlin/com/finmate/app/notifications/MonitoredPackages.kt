@@ -12,6 +12,9 @@ class MonitoredPackages(context: Context) {
 
     fun contains(pkg: String): Boolean = prefs.getStringSet(KEY, null)?.contains(pkg) == true
 
+    /** Các gói người dùng đã chọn theo dõi (để báo trạng thái listener; chỉ các gói này, không bao giờ app khác). */
+    fun all(): List<String> = prefs.getStringSet(KEY, null)?.sorted().orEmpty()
+
     fun clear() {
         prefs.edit().remove(KEY).apply()
     }

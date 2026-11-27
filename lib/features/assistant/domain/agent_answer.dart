@@ -68,6 +68,9 @@ class AgentSuggestedAction {
   /// Id đối tượng bị tác động (mục tiêu của `change_goal_deadline`)
   final String? targetId;
 
+  /// Mã các bằng chứng làm căn cứ cho thẻ (nằm trong `evidence` của chính lượt này); phương án kéo dài thời hạn có mã bắt đầu bằng `alt_`
+  final List<String> evidenceIds;
+
   const AgentSuggestedAction({
     required this.kind,
     required this.title,
@@ -76,7 +79,11 @@ class AgentSuggestedAction {
     this.categorySlug,
     this.categoryName,
     this.targetId,
+    this.evidenceIds = const [],
   });
+
+  /// Phương án KÉO DÀI thời hạn của một mục tiêu chưa khả thi ("2 năm chưa hợp thì thử 5 năm")
+  bool get isLongerHorizon => evidenceIds.any((id) => id.startsWith('alt_'));
 
   bool get _hasAmount => (amountVnd ?? BigInt.zero) > BigInt.zero;
 
@@ -124,6 +131,7 @@ class AgentSuggestedAction {
         categorySlug: json['categorySlug'] as String?,
         categoryName: json['categoryName'] as String?,
         targetId: json['targetId'] as String?,
+        evidenceIds: [for (final e in (json['evidenceIds'] as List? ?? const [])) e.toString()],
       );
 }
 

@@ -5,8 +5,8 @@ import 'package:finmate/features/groups/domain/group_fund.dart';
 import 'package:finmate/core/widgets/cursor_pager.dart';
 
 /// Quỹ chung ảo của nhóm (Phase 85) — `/api/v1/groups/{groupId}/funds...`. Đọc (danh sách/tổng kết/sổ
-/// quỹ), ghi dòng quỹ (Nạp quỹ/Ghi khoản chi ở I3) và tạo quỹ (I7, ManageFunds). Lưu trữ quỹ vẫn
-/// chưa có màn — chưa cần cho đợt I1-I7 (chỉ tạo đúng 1 quỹ dùng chung là đủ).
+/// quỹ), ghi dòng quỹ (Nạp quỹ/Ghi khoản chi ở I3), tạo quỹ (I7, ManageFunds), và quản lý quỹ ở tab Quỹ chung của I3:
+/// sửa/lưu trữ quỹ, sửa/xóa dòng quỹ.
 final groupFundsRepositoryProvider = Provider<GroupFundsRepository>(
   (ref) => GroupFundsRepository(apiClient: ref.watch(apiClientProvider)),
 );
@@ -110,5 +110,59 @@ class GroupFundsRepository {
       },
     );
     return res.statusCode == 202 ? null : res.data;
+  }
+
+  /// Sửa tên/ghi chú quỹ (PATCH, quyền ManageFunds; làm được cả khi đã lưu trữ). Trường null là giữ nguyên;
+  /// [note] là chuỗi rỗng thì xóa ghi chú.
+  Future<GroupFundEntity> updateFund({required String groupId, required String fundId, String? name, String? note}) async {
+    final res = await apiClient.patch<GroupFundEntity>(
+      '/api/v1/groups/$groupId/funds/$fundId',
+      data: {if (name != null) 'name': name, if (note != null) 'note': note},
+      fromJsonT: (json) => GroupFundEntity.fromJson(json as Map<String, dynamic>),
+    );
+    return res.data as GroupFundEntity;
+  }
+
+  /// Lưu trữ quỹ (POST .../archive, quyền ManageFunds). Chỉ khi số dư bằng 0, không thì 422 `GROUP_FUND_NOT_SETTLED`.
+  /// Quỹ đã lưu trữ chỉ đọc và không có bỏ lưu trữ.
+  Future<GroupFundEntity> archiveFund({required String groupId, required String fundId}) async {
+    final res = await apiClient.post<GroupFundEntity>(
+      '/api/v1/groups/$groupId/funds/$fundId/archive',
+      fromJsonT: (json) => GroupFundEntity.fromJson(json as Map<String, dynamic>),
+    );
+    return res.data as GroupFundEntity;
+  }
+
+  /// Sửa một dòng quỹ (PATCH .../entries/{entryId}); trường null là giữ nguyên, không đổi được loại dòng. Chủ dòng sửa được
+  /// số tiền, ghi chú, nơi nhận; người có ManageFunds chỉ sửa danh mục/ghi chú của dòng người khác (403 nếu đổi số tiền).
+  /// Dòng đã khóa hoặc quỹ đã lưu trữ thì 422 (`GROUP_FUND_ENTRY_LOCKED`, `GROUP_FUND_ARCHIVED`).
+  Future<GroupFundEntryEntity> updateEntry({
+    required String groupId,
+    required String fundId,
+    required String entryId,
+    BigInt? amountCents,
+    String? note,
+    String? merchantName,
+  }) async {
+    final res = await apiClient.patch<GroupFundEntryEntity>(
+      '/api/v1/groups/$groupId/funds/$fundId/entries/$entryId',
+      data: {
+        if (amountCents != null) 'amountCents': amountCents.toInt(),
+        if (note != null) 'note': note,
+        if (merchantName != null) 'merchantName': merchantName,
+      },
+      fromJsonT: (json) => GroupFundEntryEntity.fromJson((json as Map<String, dynamic>)['entry'] as Map<String, dynamic>),
+    );
+    return res.data as GroupFundEntryEntity;
+  }
+
+  /// Xóa một dòng quỹ (DELETE .../entries/{entryId}); trả quỹ sau khi xóa. Chủ dòng xóa thì giao dịch cá nhân gắn kèm bị xóa mềm
+  /// và ví được hoàn; người quản lý xóa dòng của người khác thì chỉ xóa dòng quỹ.
+  Future<GroupFundEntity> deleteEntry({required String groupId, required String fundId, required String entryId}) async {
+    final res = await apiClient.deleteWithResult<GroupFundEntity>(
+      '/api/v1/groups/$groupId/funds/$fundId/entries/$entryId',
+      fromJsonT: (json) => GroupFundEntity.fromJson(json as Map<String, dynamic>),
+    );
+    return res.data as GroupFundEntity;
   }
 }

@@ -49,6 +49,18 @@ void main() {
       expect(s.changePercent, isNull);
     });
 
+    test('MonthlySummary.fromPeriodJson: đọc kỳ này, kỳ trước và % thay đổi (period-summary)', () {
+      final s = MonthlySummary.fromPeriodJson(fixtureData('period_summary') as Map<String, dynamic>);
+
+      expect(s.totalSpentCents, BigInt.from(100000));
+      expect(s.netCents, BigInt.from(-100000));
+      expect(s.transactionCount, 1);
+      expect(s.prevMonthSpentCents, BigInt.from(200000));
+      expect(s.prevMonthIncomeCents, BigInt.zero);
+      expect(s.changePercent, -50.0);
+      expect(s.incomeChangePercent, isNull);
+    });
+
     test('CategoryBreakdown.fromJson: 1 mục food 100%', () {
       final b = CategoryBreakdown.fromJson(fixtureData('category_breakdown') as Map<String, dynamic>);
 
@@ -112,6 +124,17 @@ void main() {
     expect(adapter.requests[0].queryParameters, {'year': 2026, 'month': 9});
     expect(adapter.requests[1].path, '/api/v1/reports/category-breakdown');
     expect(adapter.requests[2].path, '/api/v1/reports/forecast');
+  });
+
+  test('getPeriodSummary gọi period-summary với fromDate/toDate dạng yyyy-MM-dd (bỏ giờ)', () async {
+    final adapter = RouteAdapter((o) => respondFixture('period_summary'));
+    final repo = ReportsRepository(apiClient: testApiClient(adapter));
+
+    final s = await repo.getPeriodSummary(from: DateTime(2026, 11, 11), to: DateTime(2026, 11, 17, 23, 59, 59), accountId: 'acc-1');
+
+    expect(adapter.requests.single.path, '/api/v1/reports/period-summary');
+    expect(adapter.requests.single.queryParameters, {'fromDate': '2026-11-11', 'toDate': '2026-11-17', 'accountId': 'acc-1'});
+    expect(s.changePercent, -50.0);
   });
 
   group('AnalyticsScreen (F1 — Tổng quan phân tích)', () {

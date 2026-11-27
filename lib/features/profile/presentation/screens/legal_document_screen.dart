@@ -6,7 +6,10 @@ import 'package:finmate/core/theme/app_colors.dart';
 import 'package:finmate/core/theme/app_spacing.dart';
 import 'package:finmate/core/theme/app_typography.dart';
 import 'package:finmate/core/widgets/glass/liquid_glass.dart';
+import 'package:intl/intl.dart';
 import 'package:finmate/features/auth/domain/entities/consent.dart';
+import 'package:finmate/features/profile/data/legal_repository.dart';
+import 'package:finmate/features/profile/domain/legal_document.dart';
 
 enum LegalDocType { terms, privacy }
 
@@ -27,8 +30,9 @@ const _privacySections = <_Section>[
 ];
 
 /// Màn H9 & H10: Điều khoản dịch vụ / Chính sách bảo mật (theo Figma, dùng chung một mẫu đọc văn bản).
-/// Số phiên bản lấy từ [ConsentVersions.terms] (điều khoản và chính sách dùng chung một số). BE chưa có API trả nội dung pháp lý
-/// nên nội dung vẫn là văn bản tĩnh trong app; ngày cập nhật, tải PDF và email pháp lý trong Figma không có dữ liệu nên không hiển thị.
+/// Nội dung, số phiên bản và ngày cập nhật lấy từ BE (GET /legal/terms, /legal/privacy: chỉ bản đã xuất bản). Khi không tải được
+/// (mất mạng, server lỗi, văn bản rỗng) thì dùng bản có sẵn trong app và số phiên bản [ConsentVersions.terms], để điều khoản vẫn đọc
+/// được; bản có sẵn đó không có ngày cập nhật nên không hiển thị ngày. Tải PDF và email pháp lý trong Figma không có dữ liệu.
 class LegalDocumentScreen extends ConsumerStatefulWidget {
   final LegalDocType type;
 
@@ -40,10 +44,14 @@ class LegalDocumentScreen extends ConsumerStatefulWidget {
 
 class _LegalDocumentScreenState extends ConsumerState<LegalDocumentScreen> {
   String _query = '';
-  late final List<GlobalKey> _keys = List.generate(_sections.length, (_) => GlobalKey());
+
+  /// Số mục phụ thuộc văn bản đang hiển thị (từ BE hoặc bản có sẵn), nên khóa tạo theo yêu cầu.
+  final Map<int, GlobalKey> _keys = {};
+  GlobalKey _keyOf(int index) => _keys.putIfAbsent(index, GlobalKey.new);
 
   bool get _isTerms => widget.type == LegalDocType.terms;
-  List<_Section> get _sections => _isTerms ? _termsSections : _privacySections;
+  String get _kind => _isTerms ? 'terms' : 'privacy';
+  List<_Section> get _bundledSections => _isTerms ? _termsSections : _privacySections;
 
   bool _matches(_Section s) {
     final q = _query.trim().toLowerCase();
@@ -51,14 +59,39 @@ class _LegalDocumentScreenState extends ConsumerState<LegalDocumentScreen> {
   }
 
   void _jumpTo(int index) {
-    final ctx = _keys[index].currentContext;
+    final ctx = _keys[index]?.currentContext;
     if (ctx != null) Scrollable.ensureVisible(ctx, duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
   }
 
   @override
   Widget build(BuildContext context) {
     final title = _isTerms ? 'Điều khoản dịch vụ' : 'Chính sách bảo mật';
-    final sections = _sections;
+    final loaded = ref.watch(legalDocumentProvider(_kind));
+    final doc = loaded.valueOrNull;
+    final List<_Section> sections = doc == null
+        ? _bundledSections
+        // Tiêu đề do server soạn có thể đã kèm số thứ tự ("1. Giới thiệu"); màn này tự đánh số nên bỏ số cũ để không hiện "1. 1. ...".
+        : [for (final LegalSection s in doc.sections) (title: s.title.replaceFirst(RegExp(r'^\s*\d+[.)]\s*'), ''), body: s.body)];
+    final version = doc?.version ?? ConsentVersions.terms;
+    final updatedAt = doc?.updatedAt;
+    final subtitle = updatedAt == null
+        ? 'Phiên bản $version'
+        : 'Phiên bản $version · cập nhật ${DateFormat('dd/MM/yyyy').format(updatedAt.toLocal())}';
+
+    if (loaded.isLoading) {
+      // Chờ BE trả bản hiện hành: hiện bản có sẵn trong lúc chờ sẽ làm người đọc thấy chữ đổi giữa chừng.
+      return Scaffold(
+        appBar: AppBar(
+          centerTitle: true,
+          title: Text(title),
+          leading: Padding(
+            padding: const EdgeInsets.all(8),
+            child: LiquidGlassIconButton(icon: LucideIcons.arrowLeft, size: 40, tooltip: 'Quay lại', onPressed: () => context.pop()),
+          ),
+        ),
+        body: const AmbientGlassBackground(child: Center(child: CircularProgressIndicator(key: ValueKey('legal-loading')))),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -67,7 +100,7 @@ class _LegalDocumentScreenState extends ConsumerState<LegalDocumentScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(title),
-            Text('Phiên bản ${ConsentVersions.terms}', style: AppTypography.caption(context).copyWith(fontSize: 12)),
+            Text(subtitle, style: AppTypography.caption(context).copyWith(fontSize: 12)),
           ],
         ),
         leading: Padding(
@@ -152,7 +185,7 @@ class _LegalDocumentScreenState extends ConsumerState<LegalDocumentScreen> {
             for (var i = 0; i < sections.length; i++)
               if (_matches(sections[i]))
                 Padding(
-                  key: _keys[i],
+                  key: _keyOf(i),
                   padding: const EdgeInsets.only(bottom: 14),
                   child: LiquidGlassCard(
                     padding: const EdgeInsets.all(18),

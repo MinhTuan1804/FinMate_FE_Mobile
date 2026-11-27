@@ -43,6 +43,33 @@ class _CategoryManagementScreenState extends ConsumerState<CategoryManagementScr
     }
   }
 
+  Future<void> _confirmDelete(Category c) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        title: Text('Xóa "${c.name}"?'),
+        content: const Text('Danh mục sẽ bị xóa. Hành động này không thể hoàn tác.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialog, false), child: const Text('Giữ lại')),
+          TextButton(
+            key: const ValueKey('confirm-delete-category'),
+            onPressed: () => Navigator.pop(dialog, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.danger),
+            child: const Text('Xóa'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref.read(categoriesControllerProvider).delete(c.id);
+      messenger.showSnackBar(const SnackBar(content: Text('Đã xóa danh mục.')));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(errorMessage(e)), backgroundColor: AppColors.danger));
+    }
+  }
+
   Future<void> _editLimit(Category c, BigInt? current) async {
     final messenger = ScaffoldMessenger.of(context);
     final limit = await showDialog<BigInt>(context: context, builder: (_) => _LimitDialog(name: c.name, current: current));
@@ -171,7 +198,25 @@ class _CategoryManagementScreenState extends ConsumerState<CategoryManagementScr
           children: [
             for (var i = 0; i < items.length; i++) ...[
               if (i > 0) Divider(height: 1, color: AppColors.textMuted(context).withValues(alpha: 0.18)),
-              _row(context, items[i], limits[items[i].id]),
+              if (items[i].isSystem)
+                _row(context, items[i], limits[items[i].id])
+              else
+                Dismissible(
+                  key: ValueKey('dismiss-${items[i].id}'),
+                  direction: DismissDirection.endToStart,
+                  background: Container(
+                    color: AppColors.danger,
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.only(right: 20),
+                    child: const Icon(LucideIcons.trash2, color: Colors.white),
+                  ),
+                  // Xóa xong danh sách tự tải lại nên luôn trả false, tránh Dismissible tự gỡ dòng trước khi server xác nhận.
+                  confirmDismiss: (_) async {
+                    await _confirmDelete(items[i]);
+                    return false;
+                  },
+                  child: _row(context, items[i], limits[items[i].id]),
+                ),
             ],
           ],
         ),
@@ -211,7 +256,6 @@ class _CategoryManagementScreenState extends ConsumerState<CategoryManagementScr
                 ],
               ),
             ),
-            if (c.isFavorite) Padding(padding: const EdgeInsets.only(right: 6), child: Icon(LucideIcons.star, key: ValueKey('favorite-${c.id}'), size: 16, color: AppColors.textMuted(context))),
             Icon(editable ? LucideIcons.chevronRight : LucideIcons.pencil, size: 18, color: AppColors.textMuted(context)),
             // "Khác" là chỗ rơi cuối của phân loại nên không ẩn được.
             if (!editable && (c.isHidden || c.slug != 'other'))

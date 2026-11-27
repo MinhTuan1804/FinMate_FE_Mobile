@@ -44,6 +44,35 @@ void main() {
     expect(find.text('Từ chối'), findsOneWidget);
   });
 
+  testWidgets('trả góp: hiện tiến độ BE tính; Đã trả kỳ này gọi payments, Tất toán hỏi lại rồi gọi settle', (tester) async {
+    final installment = {
+      'id': 'i1', 'direction': 'outflow', 'name': 'Trả góp xe', 'amountCents': 1200000, 'cadence': 'monthly',
+      'nextDueDate': '2026-12-15', 'status': 'active', 'source': 'manual', 'occurrences': 0,
+      'totalOccurrences': 12, 'paidOccurrences': 9, 'remainingOccurrences': 3, 'remainingAmountCents': 3600000, 'finalDueDate': '2027-02-15',
+    };
+    final calls = <String>[];
+    final adapter = RouteAdapter((o) {
+      if (o.path.contains('/financial-accounts')) return respondJson({'success': true, 'data': []});
+      if (o.method == 'POST') {
+        calls.add(o.path.split('/').last);
+        return respondJson({'success': true, 'data': installment});
+      }
+      return respondJson({'success': true, 'data': [installment]});
+    });
+    await pumpScreen(tester, adapter);
+
+    expect(find.textContaining('Đã trả 9/12 kỳ · còn 3.600.000'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('mark-paid-i1')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('settle-i1')));
+    await tester.pumpAndSettle();
+    expect(calls, ['payments'], reason: 'tất toán chưa xác nhận');
+    await tester.tap(find.byKey(const ValueKey('confirm-settle')));
+    await tester.pumpAndSettle();
+
+    expect(calls, ['payments', 'settle']);
+  });
+
   testWidgets('xác nhận đề xuất: gọi POST /confirm rồi tải lại danh sách', (tester) async {
     var confirms = 0;
     final adapter = RouteAdapter((o) {

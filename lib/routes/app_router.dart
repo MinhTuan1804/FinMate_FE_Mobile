@@ -41,6 +41,7 @@ import 'package:finmate/features/subscriptions/presentation/screens/subscription
 import 'package:finmate/features/categories/presentation/screens/categories_screen.dart';
 import 'package:finmate/features/recurring/presentation/screens/recurring_items_screen.dart';
 import 'package:finmate/features/groups/presentation/screens/create_bill_screen.dart';
+import 'package:finmate/features/groups/presentation/screens/group_bill_detail_screen.dart';
 import 'package:finmate/features/groups/presentation/screens/group_approvals_screen.dart';
 import 'package:finmate/features/groups/presentation/screens/groups_screen.dart';
 import 'package:finmate/features/groups/presentation/screens/i2_create_group_screen.dart';
@@ -57,11 +58,14 @@ import 'package:finmate/features/forecast/presentation/screens/forecast_settings
 import 'package:finmate/features/assistant/presentation/screens/ai_memory_screen.dart';
 import 'package:finmate/features/planning/domain/entities/savings_goal_entity.dart';
 import 'package:finmate/features/planning/presentation/screens/loans_screen.dart';
+import 'package:finmate/features/planning/presentation/screens/loan_detail_screen.dart';
 import 'package:finmate/features/planning/presentation/screens/recurring_transactions_screen.dart';
 import 'package:finmate/features/planning/presentation/screens/savings_goal_detail_screen.dart';
 import 'package:finmate/features/transactions/domain/entities/transaction_entity.dart';
 import 'package:finmate/features/transactions/presentation/screens/receipt_scanner_screen.dart';
 import 'package:finmate/features/transactions/presentation/screens/transaction_detail_screen.dart';
+import 'package:finmate/features/transactions/presentation/screens/transaction_detail_by_id_screen.dart';
+import 'package:finmate/features/accounts/presentation/screens/battery_guide_screen.dart';
 import 'package:finmate/features/transactions/presentation/screens/transfer_screen.dart';
 import 'package:finmate/features/profile/presentation/screens/appearance_settings_screen.dart';
 import 'package:finmate/features/profile/presentation/screens/backup_export_screen.dart';
@@ -301,6 +305,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => CreateBillScreen(groupId: state.extra as String),
       ),
       GoRoute(
+        path: '/groups/:groupId/bills/:billId',
+        builder: (context, state) => GroupBillDetailScreen(groupId: state.pathParameters['groupId']!, billId: state.pathParameters['billId']!),
+      ),
+      GoRoute(
         path: '/group-approvals',
         builder: (context, state) => GroupApprovalsScreen(groupId: state.extra as String),
       ),
@@ -331,6 +339,15 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/transaction-detail',
         builder: (context, state) => TransactionDetailScreen(transaction: state.extra as TransactionEntity),
+      ),
+      GoRoute(
+        path: '/battery-guide',
+        builder: (context, state) => BatteryGuideScreen(manufacturer: state.extra as String?),
+      ),
+      GoRoute(
+        // Mở từ push chỉ có id (nghi trùng, hoàn tiền, chuyển ví, khoản vay)
+        path: '/transaction/:id',
+        builder: (context, state) => TransactionDetailByIdScreen(transactionId: state.pathParameters['id']!),
       ),
       GoRoute(
         path: '/transfer',
@@ -371,6 +388,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/planning/loans',
         builder: (context, state) => const LoansScreen(),
+      ),
+      GoRoute(
+        path: '/planning/loans/:id',
+        builder: (context, state) => LoanDetailScreen(loanId: state.pathParameters['id']!),
       ),
       GoRoute(
         path: '/profile/edit',

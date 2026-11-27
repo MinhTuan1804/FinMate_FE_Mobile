@@ -6,6 +6,33 @@ import 'package:finmate/features/assistant/domain/assistant_models.dart';
 import '../../fixtures/fixture.dart';
 
 void main() {
+  group('suggestions', () {
+    test('getSuggestions gọi GET /assistant/suggestions và đọc key/text', () async {
+      final adapter = RouteAdapter((o) => respondFixture('assistant_suggestions'));
+      final repo = AssistantRepository(apiClient: testApiClient(adapter));
+
+      final list = await repo.getSuggestions();
+
+      expect(adapter.requests.single.method, 'GET');
+      expect(adapter.requests.single.path, '/api/v1/assistant/suggestions');
+      expect(list.map((s) => s.key), ['add_coffee', 'spent_month', 'spent_today', 'goal_progress']);
+      expect(list.first.text, 'Hôm nay mình uống cà phê 35k');
+    });
+
+    test('BE trả rỗng hoặc mục không có chữ: bỏ các mục trống, không ném', () async {
+      final adapter = RouteAdapter((o) => respondJson({
+            'success': true,
+            'data': [
+              {'key': 'a', 'text': '  '},
+              {'key': 'b', 'text': 'Có chữ'},
+            ],
+          }));
+      final repo = AssistantRepository(apiClient: testApiClient(adapter));
+
+      expect((await repo.getSuggestions()).map((s) => s.key), ['b']);
+    });
+  });
+
   group('chat', () {
     test('gửi đúng đường dẫn và body (bỏ khóa null) và đọc action saved', () async {
       final adapter = RouteAdapter((o) => respondFixture('chat_saved'));

@@ -194,7 +194,20 @@ class NotificationsInboxScreen extends ConsumerWidget {
                           final path = routeForInboxType(item.type);
                           if (path != null) context.push(path);
                         },
-                        onDismiss: () => controller.delete(item.id),
+                        onDismiss: () async {
+                          final ok = await showDialog<bool>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: const Text('Xóa thông báo này?'),
+                              content: const Text('Bạn có chắc chắn muốn xóa thông báo này không? Không thể khôi phục lại.'),
+                              actions: [
+                                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
+                                TextButton(key: const ValueKey('confirm-delete-notification'), onPressed: () => Navigator.pop(ctx, true), child: const Text('Xóa')),
+                              ],
+                            ),
+                          );
+                          if (ok == true) await controller.delete(item.id);
+                        },
                       ),
                     );
                   },

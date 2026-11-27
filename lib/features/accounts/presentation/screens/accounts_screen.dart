@@ -6,6 +6,9 @@ import 'package:finmate/core/network/api_exceptions.dart';
 import 'package:finmate/core/theme/app_colors.dart';
 import 'package:finmate/core/theme/app_spacing.dart';
 import 'package:finmate/core/theme/app_typography.dart';
+import 'package:finmate/features/accounts/data/data_coverage_repository.dart';
+import 'package:finmate/features/accounts/domain/data_coverage.dart';
+import 'package:finmate/features/accounts/presentation/widgets/data_coverage_banner.dart';
 import 'package:finmate/features/accounts/domain/financial_account.dart';
 import 'package:finmate/features/accounts/presentation/controllers/accounts_controller.dart';
 import 'package:finmate/core/widgets/async_action_builder.dart';
@@ -77,6 +80,9 @@ class AccountsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final accountsState = ref.watch(accountsControllerProvider);
+    // Chỉ là thông tin phụ: chưa tải xong hoặc lỗi thì không hiện gì, màn hình vẫn dùng bình thường.
+    final coverage = ref.watch(dataCoverageProvider).valueOrNull;
+    final banner = coverage == null ? null : dataCoverageBanner(context, coverage);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Tài khoản & ví')),
@@ -89,10 +95,12 @@ class AccountsScreen extends ConsumerWidget {
           }
           return ListView.separated(
             padding: const EdgeInsets.all(16),
-            itemCount: accounts.length,
+            itemCount: accounts.length + (banner == null ? 0 : 1),
             separatorBuilder: (_, __) => const SizedBox(height: 12),
-            itemBuilder: (context, i) {
-              final account = accounts[i];
+            itemBuilder: (context, index) {
+              if (banner != null && index == 0) return banner;
+              final account = accounts[index - (banner == null ? 0 : 1)];
+              final note = account.isMonitored ? _coverageNote(context, coverage?.forAccount(account.id)) : null;
               return Container(
                 key: ValueKey('account-${account.id}'),
                 padding: const EdgeInsets.all(16),
@@ -120,6 +128,7 @@ class AccountsScreen extends ConsumerWidget {
                         Text(formatVnd(account.balanceCents), style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w600)),
                       ],
                     ),
+                    if (note != null) ...[const SizedBox(height: 8), note],
                     const SizedBox(height: 8),
                     Row(
                       children: [
@@ -172,6 +181,32 @@ class AccountsScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// Ghi chú dưới một ví đang theo dõi khi BE thấy nó im lặng bất thường hoặc chưa đồng bộ kịp. `ok`, ví ít dùng
+/// (`notEnoughData`) và trạng thái chưa rõ không hiện gì: không báo động vô cớ.
+Widget? _coverageNote(BuildContext context, AccountCoverage? coverage) {
+  if (coverage == null) return null;
+  final String text;
+  switch (coverage.status) {
+    case AccountCoverageStatus.silent:
+      text = coverage.notificationsOff
+          ? 'Không thấy thông báo từ ${coverage.silentDays} ngày. Thông báo của app này đang tắt trên máy, hãy bật lại.'
+          : 'Không thấy thông báo từ ${coverage.silentDays} ngày. Kiểm tra app ngân hàng còn bật thông báo không.';
+    case AccountCoverageStatus.uploadGap:
+      text = 'Máy đã nhận thông báo của ví này nhưng chưa đồng bộ lên FinMate. Mở app để đồng bộ.';
+    case AccountCoverageStatus.ok || AccountCoverageStatus.notEnoughData || AccountCoverageStatus.unknown:
+      return null;
+  }
+  return Row(
+    key: ValueKey('coverage-note-${coverage.accountId}'),
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Icon(LucideIcons.triangleAlert, size: 16, color: AppColors.warning),
+      const SizedBox(width: 6),
+      Expanded(child: Text(text, style: AppTypography.caption(context))),
+    ],
+  );
 }
 
 /// Dialog đổi tên tài khoản — TextEditingController do CHÍNH State của dialog sở hữu, chỉ dispose

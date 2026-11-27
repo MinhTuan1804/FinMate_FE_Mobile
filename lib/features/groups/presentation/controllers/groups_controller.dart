@@ -118,6 +118,11 @@ final groupBillsProvider =
   return CursorPager((cursor) => repo.getBills(groupId, cursor: cursor));
 });
 
+/// Chi tiết một hóa đơn nhóm (kèm phần chia từng người); khóa là (groupId, billId).
+final groupBillDetailProvider = FutureProvider.autoDispose.family<GroupBillEntity, (String groupId, String billId)>(
+  (ref, key) => ref.watch(groupDebtsRepositoryProvider).getBill(key.$1, key.$2),
+);
+
 /// Số nợ ròng từng thành viên và gợi ý cấn trừ.
 final groupBalancesProvider = FutureProvider.autoDispose.family<GroupBalancesEntity, String>(
   (ref, groupId) => ref.watch(groupDebtsRepositoryProvider).getBalances(groupId),

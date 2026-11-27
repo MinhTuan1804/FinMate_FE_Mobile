@@ -109,8 +109,16 @@ class PlanningController extends StateNotifier<AsyncValue<PlanningState>> {
     required String title,
     required BigInt targetAmountCents,
     DateTime? targetDate,
+    bool isDraft = false,
+    String? marketTopic,
   }) async {
-    final id = await repository.createGoal(name: title, targetCents: targetAmountCents, deadline: targetDate);
+    final id = await repository.createGoal(
+      name: title,
+      targetCents: targetAmountCents,
+      deadline: targetDate,
+      isDraft: isDraft,
+      marketTopic: marketTopic,
+    );
     await loadPlanningData(silent: true);
     return id;
   }
@@ -139,8 +147,20 @@ class PlanningController extends StateNotifier<AsyncValue<PlanningState>> {
   }
 
   /// Sửa tên/hạn mức/hạn chót của mục tiêu
-  Future<void> updateGoal({required String id, required String name, required BigInt targetCents, DateTime? deadline}) async {
-    await repository.updateGoal(id: id, name: name, targetCents: targetCents, deadline: deadline);
+  Future<void> updateGoal({
+    required String id,
+    required String name,
+    required BigInt targetCents,
+    DateTime? deadline,
+    String? marketTopic,
+  }) async {
+    await repository.updateGoal(id: id, name: name, targetCents: targetCents, deadline: deadline, marketTopic: marketTopic);
+    await loadPlanningData(silent: true);
+  }
+
+  /// Kích hoạt một bản nháp thành mục tiêu đang chạy.
+  Future<void> activateGoal(String id) async {
+    await repository.activateGoal(id);
     await loadPlanningData(silent: true);
   }
 

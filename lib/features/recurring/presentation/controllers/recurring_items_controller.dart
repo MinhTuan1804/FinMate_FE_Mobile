@@ -39,6 +39,8 @@ class RecurringItemsController extends StateNotifier<AsyncValue<List<RecurringIt
     required DateTime nextDueDate,
     String? categoryId,
     String? financialAccountId,
+    int? totalOccurrences,
+    int? prepaidOccurrences,
   }) async {
     final created = await repository.createItem(
       direction: direction,
@@ -49,6 +51,8 @@ class RecurringItemsController extends StateNotifier<AsyncValue<List<RecurringIt
       nextDueDate: nextDueDate,
       categoryId: categoryId,
       financialAccountId: financialAccountId,
+      totalOccurrences: totalOccurrences,
+      prepaidOccurrences: prepaidOccurrences,
     );
     await load();
     return created;
@@ -82,6 +86,16 @@ class RecurringItemsController extends StateNotifier<AsyncValue<List<RecurringIt
 
   Future<void> reject(String id) async {
     await repository.reject(id);
+    await load();
+  }
+
+  Future<void> markPaid(String id) async {
+    await repository.markPaid(id);
+    await load();
+  }
+
+  Future<void> settle(String id) async {
+    await repository.settle(id);
     await load();
   }
 

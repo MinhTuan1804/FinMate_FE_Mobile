@@ -22,12 +22,13 @@ import 'package:finmate/shared/widgets/glass/glass_filter_chip.dart';
 import 'package:finmate/shared/widgets/glass/glass_loading_spinner.dart';
 import 'package:finmate/shared/widgets/glass/glass_progress_bar.dart';
 
-enum _GoalFilter { all, active, completed, cancelled }
+enum _GoalFilter { all, active, draft, completed, cancelled }
 
 extension on _GoalFilter {
   String get label => switch (this) {
     _GoalFilter.all => 'Tất cả',
     _GoalFilter.active => 'Đang chạy',
+    _GoalFilter.draft => 'Bản nháp',
     _GoalFilter.completed => 'Hoàn thành',
     _GoalFilter.cancelled => 'Đã hủy',
   };
@@ -35,8 +36,9 @@ extension on _GoalFilter {
   bool matches(SavingsGoalEntity g) => switch (this) {
     _GoalFilter.all => true,
     _GoalFilter.cancelled => g.isCancelled,
-    _GoalFilter.completed => !g.isCancelled && g.isCompleted,
-    _GoalFilter.active => !g.isCancelled && !g.isCompleted,
+    _GoalFilter.draft => g.isDraft,
+    _GoalFilter.completed => !g.isCancelled && !g.isDraft && g.isCompleted,
+    _GoalFilter.active => !g.isCancelled && !g.isDraft && !g.isCompleted,
   };
 }
 
@@ -86,6 +88,12 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
 
     final ok = await _run(() => ref.read(planningControllerProvider.notifier).cancelGoal(goal.id).then((_) => true));
     if (ok == true) _snack('Đã hủy mục tiêu');
+  }
+
+  /// Kích hoạt bản nháp. BE từ chối khi hạn chót đã qua (SAVING_GOAL_DEADLINE_PASSED): thông điệp của BE nói rõ phải sửa hạn trước.
+  Future<void> _activate(SavingsGoalEntity goal) async {
+    final ok = await _run(() => ref.read(planningControllerProvider.notifier).activateGoal(goal.id).then((_) => true));
+    if (ok == true) _snack('Đã kích hoạt mục tiêu "${goal.title}".');
   }
 
   Future<void> _contribute(SavingsGoalEntity goal) async {
@@ -157,7 +165,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       children: [
-        if (goals.any((g) => !g.isCancelled)) _SummaryCard(goals: goals),
+        if (goals.any((g) => !g.isCancelled && !g.isDraft)) _SummaryCard(goals: goals),
         if (filters.length > 1) ...[
           const SizedBox(height: 16),
           SingleChildScrollView(
@@ -185,6 +193,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
               goal: g,
               onContribute: () => _contribute(g),
               onCancel: () => _cancelGoal(g),
+              onActivate: () => _activate(g),
             ),
           ),
       ],
@@ -223,7 +232,8 @@ class _SummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final counted = goals.where((g) => !g.isCancelled).toList();
+    // Bản nháp không tính vào kế hoạch nên cũng không tính vào tổng.
+    final counted = goals.where((g) => !g.isCancelled && !g.isDraft).toList();
     var saved = BigInt.zero;
     var target = BigInt.zero;
     for (final g in counted) {
@@ -301,14 +311,15 @@ class _GoalCard extends StatelessWidget {
   final SavingsGoalEntity goal;
   final VoidCallback onContribute;
   final VoidCallback onCancel;
+  final VoidCallback onActivate;
 
-  const _GoalCard({required this.goal, required this.onContribute, required this.onCancel});
+  const _GoalCard({required this.goal, required this.onContribute, required this.onCancel, required this.onActivate});
 
   @override
   Widget build(BuildContext context) {
     final percent = goal.progressPercentage;
-    final label = goal.isCancelled ? 'Đã hủy' : goal.statusLabel();
-    final color = goal.isCancelled
+    final label = goal.isCancelled ? 'Đã hủy' : (goal.isDraft ? 'Bản nháp' : goal.statusLabel());
+    final color = goal.isCancelled || goal.isDraft
         ? GlassColors.textMuted
         : goal.isCompleted
         ? GlassColors.success
@@ -320,7 +331,7 @@ class _GoalCard extends StatelessWidget {
         : goal.isCompleted
         ? GlassProgressState.success
         : GlassProgressState.normal;
-    final canContribute = !goal.isCompleted && !goal.isCancelled;
+    final canContribute = !goal.isCompleted && !goal.isCancelled && !goal.isDraft;
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -387,10 +398,13 @@ class _GoalCard extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: GlassSecondaryButton(
-                    label: 'Nạp tiền vào mục tiêu',
-                    onPressed: canContribute ? onContribute : null,
-                  ),
+                  child: goal.isDraft
+                      // Bản nháp chưa nạp tiền được: nút chính là kích hoạt (BE kiểm hạn chót).
+                      ? GlassSecondaryButton(key: ValueKey('activate-goal-${goal.id}'), label: 'Kích hoạt mục tiêu', onPressed: onActivate)
+                      : GlassSecondaryButton(
+                          label: 'Nạp tiền vào mục tiêu',
+                          onPressed: canContribute ? onContribute : null,
+                        ),
                 ),
                 const SizedBox(width: 4),
                 IconButton(
@@ -402,7 +416,7 @@ class _GoalCard extends StatelessWidget {
                   icon: Icon(LucideIcons.pencil, size: 18, color: GlassColors.slateAnchor),
                   onPressed: () => context.push('/planning/goals/form', extra: goal),
                 ),
-                if (goal.status == 'active')
+                if (goal.status == 'active' || goal.isDraft)
                   IconButton(
                     key: ValueKey('cancel-goal-${goal.id}'),
                     tooltip: 'Hủy mục tiêu',

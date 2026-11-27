@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:finmate/core/network/api_client.dart';
 import 'package:finmate/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:finmate/features/planning/domain/entities/budget_entity.dart';
+import 'package:finmate/features/planning/domain/entities/market_topic.dart';
 import 'package:finmate/features/planning/domain/entities/savings_goal_entity.dart';
 
 final planningRepositoryProvider = Provider<PlanningRepository>(
@@ -9,6 +10,17 @@ final planningRepositoryProvider = Provider<PlanningRepository>(
 );
 
 /// Ngân sách và mục tiêu tiết kiệm. Không có dữ liệu mẫu: lỗi được ném lại cho màn hình.
+/// Giá thị trường mà mục tiêu có thể theo, cho form tạo/sửa mục tiêu. Chỉ là phần thêm nên lỗi (mất mạng, 4xx, 5xx) cho ra
+/// danh sách rỗng: form vẫn dùng được và không hiện lựa chọn "theo giá".
+final marketTopicsProvider = FutureProvider.autoDispose<List<MarketTopic>>((ref) async {
+  if (ref.watch(currentUserIdProvider) == null) return const <MarketTopic>[];
+  try {
+    return await ref.watch(planningRepositoryProvider).getMarketTopics();
+  } on Object {
+    return const <MarketTopic>[];
+  }
+});
+
 class PlanningRepository {
   final ApiClient apiClient;
 
@@ -75,14 +87,23 @@ class PlanningRepository {
     return (response.data ?? const <SavingsGoalEntity>[]).where((g) => !g.isCancelled).toList();
   }
 
-  /// Trả id mục tiêu vừa tạo (null nếu backend không trả) để app hoàn tác hoặc đổi hạn sau đó
-  Future<String?> createGoal({required String name, required BigInt targetCents, DateTime? deadline}) async {
+  /// Trả id mục tiêu vừa tạo (null nếu backend không trả) để app hoàn tác hoặc đổi hạn sau đó.
+  /// [isDraft]: lưu bản nháp (chưa tính vào kế hoạch, chưa nạp tiền được). [marketTopic]: mã chủ đề giá thị trường để theo.
+  Future<String?> createGoal({
+    required String name,
+    required BigInt targetCents,
+    DateTime? deadline,
+    bool isDraft = false,
+    String? marketTopic,
+  }) async {
     final response = await apiClient.post(
       '/api/v1/saving-goals',
       data: {
         'name': name,
         'targetCents': targetCents.toInt(),
         if (deadline != null) 'deadline': deadline.toUtc().toIso8601String(),
+        if (isDraft) 'isDraft': true,
+        if (marketTopic != null) 'marketTopic': marketTopic,
       },
       fromJsonT: (json) => json is Map ? json['id'] as String? : null,
     );
@@ -102,18 +123,44 @@ class PlanningRepository {
     return response.data!;
   }
 
-  /// Sửa tên/hạn mức/hạn chót của mục tiêu
-  Future<SavingsGoalEntity> updateGoal({required String id, required String name, required BigInt targetCents, DateTime? deadline}) async {
+  /// Sửa tên/hạn mức/hạn chót của mục tiêu. [marketTopic]: null = giữ nguyên, chuỗi rỗng = bỏ theo giá, mã = theo giá đó.
+  Future<SavingsGoalEntity> updateGoal({
+    required String id,
+    required String name,
+    required BigInt targetCents,
+    DateTime? deadline,
+    String? marketTopic,
+  }) async {
     final response = await apiClient.patch(
       '/api/v1/saving-goals/$id',
       data: {
         'name': name,
         'targetCents': targetCents.toInt(),
         'deadline': deadline?.toUtc().toIso8601String(),
+        if (marketTopic != null) 'marketTopic': marketTopic,
       },
       fromJsonT: (json) => SavingsGoalEntity.fromJson(json as Map<String, dynamic>),
     );
     return response.data!;
+  }
+
+  /// Biến bản nháp thành mục tiêu đang chạy (POST /saving-goals/{id}/activate, không body). BE từ chối khi không phải nháp
+  /// (`SAVING_GOAL_NOT_DRAFT`) hoặc hạn chót đã qua (`SAVING_GOAL_DEADLINE_PASSED`: sửa hạn trước).
+  Future<SavingsGoalEntity> activateGoal(String id) async {
+    final response = await apiClient.post(
+      '/api/v1/saving-goals/$id/activate',
+      fromJsonT: (json) => SavingsGoalEntity.fromJson(json as Map<String, dynamic>),
+    );
+    return response.data!;
+  }
+
+  /// Giá thị trường mà mục tiêu có thể theo (chỉ chủ đề đang bật và đã có giá xác nhận; có thể rỗng).
+  Future<List<MarketTopic>> getMarketTopics() async {
+    final response = await apiClient.get(
+      '/api/v1/saving-goals/market-topics',
+      fromJsonT: (json) => (json as List).map((e) => MarketTopic.fromJson(e as Map<String, dynamic>)).toList(),
+    );
+    return response.data ?? const <MarketTopic>[];
   }
 
   /// Hủy một mục tiêu đang theo đuổi (không xóa, chỉ chuyển trạng thái)

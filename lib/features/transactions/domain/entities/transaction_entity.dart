@@ -1,4 +1,5 @@
 import 'package:finmate/core/format/money.dart';
+import 'package:finmate/features/transactions/domain/entities/transaction_links.dart';
 
 enum TransactionType {
   income('Credit'),
@@ -56,6 +57,9 @@ class TransactionEntity {
   /// Không lưu cục bộ (giống receiptScanId/receiptGroup) vì tính năng Nhóm cần mạng.
   final String? groupId;
 
+  /// Trường chỉ có từ server (mục tiêu, hoàn/đảo, nghi trùng, gợi ý chuyển ví, quỹ nhóm). Không lưu cục bộ.
+  final TransactionLinks links;
+
   const TransactionEntity({
     required this.id,
     required this.amountCents,
@@ -75,6 +79,7 @@ class TransactionEntity {
     this.receiptScanId,
     this.receiptGroup,
     this.groupId,
+    this.links = TransactionLinks.none,
   });
 
   /// Factory cho chuyển khoản nội bộ giữa 2 tài khoản (BR-26, BR-27)
@@ -155,6 +160,7 @@ class TransactionEntity {
           : parseCents(json['balanceAfterCents']),
       source: json['source'] as String? ?? 'Manual',
       groupId: json['groupId'] as String?,
+      links: TransactionLinks.fromJson(json),
     );
   }
 
@@ -176,6 +182,7 @@ class TransactionEntity {
     String? source,
     String? receiptScanId,
     String? receiptGroup,
+    TransactionLinks? links,
   }) {
     return TransactionEntity(
       id: id ?? this.id,
@@ -196,6 +203,7 @@ class TransactionEntity {
       receiptScanId: receiptScanId ?? this.receiptScanId,
       receiptGroup: receiptGroup ?? this.receiptGroup,
       groupId: groupId,
+      links: links ?? this.links,
     );
   }
 
@@ -220,5 +228,6 @@ class TransactionEntity {
     receiptScanId: receiptScanId,
     receiptGroup: receiptGroup,
     groupId: groupId,
+    links: links,
   );
 }

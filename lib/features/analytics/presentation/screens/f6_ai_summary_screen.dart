@@ -114,7 +114,7 @@ class F6AiSummaryScreen extends ConsumerWidget {
             children: [
               Expanded(child: _statColumn('Thu nhập', formatVnd(summary.totalIncomeCents), GlassColors.success)),
               Expanded(child: _statColumn('Chi tiêu', formatVnd(summary.totalSpentCents), GlassColors.danger)),
-              Expanded(child: _statColumn('Số dư ròng', formatVnd(summary.netCents), GlassColors.textPrimary)),
+              Expanded(child: _statColumn('Số dư thay đổi', formatVnd(summary.cashFlow?.netCents ?? summary.netCents), GlassColors.textPrimary)),
             ],
           ),
         ],

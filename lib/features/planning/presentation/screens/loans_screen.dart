@@ -41,6 +41,7 @@ class _LoansScreenState extends ConsumerState<LoansScreen> {
     try {
       await action();
       ref.invalidate(loansProvider);
+      ref.invalidate(loansSummaryProvider);
       _toast(successText);
     } catch (e) {
       _toast(errorMessage(e), error: true);
@@ -168,7 +169,11 @@ class _LoansScreenState extends ConsumerState<LoansScreen> {
 
   List<Widget> _content(BuildContext context, List<LoanItem> filtered) {
     // Khoản đã xoá nợ (written_off) có thể còn remainingCents > 0 nhưng không còn "cần trả"/"cần thu hồi".
-    final total = filtered.fold(BigInt.zero, (sum, l) => sum + (l.isClosed ? BigInt.zero : l.remainingCents));
+    final localTotal = filtered.fold(BigInt.zero, (sum, l) => sum + (l.isClosed ? BigInt.zero : l.remainingCents));
+    // Tổng và phần quá hạn do BE tính (GET /loans/summary); chưa có hoặc lỗi thì dùng số cộng từ danh sách, không có dòng quá hạn.
+    final summary = ref.watch(loansSummaryProvider).valueOrNull;
+    final total = summary == null ? localTotal : (_selectedTab == 0 ? summary.iOweCents : summary.owedToMeCents);
+    final overdue = summary == null ? BigInt.zero : (_selectedTab == 0 ? summary.overdueIOweCents : summary.overdueOwedToMeCents);
     return [
       ZenvestHeroDeck(
         peekBadgeText: _selectedTab == 0 ? 'DEBT' : 'LOAN',
@@ -191,6 +196,22 @@ class _LoansScreenState extends ConsumerState<LoansScreen> {
                   fontWeight: FontWeight.w800,
                   color: _selectedTab == 0 ? AppColors.danger : AppColors.safe, fontVariations: [FontVariation('wght', FontWeight.w800.value.toDouble())]),
               ),
+              if (overdue > BigInt.zero) ...[
+                const SizedBox(height: 6),
+                Row(
+                  key: const ValueKey('loans-overdue'),
+                  children: [
+                    const Icon(LucideIcons.triangleAlert, size: 14, color: AppColors.danger),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        'Đã quá hạn: ${formatVnd(overdue)}',
+                        style: AppTypography.caption(context).copyWith(fontWeight: FontWeight.w700, color: AppColors.danger),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 10),
               Text('Theo dõi tiến độ trả nợ gốc. Lãi suất chỉ để ghi nhớ, chưa tự tính vào số còn lại.', style: AppTypography.caption(context)),
             ],
@@ -231,7 +252,10 @@ class _LoansScreenState extends ConsumerState<LoansScreen> {
       child: LiquidGlassCard(
         variant: LiquidGlassVariant.subtle, // dòng trong list: không blur từng item
         padding: const EdgeInsets.all(18),
-        child: Column(
+        child: InkWell(
+          key: ValueKey('open-loan-${loan.id}'),
+          onTap: () => context.push('/planning/loans/${loan.id}'),
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
@@ -324,6 +348,7 @@ class _LoansScreenState extends ConsumerState<LoansScreen> {
               ],
             ),
           ],
+        ),
         ),
       ),
     );

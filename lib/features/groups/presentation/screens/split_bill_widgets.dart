@@ -193,7 +193,7 @@ class GroupBillsTab extends ConsumerWidget {
               );
             }
             return Column(children: [
-              for (final b in bills) _BillTile(bill: b),
+              for (final b in bills) _BillTile(bill: b, groupId: groupId),
               CursorPagerFooter(pager: ref.read(groupBillsProvider(groupId).notifier), auto: false),
             ]);
           },
@@ -205,13 +205,17 @@ class GroupBillsTab extends ConsumerWidget {
 
 class _BillTile extends StatelessWidget {
   final GroupBillEntity bill;
-  const _BillTile({required this.bill});
+  final String groupId;
+  const _BillTile({required this.bill, required this.groupId});
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: GlassCard(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => context.push('/groups/$groupId/bills/${bill.id}'),
+        child: GlassCard(
         key: ValueKey('bill-${bill.id}'),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -229,6 +233,7 @@ class _BillTile extends StatelessWidget {
             ),
             if (bill.note != null && bill.note!.isNotEmpty) Text(bill.note!, style: GlassTypography.bodySm()),
           ],
+        ),
         ),
       ),
     );

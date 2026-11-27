@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:finmate/features/assistant/data/assistant_repository.dart';
+import 'package:finmate/features/assistant/domain/agent_answer.dart';
 import 'package:finmate/features/assistant/domain/assistant_models.dart';
 import 'package:finmate/features/assistant/presentation/controllers/assistant_controller.dart';
 import 'package:finmate/features/assistant/presentation/widgets/chat_cards.dart';
@@ -34,6 +35,10 @@ class _Repo extends AssistantRepository {
 
   @override
   Future<ChatReply> chat(String text, {String? accountId, String? clientRequestId, Map<String, dynamic>? itemContext}) async => ChatReply.fromJson(_chatJson);
+
+  /// Trợ lý trước, chat dự phòng: ở đây trợ lý không trả lời được, để thẻ khoản định mua của chat (cái đang được thử) hiện ra.
+  @override
+  Future<AgentAnswer> askAgent(String question) async => const AgentAnswer(status: AgentAnswer.insufficientData);
 
   @override
   Future<PurchaseAssessment> purchaseCheck(PurchaseDraft draft) async {

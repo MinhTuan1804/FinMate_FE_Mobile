@@ -1,6 +1,7 @@
 package com.finmate.app.notifications
 
 import android.content.Context
+import android.os.Build
 import java.io.File
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -17,6 +18,25 @@ class NotificationRuntime private constructor(context: Context) {
     val monitored = MonitoredPackages(context)
     val refresher = TokenRefresher(store, UrlConnectionRefreshHttp())
     private val sender = NotificationSender(queue, store, refresher, UrlConnectionAnalyzeHttp())
+    val statusStore: ListenerStatusStore = SharedPrefsListenerStatusStore(context)
+    val listenerStatus = ListenerStatusReporter(
+        session = store,
+        refresher = refresher,
+        monitoredPackages = { monitored.all() },
+        statusStore = statusStore,
+        http = UrlConnectionListenerStatusHttp(),
+        device = {
+            DeviceFacts(
+                permissionGranted = isNotificationAccessEnabled(context),
+                appVersion = try {
+                    context.packageManager.getPackageInfo(context.packageName, 0).versionName
+                } catch (e: Exception) {
+                    null
+                },
+                manufacturer = Build.MANUFACTURER,
+            )
+        },
+    )
 
     // Đơn luồng: drain đã @Synchronized nên chạy song song cũng chỉ xếp hàng chờ.
     private val drainExecutor: ExecutorService = Executors.newSingleThreadExecutor()
@@ -27,6 +47,17 @@ class NotificationRuntime private constructor(context: Context) {
                 sender.drain()
             } catch (e: Exception) {
                 // Không log: lỗi có thể chứa nội dung thông báo. Mục còn trong hàng đợi, lần sau thử lại.
+            }
+        }
+    }
+
+    /** Báo trạng thái listener ngoài luồng gọi (service nối/ngắt chạy trên luồng chính). Lỗi bị nuốt: lần báo hằng ngày sẽ bù. */
+    fun reportListenerStatusAsync(force: Boolean = false) {
+        ioExecutor.execute {
+            try {
+                listenerStatus.report(force)
+            } catch (e: Exception) {
+                // Không log.
             }
         }
     }

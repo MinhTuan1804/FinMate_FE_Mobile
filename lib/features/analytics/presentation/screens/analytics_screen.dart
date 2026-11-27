@@ -18,14 +18,15 @@ import 'package:finmate/shared/widgets/glass/glass_background.dart';
 import 'package:finmate/shared/widgets/glass/glass_badge.dart';
 import 'package:finmate/shared/widgets/glass/glass_bottom_nav.dart';
 import 'package:finmate/shared/widgets/glass/glass_card.dart';
+import 'package:finmate/features/analytics/presentation/widgets/cash_flow_card.dart';
 import 'package:finmate/shared/widgets/glass/glass_progress_bar.dart';
 import 'package:finmate/core/widgets/async_action_builder.dart';
 
 enum _Period { day, week, month, year }
 
 /// F1 — Tổng quan phân tích (Luồng 6, tab "Phân tích"). 2 thẻ Thu nhập/Chi tiêu đổi theo tab
-/// Ngày/Tuần/Tháng/Năm: Tháng dùng `/reports/monthly-summary` (có sẵn %thay đổi so tháng trước),
-/// Ngày/Tuần/Năm cộng dồn qua `/reports/timeline` (không có %thay đổi — BE chưa có kỳ trước để so).
+/// Ngày/Tuần/Tháng/Năm: Tháng dùng `/reports/monthly-summary`, Ngày/Tuần/Năm dùng
+/// `/reports/period-summary`; cả hai trả %thay đổi chi và thu so với kỳ liền trước.
 ///
 /// Thêm 3 lối vào F3 (Dự báo dòng tiền)/F4 (Cảnh báo & bất thường)/F5 (Kiểm tra mua sắm) mà Stitch
 /// F1 không vẽ — roadmap `F1 → [F2|F3→F6|F4|F5]` yêu cầu cả 4 nhánh, nên bổ sung hàng "Công cụ
@@ -63,6 +64,14 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
         return null;
     }
   }
+
+  /// Kỳ được so sánh với kỳ đang xem (BE trả kỳ liền trước dài bằng kỳ này).
+  String get _previousLabel => switch (_period) {
+        _Period.day => 'hôm qua',
+        _Period.week => 'tuần trước',
+        _Period.month => 'tháng trước',
+        _Period.year => 'năm trước',
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -264,9 +273,17 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
         final expenseColor = change == null
             ? GlassColors.textMuted
             : (down ? GlassColors.success : GlassColors.danger);
+        final incomeChange = summary.incomeChangePercent;
+        final incomeDown = incomeChange != null && incomeChange < 0;
+        final incomeColor = incomeChange == null
+            ? GlassColors.textMuted
+            : (incomeDown ? GlassColors.danger : GlassColors.success);
+        final previous = _previousLabel;
+        String changeText(double value) =>
+            '${value < 0 ? '↓' : '↑'} ${NumberFormat('0.#', 'vi_VN').format(value.abs())}% so với $previous';
 
         // IntrinsicHeight + stretch: hai thẻ cao bằng nhau dù chỉ một thẻ có dòng phụ so với kỳ trước.
-        return IntrinsicHeight(
+        final cards = IntrinsicHeight(
           child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -276,8 +293,9 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                 amount: formatVnd(summary.totalIncomeCents),
                 icon: LucideIcons.trendingUp,
                 color: GlassColors.success,
-                // Không có số liệu thu nhập tháng trước ở BE — không bịa % thay đổi.
-                sublabel: null,
+                sublabelColor: incomeColor,
+                // null khi kỳ trước không có thu hoặc BE bản cũ không trả: không bịa % thay đổi.
+                sublabel: incomeChange == null ? null : changeText(incomeChange),
               ),
             ),
             const SizedBox(width: 12),
@@ -288,14 +306,20 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                 icon: down ? LucideIcons.trendingDown : LucideIcons.trendingUp,
                 color: GlassColors.danger,
                 sublabelColor: expenseColor,
-                sublabel: change == null
-                    ? null
-                    : '${down ? '↓' : '↑'} ${NumberFormat('0.#', 'vi_VN').format(change.abs())}% so với tháng trước',
+                sublabel: change == null ? null : changeText(change),
               ),
             ),
           ],
         ),
         );
+        // Dòng tiền chỉ có ở báo cáo tháng (BE Phase 90); tab Ngày/Tuần/Năm chưa có thì giữ như cũ.
+        final cashFlow = summary.cashFlow;
+        if (cashFlow == null) return cards;
+        return Column(children: [
+          cards,
+          const SizedBox(height: 12),
+          CashFlowCard(cashFlow: cashFlow, incomeCents: summary.totalIncomeCents, spentCents: summary.totalSpentCents),
+        ]);
       },
     );
   }
